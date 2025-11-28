@@ -11,7 +11,7 @@ const Footer = () => {
               Clube de Lazer Shangrilá
             </h3>
             <p className="text-white/80">
-              Diversão, lazer e boa comida em um só lugar
+              Seu refúgio familiar com piscina, natureza e quiosques para churrasco — no sistema Day Use
             </p>
           </div>
 
