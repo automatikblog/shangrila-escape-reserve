@@ -52,7 +52,7 @@ const Navbar = () => {
     { label: "Reservas", action: () => scrollToSection("reservas") },
     { label: "Cardápio", action: () => navigate("/cardapio") },
     { label: "Preços", action: () => scrollToSection("precos") },
-    { label: "Instalações", action: () => scrollToSection("instalacoes") },
+    { label: "Instalações", action: () => scrollToSection("sobre") },
     { label: "Contato", action: () => scrollToSection("contato") },
   ];
 

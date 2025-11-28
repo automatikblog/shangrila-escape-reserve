@@ -1,25 +1,107 @@
-import { Waves, Utensils, Baby, Coffee } from "lucide-react";
+import { Waves, Utensils, Baby, Coffee, Flame, Home, Bed, Bird, Trophy } from "lucide-react";
+import galleryPool from "@/assets/gallery-pool.jpg";
+import galleryBBQ from "@/assets/gallery-bbq.jpg";
+import galleryPlayground from "@/assets/gallery-playground.jpg";
+import galleryBathrooms from "@/assets/gallery-bathrooms.jpg";
+import galleryFirepit from "@/assets/gallery-firepit.jpg";
+import galleryPergola from "@/assets/gallery-pergola.jpg";
+import galleryHammocks from "@/assets/gallery-hammocks.jpg";
+import galleryChickens from "@/assets/gallery-chickens.jpg";
+import galleryBilliards from "@/assets/gallery-billiards.jpg";
 
 const features = [
   {
     icon: Waves,
-    title: "Piscina Refrescante",
-    description: "Área de piscina completa para toda a família se divertir",
+    title: "Piscina",
+    description: "Área de piscina refrescante para toda a família",
   },
   {
     icon: Utensils,
-    title: "6 Áreas de Churrasqueira",
-    description: "Espaços equipados para seus churrascos em família",
+    title: "Quiosque/Churrasqueira",
+    description: "6 áreas equipadas para churrascos",
   },
   {
     icon: Baby,
     title: "Playground",
-    description: "Área segura e divertida para as crianças brincarem",
+    description: "Área segura e divertida para as crianças",
   },
   {
-    icon: Coffee,
-    title: "Café & Lanchonete",
-    description: "Deliciosos cafés da manhã e lanches durante todo o dia",
+    icon: Home,
+    title: "Banheiros",
+    description: "Instalações sanitárias masculino e feminino",
+  },
+  {
+    icon: Flame,
+    title: "Fogo de Chão",
+    description: "Espaço para confraternizações ao ar livre",
+  },
+  {
+    icon: Home,
+    title: "Pergolado",
+    description: "Área coberta para descanso e sombra",
+  },
+  {
+    icon: Bed,
+    title: "Redário",
+    description: "Redes coloridas para relaxar",
+  },
+  {
+    icon: Bird,
+    title: "Galinheiro",
+    description: "Contato com a natureza e animais",
+  },
+  {
+    icon: Trophy,
+    title: "Bilhar",
+    description: "Sala de jogos e entretenimento",
+  },
+];
+
+const images = [
+  {
+    src: galleryPool,
+    alt: "Piscina do Clube Shangrilá",
+    title: "Piscina",
+  },
+  {
+    src: galleryBBQ,
+    alt: "Área de quiosque e churrasqueira do Clube Shangrilá",
+    title: "Quiosque/Churrasqueira",
+  },
+  {
+    src: galleryPlayground,
+    alt: "Playground para crianças",
+    title: "Playground",
+  },
+  {
+    src: galleryBathrooms,
+    alt: "Banheiros masculino e feminino",
+    title: "Banheiros",
+  },
+  {
+    src: galleryFirepit,
+    alt: "Fogo de chão do clube",
+    title: "Fogo de Chão",
+  },
+  {
+    src: galleryPergola,
+    alt: "Pergolado do clube",
+    title: "Pergolado",
+  },
+  {
+    src: galleryHammocks,
+    alt: "Redário com redes coloridas",
+    title: "Redário",
+  },
+  {
+    src: galleryChickens,
+    alt: "Galinheiro do clube",
+    title: "Galinheiro",
+  },
+  {
+    src: galleryBilliards,
+    alt: "Sala de bilhar",
+    title: "Bilhar",
   },
 ];
 
@@ -36,7 +118,8 @@ const About = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+        {/* Features Grid */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">
           {features.map((feature, index) => {
             const Icon = feature.icon;
             return (
@@ -56,6 +139,38 @@ const About = () => {
               </div>
             );
           })}
+        </div>
+
+        {/* Gallery Section */}
+        <div className="text-center mb-12">
+          <h3 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">
+            Nossas Instalações
+          </h3>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Veja os espaços que tornam o Shangrilá especial
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {images.map((image, index) => (
+            <div
+              key={index}
+              className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-500 aspect-[4/3]"
+            >
+              <img
+                src={image.src}
+                alt={image.alt}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/30 to-transparent">
+                <div className="absolute bottom-0 left-0 right-0 p-6">
+                  <h3 className="text-white text-2xl font-bold">
+                    {image.title}
+                  </h3>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
