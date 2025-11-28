@@ -30,7 +30,7 @@ const Hero = () => {
           onClick={scrollToReservation}
           className="bg-white text-primary hover:bg-white/90 font-semibold text-lg px-8 py-6 rounded-full shadow-xl hover:scale-105 transition-all duration-300"
         >
-          Reserve sua mesa agora
+          Faça sua Reserva
         </Button>
       </div>
 
