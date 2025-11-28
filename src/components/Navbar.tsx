@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Sheet,
   SheetContent,
@@ -11,6 +12,8 @@ import logoShangrila from "@/assets/logo-shangrila.jpg";
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -21,23 +24,33 @@ const Navbar = () => {
   }, []);
 
   const scrollToSection = (id: string) => {
-    const element = document.getElementById(id);
-    if (element) {
-      const offset = 80; // altura do menu fixo
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - offset;
-
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: "smooth"
-      });
-      setIsOpen(false); // Fecha o menu mobile após clicar
+    if (location.pathname !== "/") {
+      navigate("/");
+      setTimeout(() => {
+        const element = document.getElementById(id);
+        if (element) {
+          const offset = 80;
+          const elementPosition = element.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - offset;
+          window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+        }
+      }, 100);
+    } else {
+      const element = document.getElementById(id);
+      if (element) {
+        const offset = 80;
+        const elementPosition = element.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - offset;
+        window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+      }
     }
+    setIsOpen(false);
   };
 
   const menuItems = [
-    { label: "Início", action: () => window.scrollTo({ top: 0, behavior: "smooth" }) },
+    { label: "Início", action: () => { navigate("/"); window.scrollTo({ top: 0, behavior: "smooth" }); } },
     { label: "Reservas", action: () => scrollToSection("reservas") },
+    { label: "Cardápio", action: () => navigate("/cardapio") },
     { label: "Preços", action: () => scrollToSection("precos") },
     { label: "Instalações", action: () => scrollToSection("instalacoes") },
     { label: "Contato", action: () => scrollToSection("contato") },
