@@ -70,9 +70,7 @@ const Navbar = () => {
           </button>
 
           {/* Desktop Menu */}
-          <div className={`hidden md:flex gap-6 transition-all duration-300 ${
-            isScrolled ? "items-center" : "items-start"
-          }`}>
+          <div className="hidden md:flex items-start gap-6">
             {menuItems.map((item) => (
               <button
                 key={item.label}
