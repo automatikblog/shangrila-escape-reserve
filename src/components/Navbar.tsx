@@ -52,7 +52,9 @@ const Navbar = () => {
       }`}
     >
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-20">
+        <div className={`flex items-center justify-between transition-all duration-300 ${
+          isScrolled ? "h-20" : "h-32 md:h-40"
+        }`}>
           {/* Logo */}
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
@@ -61,8 +63,8 @@ const Navbar = () => {
             <img 
               src={logoShangrila} 
               alt="Shangrilá Clube de Lazer" 
-              className={`w-auto transition-all duration-300 ${
-                isScrolled ? "h-12 md:h-14" : "h-42 md:h-48"
+              className={`w-auto object-contain transition-all duration-300 ${
+                isScrolled ? "h-12 md:h-14" : "h-28 md:h-36"
               }`}
             />
           </button>
