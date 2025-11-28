@@ -55,7 +55,9 @@ const Navbar = () => {
           {/* Logo */}
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="text-xl md:text-2xl font-bold text-white hover:scale-105 transition-transform"
+            className={`text-xl md:text-2xl font-bold hover:scale-105 transition-all ${
+              isScrolled ? "text-foreground" : "text-white"
+            }`}
           >
             Shangrilá
           </button>
@@ -66,7 +68,11 @@ const Navbar = () => {
               <button
                 key={item.label}
                 onClick={item.action}
-                className="text-base font-medium text-white hover:text-white/80 transition-colors px-3 py-2"
+                className={`text-base font-medium transition-colors px-3 py-2 ${
+                  isScrolled 
+                    ? "text-foreground hover:text-primary" 
+                    : "text-white hover:text-white/80"
+                }`}
               >
                 {item.label}
               </button>
@@ -77,7 +83,7 @@ const Navbar = () => {
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild className="md:hidden">
               <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6 text-white" />
+                <Menu className={`h-6 w-6 ${isScrolled ? "text-foreground" : "text-white"}`} />
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px]">
