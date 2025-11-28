@@ -61,7 +61,7 @@ const Navbar = () => {
             <img 
               src={logoShangrila} 
               alt="Shangrilá Clube de Lazer" 
-              className="h-14 md:h-16 w-auto"
+              className="h-42 md:h-48 w-auto"
             />
           </button>
 
