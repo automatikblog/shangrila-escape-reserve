@@ -119,60 +119,60 @@ const Reservas = () => {
             Funcionamento: Sextas, Sábados, Domingos e Feriados das 10h às 18h
           </p>
           
-          {/* Tabela de Preços e Informações */}
-          <div className="mt-8 max-w-3xl mx-auto space-y-6">
-            <div>
-              <h3 className="text-2xl font-bold text-center mb-6">Valores</h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-card border rounded-lg p-4 flex justify-between items-center">
-                  <span className="font-semibold">Entrada do clube</span>
-                  <span className="text-2xl font-bold text-primary">R$ 10</span>
+          {/* Valores e Informações Consolidadas */}
+          <div className="mt-8 max-w-3xl mx-auto">
+            <h3 className="text-2xl font-bold text-center mb-6">Valores</h3>
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="bg-card border rounded-lg p-4 flex justify-between items-center">
+                <span className="font-semibold">Entrada do clube</span>
+                <span className="text-2xl font-bold text-primary">R$ 10</span>
+              </div>
+              <div className="bg-card border rounded-lg p-4 flex justify-between items-center">
+                <span className="font-semibold">Piscina</span>
+                <span className="text-2xl font-bold text-primary">R$ 20</span>
+              </div>
+              <div className="bg-card border rounded-lg p-4 flex justify-between items-center">
+                <span className="font-semibold">Quiosque/Churrasqueira</span>
+                <span className="text-2xl font-bold text-primary">R$ 50</span>
+              </div>
+              <div className="bg-gradient-to-br from-primary/15 to-primary/5 border-2 border-primary rounded-lg p-4">
+                <div className="flex justify-between items-start mb-1.5">
+                  <span className="font-bold text-sm">☕ Café da manhã</span>
+                  <span className="text-2xl font-bold text-primary">R$ 45</span>
                 </div>
-                <div className="bg-card border rounded-lg p-4 flex justify-between items-center">
-                  <span className="font-semibold">Piscina</span>
-                  <span className="text-2xl font-bold text-primary">R$ 20</span>
-                </div>
-                <div className="bg-card border rounded-lg p-4 flex justify-between items-center">
-                  <span className="font-semibold">Quiosque/Churrasqueira</span>
-                  <span className="text-2xl font-bold text-primary">R$ 50</span>
-                </div>
-                <div className="bg-gradient-to-br from-primary/15 to-primary/5 border-2 border-primary rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="font-bold flex items-center gap-1.5">☕ Café da manhã</span>
-                    <span className="text-2xl font-bold text-primary">R$ 45</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-1">📅 Exclusivo aos domingos das 10h às 13h</p>
-                  <p className="text-xs font-medium text-foreground">⚠️ Reserva obrigatória por este formulário</p>
-                </div>
+                <p className="text-xs text-muted-foreground">📅 Domingos 10h-13h</p>
+                <p className="text-xs font-medium text-foreground">⚠️ Reserva obrigatória</p>
               </div>
             </div>
 
-            {/* Informações importantes compactas */}
+            {/* Informações consolidadas */}
             <div className="bg-primary/10 border-2 border-primary/30 rounded-lg p-5">
-              <h4 className="font-bold text-base mb-3 flex items-center gap-2">💰 Informações Importantes</h4>
-              <div className="grid gap-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-primary font-bold">✓</span>
-                  <span><strong>Pagamento na chegada:</strong> Todos os valores são pagos ao chegar ao clube</span>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-bold text-sm mb-2 flex items-center gap-1.5">💰 Informações Importantes</h4>
+                  <ul className="space-y-1.5 text-xs">
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-primary font-bold mt-0.5">✓</span>
+                      <span><strong>Pagamento na chegada</strong> ao clube</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-primary font-bold mt-0.5">✓</span>
+                      <span><strong>Crianças até 6 anos:</strong> gratuito</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-primary font-bold mt-0.5">✓</span>
+                      <span><strong>Acima de 65 anos:</strong> meia-entrada</span>
+                    </li>
+                  </ul>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-primary font-bold">✓</span>
-                  <span><strong>Crianças até 6 anos:</strong> Entrada gratuita</span>
+                <div>
+                  <h4 className="font-bold text-sm mb-2 flex items-center gap-1.5">🎉 Aluguel para Eventos</h4>
+                  <p className="text-xs text-muted-foreground mb-2">Espaço disponível para aniversários e confraternizações</p>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <MessageCircle size={14} className="text-primary flex-shrink-0" />
+                    <span>Dúvidas? <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">WhatsApp</a></span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-primary font-bold">✓</span>
-                  <span><strong>Acima de 65 anos:</strong> Meia-entrada em todos os serviços</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Aluguel para eventos compacto */}
-            <div className="bg-accent/15 border-2 border-accent/40 rounded-lg p-5">
-              <h4 className="font-bold text-base mb-2 flex items-center gap-2">🎉 Aluguel para Eventos</h4>
-              <p className="text-sm text-muted-foreground mb-3">Disponibilizamos o espaço completo para aniversários e confraternizações.</p>
-              <div className="flex items-center justify-center gap-2 text-sm">
-                <MessageCircle size={16} className="text-primary" />
-                <span>Dúvidas? Fale pelo <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">WhatsApp</a></span>
               </div>
             </div>
           </div>
