@@ -5,14 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const Menu = () => {
   const menuSections = [
     {
-      title: "Cachaças Artesanais",
-      items: [
-        { name: "Branca, Carvalho, Côco, Banana, Pequi, Mel c/ Gengibre, Carqueijo, Caju", price: "R$ 6,00" }
-      ]
-    },
-    {
       title: "Cachaças e Aguardentes",
       items: [
+        { name: "Artesanais: Branca, Carvalho, Côco, Banana, Pequi, Mel c/ Gengibre, Carqueijo, Caju", price: "R$ 6,00" },
         { name: "Cabaré", price: "R$ 6,00" },
         { name: "Cachaça 51", price: "R$ 5,00" },
         { name: "Canelinha", price: "R$ 5,00" },
@@ -258,7 +253,7 @@ const Menu = () => {
       </section>
 
       {/* Menu Content */}
-      <section className="py-16 bg-background">
+      <section className="py-16 bg-gradient-to-b from-emerald-900 to-emerald-500">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {menuSections.map((section, idx) => (
