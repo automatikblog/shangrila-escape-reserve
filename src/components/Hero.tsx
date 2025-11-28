@@ -23,7 +23,7 @@ const Hero = () => {
           Clube de Lazer Shangrilá
         </h1>
         <p className="text-xl md:text-3xl mb-8 max-w-3xl mx-auto font-light opacity-95">
-          Diversão, lazer e boa comida em um só lugar
+          Seu refúgio familiar com piscina, natureza e quiosques para churrasco — no sistema Day Use
         </p>
         <Button 
           size="lg" 
