@@ -76,7 +76,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-white/20 pt-8 text-center text-white/70">
-          <p>© {new Date().getFullYear()} Clube de Lazer Shangrilá. Todos os direitos reservados.</p>
+          <p>© 2026 Clube de Lazer Shangrilá. Todos os direitos reservados.</p>
         </div>
       </div>
     </footer>
