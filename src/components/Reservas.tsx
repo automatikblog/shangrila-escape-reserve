@@ -190,10 +190,17 @@ const Reservas = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-8">
-                {/* Calendar */}
+              {/* Nota de Vagas Limitadas */}
+              <div className="bg-destructive/10 border-2 border-destructive/50 rounded-lg p-4 text-center animate-pulse">
+                <p className="text-sm md:text-base font-bold text-destructive">
+                  ⚠️ Vagas Limitadas: Apenas 10 mesas disponíveis por dia
+                </p>
+              </div>
+
+              {/* 1. Selecione a Data */}
+              <div>
+                <Label className="text-lg font-semibold mb-3 block">1. Selecione a Data *</Label>
                 <div className="flex flex-col items-center">
-                  <Label className="mb-2 text-base">Selecione a data *</Label>
                   <Calendar
                     mode="single"
                     selected={date}
@@ -202,7 +209,6 @@ const Reservas = () => {
                     disabled={(date) => {
                       const today = new Date();
                       today.setHours(0, 0, 0, 0);
-                      // Desabilitar datas passadas e dias que não são sexta/sábado/domingo/feriado
                       return date < today || !isDiaDisponivel(date);
                     }}
                     className="rounded-md border"
@@ -218,99 +224,110 @@ const Reservas = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* Form Fields */}
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="name">Nome Completo *</Label>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Seu nome"
-                      required
-                      className="mt-1"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="whatsapp">WhatsApp *</Label>
-                    <Input
-                      id="whatsapp"
-                      value={whatsapp}
-                      onChange={(e) => setWhatsapp(e.target.value)}
-                      placeholder="(00) 00000-0000"
-                      required
-                      className="mt-1"
-                    />
-                    <div className="mt-2 p-3 bg-primary/10 border border-primary/30 rounded-md">
-                      <p className="text-sm font-semibold text-foreground">
-                        📱 Você receberá a confirmação da sua reserva neste WhatsApp
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="tipoReserva">O que você está reservando? *</Label>
-                    <Select value={tipoReserva} onValueChange={setTipoReserva}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Selecione uma opção" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="entrada">Entrada do clube - R$ 10</SelectItem>
-                        <SelectItem value="piscina">Piscina - R$ 20</SelectItem>
-                        <SelectItem value="quiosque">Quiosque/Churrasqueira - R$ 50</SelectItem>
-                        <SelectItem value="cafe">Café da manhã - R$ 45 (Domingos 10h-13h)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="numeroPessoas">Quantas pessoas? *</Label>
-                    <Input
-                      id="numeroPessoas"
-                      type="number"
-                      min="1"
-                      value={numeroPessoas}
-                      onChange={(e) => setNumeroPessoas(e.target.value)}
-                      placeholder="Ex: 4"
-                      required
-                      className="mt-1"
-                    />
-                  </div>
-
-                  {date && (
-                    <div className="p-4 bg-accent/20 rounded-lg">
-                      <p className="text-sm font-medium">Data selecionada:</p>
-                      <p className="text-lg font-semibold text-primary">
-                        {date.toLocaleDateString("pt-BR", {
-                          weekday: "long",
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
-                      </p>
-                    </div>
-                  )}
-
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 text-lg"
-                  >
-                    Confirmar Reserva
-                  </Button>
-
-                  {/* Informações de pagamento abaixo do botão */}
-                  <div className="mt-4 p-4 bg-accent/20 border border-accent rounded-lg space-y-2">
-                    <p className="text-sm font-bold text-foreground flex items-center gap-2">
-                      💳 Informações de Pagamento
+                {date && (
+                  <div className="mt-4 p-4 bg-primary/10 rounded-lg text-center">
+                    <p className="text-sm font-medium">Data selecionada:</p>
+                    <p className="text-lg font-semibold text-primary">
+                      {date.toLocaleDateString("pt-BR", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
                     </p>
-                    <ul className="text-xs space-y-1 text-muted-foreground">
-                      <li>• Pagamento realizado na chegada ao clube</li>
-                      <li>• Crianças até 6 anos: entrada gratuita</li>
-                      <li>• Acima de 65 anos: meia-entrada</li>
-                    </ul>
                   </div>
+                )}
+              </div>
+
+              {/* 2. Escolha o que deseja reservar */}
+              <div>
+                <Label htmlFor="tipoReserva" className="text-lg font-semibold mb-3 block">
+                  2. Escolha o que deseja reservar *
+                </Label>
+                <Select value={tipoReserva} onValueChange={setTipoReserva}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Selecione uma opção" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="entrada">Entrada do clube - R$ 10</SelectItem>
+                    <SelectItem value="piscina">Piscina - R$ 20</SelectItem>
+                    <SelectItem value="quiosque">Quiosque/Churrasqueira - R$ 50</SelectItem>
+                    <SelectItem value="cafe">Café da manhã - R$ 45 (Domingos 10h-13h)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* 3. Informe quantidade de pessoas */}
+              <div>
+                <Label htmlFor="numeroPessoas" className="text-lg font-semibold mb-3 block">
+                  3. Informe a quantidade de pessoas *
+                </Label>
+                <Input
+                  id="numeroPessoas"
+                  type="number"
+                  min="1"
+                  value={numeroPessoas}
+                  onChange={(e) => setNumeroPessoas(e.target.value)}
+                  placeholder="Ex: 4"
+                  required
+                  className="mt-1"
+                />
+              </div>
+
+              {/* 4. Nome e WhatsApp */}
+              <div className="space-y-4 pt-2">
+                <Label className="text-lg font-semibold block">4. Seus dados de contato</Label>
+                
+                <div>
+                  <Label htmlFor="name">Nome Completo *</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Seu nome"
+                    required
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="whatsapp">WhatsApp *</Label>
+                  <Input
+                    id="whatsapp"
+                    value={whatsapp}
+                    onChange={(e) => setWhatsapp(e.target.value)}
+                    placeholder="(00) 00000-0000"
+                    required
+                    className="mt-1"
+                  />
+                  <div className="mt-2 p-3 bg-primary/10 border border-primary/30 rounded-md">
+                    <p className="text-sm font-semibold text-foreground">
+                      📱 Você receberá a confirmação da sua reserva neste WhatsApp
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. Confirmar Reserva */}
+              <div className="pt-4">
+                <Label className="text-lg font-semibold mb-3 block">5. Confirme sua reserva</Label>
+                <Button 
+                  type="submit" 
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 text-lg"
+                >
+                  Confirmar Reserva
+                </Button>
+
+                {/* Informações de pagamento */}
+                <div className="mt-4 p-4 bg-accent/20 border border-accent rounded-lg space-y-2">
+                  <p className="text-sm font-bold text-foreground flex items-center gap-2">
+                    💳 Informações de Pagamento
+                  </p>
+                  <ul className="text-xs space-y-1 text-muted-foreground">
+                    <li>• Pagamento realizado na chegada ao clube</li>
+                    <li>• Crianças até 6 anos: entrada gratuita</li>
+                    <li>• Acima de 65 anos: meia-entrada</li>
+                  </ul>
                 </div>
               </div>
             </form>
