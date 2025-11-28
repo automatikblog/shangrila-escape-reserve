@@ -1,12 +1,20 @@
+import galleryPool from "@/assets/gallery-pool.jpg";
 import galleryBBQ from "@/assets/gallery-bbq.jpg";
 import galleryPlayground from "@/assets/gallery-playground.jpg";
-import galleryCafe from "@/assets/gallery-cafe.jpg";
+import galleryBathrooms from "@/assets/gallery-bathrooms.jpg";
+import galleryFirepit from "@/assets/gallery-firepit.jpg";
+import galleryPergola from "@/assets/gallery-pergola.jpg";
 
 const images = [
   {
+    src: galleryPool,
+    alt: "Piscina do Clube Shangrilá",
+    title: "Piscina",
+  },
+  {
     src: galleryBBQ,
-    alt: "Área de churrasqueira do Clube Shangrilá",
-    title: "Churrasqueiras",
+    alt: "Área de quiosque e churrasqueira do Clube Shangrilá",
+    title: "Quiosque/Churrasqueira",
   },
   {
     src: galleryPlayground,
@@ -14,9 +22,19 @@ const images = [
     title: "Playground",
   },
   {
-    src: galleryCafe,
-    alt: "Café da manhã no clube",
-    title: "Café & Lanchonete",
+    src: galleryBathrooms,
+    alt: "Banheiros masculino e feminino",
+    title: "Banheiros",
+  },
+  {
+    src: galleryFirepit,
+    alt: "Fogo de chão do clube",
+    title: "Fogo de Chão",
+  },
+  {
+    src: galleryPergola,
+    alt: "Pergolado de descanso",
+    title: "Pergolado de Descanso",
   },
 ];
 
