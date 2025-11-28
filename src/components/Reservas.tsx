@@ -141,45 +141,61 @@ const Reservas = () => {
                   <span className="text-2xl font-bold text-primary">R$ 50</span>
                 </div>
               </div>
-              <div className="bg-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-primary rounded-lg p-5 shadow-md hover:shadow-lg transition-all">
                 <div className="flex flex-col">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-lg">Café da manhã</span>
-                    <span className="text-2xl font-bold text-primary">R$ 45</span>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold text-lg text-foreground">☕ Café da manhã</span>
+                    <span className="text-3xl font-bold text-primary">R$ 45</span>
                   </div>
-                  <span className="text-xs text-muted-foreground mt-1">Somente domingos das 10h às 13h</span>
+                  <div className="bg-background/80 backdrop-blur-sm rounded-md p-3 space-y-1.5">
+                    <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      📅 Exclusivo aos domingos das 10h às 13h
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      <strong className="text-foreground">⚠️ Importante:</strong> Reserva obrigatória através deste formulário para garantir seu café da manhã especial.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
             
-            {/* Informações importantes de pagamento */}
-            <div className="mt-6 bg-primary/10 border-2 border-primary/30 rounded-lg p-6">
-              <h4 className="font-bold text-lg mb-3 text-foreground">💰 Informações Importantes</h4>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-start gap-2">
-                  <span className="text-primary font-bold mt-0.5">✓</span>
-                  <span><strong className="text-foreground">Pagamento na chegada:</strong> Todos os valores são pagos ao chegar ao clube</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary font-bold mt-0.5">✓</span>
-                  <span><strong className="text-foreground">Crianças até 6 anos:</strong> Entrada gratuita</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary font-bold mt-0.5">✓</span>
-                  <span><strong className="text-foreground">Acima de 65 anos:</strong> Meia-entrada em todos os serviços</span>
-                </li>
-              </ul>
-            </div>
-          </div>
+            {/* Informações importantes unificadas */}
+            <div className="mt-8 space-y-4">
+              <div className="bg-primary/10 border-2 border-primary/30 rounded-xl p-6 shadow-md">
+                <h4 className="font-bold text-lg mb-4 text-foreground flex items-center gap-2">
+                  💰 Informações Importantes
+                </h4>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-3">
+                    <span className="text-primary font-bold text-xl mt-0.5">✓</span>
+                    <span className="text-sm"><strong className="text-foreground">Pagamento na chegada:</strong> Todos os valores são pagos ao chegar ao clube</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-primary font-bold text-xl mt-0.5">✓</span>
+                    <span className="text-sm"><strong className="text-foreground">Crianças até 6 anos:</strong> Entrada gratuita</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-primary font-bold text-xl mt-0.5">✓</span>
+                    <span className="text-sm"><strong className="text-foreground">Acima de 65 anos:</strong> Meia-entrada em todos os serviços</span>
+                  </li>
+                </ul>
+              </div>
 
-          <div className="mt-6 p-4 bg-accent/10 rounded-lg max-w-2xl mx-auto">
-            <p className="text-sm text-muted-foreground">
-              💡 <strong>Aluguel para eventos:</strong> Disponibilizamos o espaço para aniversários e confraternizações.
-            </p>
-            <p className="text-sm text-muted-foreground mt-2 flex items-center justify-center gap-2">
-              <MessageCircle size={16} />
-              <span>Dúvidas? Entre em contato pelo nosso <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-semibold">WhatsApp</a></span>
-            </p>
+              <div className="bg-accent/20 border-2 border-accent/40 rounded-xl p-6 shadow-md">
+                <h4 className="font-bold text-lg mb-3 text-foreground flex items-center gap-2">
+                  🎉 Aluguel para Eventos
+                </h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Disponibilizamos o espaço completo para aniversários e confraternizações.
+                </p>
+                <div className="flex items-center justify-center gap-2 p-3 bg-background/50 rounded-lg">
+                  <MessageCircle size={18} className="text-primary" />
+                  <span className="text-sm font-medium">
+                    Dúvidas? Fale pelo nosso <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">WhatsApp</a>
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
