@@ -1,8 +1,8 @@
-import { MapPin, Phone, Mail, MessageCircle } from "lucide-react";
+import { MapPin, Phone, MessageCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Contact = () => {
-  const whatsappNumber = "5511999999999"; // Replace with actual number
+  const whatsappNumber = "5513996327270";
   const whatsappMessage = encodeURIComponent("Olá! Gostaria de mais informações sobre o Clube Shangrilá.");
 
   return (
@@ -21,7 +21,7 @@ const Contact = () => {
           {/* Map */}
           <div className="rounded-xl overflow-hidden shadow-lg h-[400px]">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3657.1971755372437!2d-46.65842908502262!3d-23.561414084682943!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94ce59c8da0aa315%3A0xd59f9431f2c9776a!2sS%C3%A3o%20Paulo%2C%20SP!5e0!3m2!1sen!2sbr!4v1234567890123"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3652.8969428558634!2d-46.70518!3d-23.71889!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94ce4f7a3f3f3f3f%3A0x3f3f3f3f3f3f3f3f!2sAv.%20Dona%20Belmira%20Marin%2C%205383%20-%20Shangril%C3%A1%2C%20S%C3%A3o%20Paulo%20-%20SP%2C%2004852-010!5e0!3m2!1spt-BR!2sbr!4v1234567890123"
               width="100%"
               height="100%"
               style={{ border: 0 }}
@@ -39,8 +39,8 @@ const Contact = () => {
               <div>
                 <h3 className="font-semibold text-lg mb-1">Endereço</h3>
                 <p className="text-muted-foreground">
-                  Rua Exemplo, 123 - Bairro<br />
-                  São Paulo - SP, 00000-000
+                  Av. Dona Belmira Marin, 5383 - Shangrilá<br />
+                  São Paulo - SP, 04852-010
                 </p>
               </div>
             </div>
@@ -48,19 +48,20 @@ const Contact = () => {
             <div className="flex items-start gap-4 p-4 bg-card rounded-lg shadow hover:shadow-md transition-shadow">
               <Phone className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
               <div>
-                <h3 className="font-semibold text-lg mb-1">Telefone</h3>
+                <h3 className="font-semibold text-lg mb-1">WhatsApp</h3>
                 <p className="text-muted-foreground">
-                  (11) 9999-9999
+                  (13) 99632-7270
                 </p>
               </div>
             </div>
 
             <div className="flex items-start gap-4 p-4 bg-card rounded-lg shadow hover:shadow-md transition-shadow">
-              <Mail className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
+              <Clock className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
               <div>
-                <h3 className="font-semibold text-lg mb-1">E-mail</h3>
+                <h3 className="font-semibold text-lg mb-1">Horário de Funcionamento</h3>
                 <p className="text-muted-foreground">
-                  contato@clubeshangrila.com.br
+                  Sextas, Sábados, Domingos e Feriados<br />
+                  Das 10h às 18h
                 </p>
               </div>
             </div>
