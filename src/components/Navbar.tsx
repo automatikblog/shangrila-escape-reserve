@@ -56,12 +56,14 @@ const Navbar = () => {
           {/* Logo */}
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="hover:scale-105 transition-all"
+            className="hover:scale-105 transition-all duration-300"
           >
             <img 
               src={logoShangrila} 
               alt="Shangrilá Clube de Lazer" 
-              className="h-42 md:h-48 w-auto"
+              className={`w-auto transition-all duration-300 ${
+                isScrolled ? "h-12 md:h-14" : "h-42 md:h-48"
+              }`}
             />
           </button>
 
