@@ -118,7 +118,42 @@ const Reservas = () => {
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Funcionamento: Sextas, Sábados, Domingos e Feriados das 10h às 18h
           </p>
-          <div className="mt-4 p-4 bg-accent/10 rounded-lg max-w-2xl mx-auto">
+          
+          {/* Tabela de Preços */}
+          <div className="mt-8 max-w-3xl mx-auto">
+            <h3 className="text-2xl font-bold text-center mb-6">Valores</h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-lg">Entrada do clube</span>
+                  <span className="text-2xl font-bold text-primary">R$ 10</span>
+                </div>
+              </div>
+              <div className="bg-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-lg">Piscina</span>
+                  <span className="text-2xl font-bold text-primary">R$ 20</span>
+                </div>
+              </div>
+              <div className="bg-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-lg">Quiosque/Churrasqueira</span>
+                  <span className="text-2xl font-bold text-primary">R$ 50</span>
+                </div>
+              </div>
+              <div className="bg-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex flex-col">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-lg">Café da manhã</span>
+                    <span className="text-2xl font-bold text-primary">R$ 45</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground mt-1">Somente domingos das 10h às 13h</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 p-4 bg-accent/10 rounded-lg max-w-2xl mx-auto">
             <p className="text-sm text-muted-foreground">
               💡 <strong>Aluguel para eventos:</strong> Disponibilizamos o espaço para aniversários e confraternizações.
             </p>
@@ -206,10 +241,10 @@ const Reservas = () => {
                         <SelectValue placeholder="Selecione uma opção" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="entrada">Entrada do clube</SelectItem>
-                        <SelectItem value="piscina">Piscina</SelectItem>
-                        <SelectItem value="quiosque">Quiosque/Churrasqueira</SelectItem>
-                        <SelectItem value="cafe">Café da manhã</SelectItem>
+                        <SelectItem value="entrada">Entrada do clube - R$ 10</SelectItem>
+                        <SelectItem value="piscina">Piscina - R$ 20</SelectItem>
+                        <SelectItem value="quiosque">Quiosque/Churrasqueira - R$ 50</SelectItem>
+                        <SelectItem value="cafe">Café da manhã - R$ 45 (Domingos 10h-13h)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
