@@ -2,8 +2,7 @@ import { MapPin, Phone, MessageCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Contact = () => {
-  const whatsappNumber = "5513996327270";
-  const whatsappMessage = encodeURIComponent("Olá! Gostaria de mais informações sobre o Clube Shangrilá.");
+  const whatsappLink = "https://wa.me/5513996327270?text=Olá+Gostaria+de+mais+informações+sobre+o+Clube+Shangrilá";
 
   return (
     <section id="contato" className="py-20 bg-muted/30">
@@ -69,7 +68,7 @@ const Contact = () => {
             <Button
               size="lg"
               className="w-full bg-[#25D366] hover:bg-[#20BD5A] text-white font-semibold py-6 text-lg gap-2"
-              onClick={() => window.open(`https://wa.me/${whatsappNumber}?text=${whatsappMessage}`, '_blank')}
+              onClick={() => window.open(whatsappLink, '_blank')}
             >
               <MessageCircle className="w-5 h-5" />
               Fale Conosco pelo WhatsApp

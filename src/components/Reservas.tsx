@@ -170,7 +170,7 @@ const Reservas = () => {
                   <p className="text-xs text-muted-foreground mb-2">Espaço disponível para aniversários e confraternizações</p>
                   <div className="flex items-center gap-1.5 text-xs">
                     <MessageCircle size={14} className="text-primary flex-shrink-0" />
-                    <span>Dúvidas? <a href="https://wa.me/5513996327270" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">WhatsApp</a></span>
+                    <span>Dúvidas? <a href="https://wa.me/5513996327270?text=Olá+Gostaria+de+mais+informações+sobre+o+Clube+Shangrilá" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">WhatsApp</a></span>
                   </div>
                 </div>
               </div>
