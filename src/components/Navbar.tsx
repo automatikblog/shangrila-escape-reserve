@@ -55,7 +55,7 @@ const Navbar = () => {
           {/* Logo */}
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="text-xl md:text-2xl font-bold text-primary hover:scale-105 transition-transform"
+            className="text-xl md:text-2xl font-bold text-white hover:scale-105 transition-transform"
           >
             Shangrilá
           </button>
@@ -66,7 +66,7 @@ const Navbar = () => {
               <button
                 key={item.label}
                 onClick={item.action}
-                className="text-base font-medium text-foreground hover:text-primary transition-colors px-3 py-2"
+                className="text-base font-medium text-white hover:text-white/80 transition-colors px-3 py-2"
               >
                 {item.label}
               </button>
