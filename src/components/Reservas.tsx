@@ -151,6 +151,25 @@ const Reservas = () => {
                 </div>
               </div>
             </div>
+            
+            {/* Informações importantes de pagamento */}
+            <div className="mt-6 bg-primary/10 border-2 border-primary/30 rounded-lg p-6">
+              <h4 className="font-bold text-lg mb-3 text-foreground">💰 Informações Importantes</h4>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-start gap-2">
+                  <span className="text-primary font-bold mt-0.5">✓</span>
+                  <span><strong className="text-foreground">Pagamento na chegada:</strong> Todos os valores são pagos ao chegar ao clube</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary font-bold mt-0.5">✓</span>
+                  <span><strong className="text-foreground">Crianças até 6 anos:</strong> Entrada gratuita</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary font-bold mt-0.5">✓</span>
+                  <span><strong className="text-foreground">Acima de 65 anos:</strong> Meia-entrada em todos os serviços</span>
+                </li>
+              </ul>
+            </div>
           </div>
 
           <div className="mt-6 p-4 bg-accent/10 rounded-lg max-w-2xl mx-auto">
@@ -229,9 +248,11 @@ const Reservas = () => {
                       required
                       className="mt-1"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Você receberá a confirmação da sua reserva neste WhatsApp. O pagamento será feito na chegada ao clube.
-                    </p>
+                    <div className="mt-2 p-3 bg-primary/10 border border-primary/30 rounded-md">
+                      <p className="text-sm font-semibold text-foreground">
+                        📱 Você receberá a confirmação da sua reserva neste WhatsApp
+                      </p>
+                    </div>
                   </div>
 
                   <div>
@@ -283,6 +304,18 @@ const Reservas = () => {
                   >
                     Confirmar Reserva
                   </Button>
+
+                  {/* Informações de pagamento abaixo do botão */}
+                  <div className="mt-4 p-4 bg-accent/20 border border-accent rounded-lg space-y-2">
+                    <p className="text-sm font-bold text-foreground flex items-center gap-2">
+                      💳 Informações de Pagamento
+                    </p>
+                    <ul className="text-xs space-y-1 text-muted-foreground">
+                      <li>• Pagamento realizado na chegada ao clube</li>
+                      <li>• Crianças até 6 anos: entrada gratuita</li>
+                      <li>• Acima de 65 anos: meia-entrada</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </form>
