@@ -1,7 +1,15 @@
 import { useState, useEffect } from "react";
+import { Menu, X } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,8 +30,17 @@ const Navbar = () => {
         top: offsetPosition,
         behavior: "smooth"
       });
+      setIsOpen(false); // Fecha o menu mobile após clicar
     }
   };
+
+  const menuItems = [
+    { label: "Início", action: () => window.scrollTo({ top: 0, behavior: "smooth" }) },
+    { label: "Reservas", action: () => scrollToSection("reservas") },
+    { label: "Preços", action: () => scrollToSection("precos") },
+    { label: "Instalações", action: () => scrollToSection("instalacoes") },
+    { label: "Contato", action: () => scrollToSection("contato") },
+  ];
 
   return (
     <nav
@@ -43,39 +60,40 @@ const Navbar = () => {
             Shangrilá
           </button>
 
-          {/* Menu Items */}
-          <div className="flex items-center gap-2 md:gap-6">
-            <button
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="text-sm md:text-base font-medium text-foreground hover:text-primary transition-colors px-2 md:px-3 py-2"
-            >
-              Início
-            </button>
-            <button
-              onClick={() => scrollToSection("reservas")}
-              className="text-sm md:text-base font-medium text-foreground hover:text-primary transition-colors px-2 md:px-3 py-2"
-            >
-              Reservas
-            </button>
-            <button
-              onClick={() => scrollToSection("precos")}
-              className="text-sm md:text-base font-medium text-foreground hover:text-primary transition-colors px-2 md:px-3 py-2"
-            >
-              Preços
-            </button>
-            <button
-              onClick={() => scrollToSection("instalacoes")}
-              className="text-sm md:text-base font-medium text-foreground hover:text-primary transition-colors px-2 md:px-3 py-2"
-            >
-              Instalações
-            </button>
-            <button
-              onClick={() => scrollToSection("contato")}
-              className="text-sm md:text-base font-medium text-foreground hover:text-primary transition-colors px-2 md:px-3 py-2"
-            >
-              Contato
-            </button>
+          {/* Desktop Menu */}
+          <div className="hidden md:flex items-center gap-6">
+            {menuItems.map((item) => (
+              <button
+                key={item.label}
+                onClick={item.action}
+                className="text-base font-medium text-foreground hover:text-primary transition-colors px-3 py-2"
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
+
+          {/* Mobile Menu */}
+          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            <SheetTrigger asChild className="md:hidden">
+              <Button variant="ghost" size="icon">
+                <Menu className="h-6 w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[300px]">
+              <div className="flex flex-col gap-4 mt-8">
+                {menuItems.map((item) => (
+                  <button
+                    key={item.label}
+                    onClick={item.action}
+                    className="text-lg font-medium text-foreground hover:text-primary transition-colors px-4 py-3 text-left rounded-lg hover:bg-accent"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </nav>
