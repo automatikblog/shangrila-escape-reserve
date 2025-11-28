@@ -4,6 +4,9 @@ import galleryPlayground from "@/assets/gallery-playground.jpg";
 import galleryBathrooms from "@/assets/gallery-bathrooms.jpg";
 import galleryFirepit from "@/assets/gallery-firepit.jpg";
 import galleryPergola from "@/assets/gallery-pergola.jpg";
+import galleryHammocks from "@/assets/gallery-hammocks.jpg";
+import galleryChickens from "@/assets/gallery-chickens.jpg";
+import galleryBilliards from "@/assets/gallery-billiards.jpg";
 
 const images = [
   {
@@ -33,8 +36,23 @@ const images = [
   },
   {
     src: galleryPergola,
-    alt: "Pergolado de descanso",
-    title: "Pergolado de Descanso",
+    alt: "Pergolado do clube",
+    title: "Pergolado",
+  },
+  {
+    src: galleryHammocks,
+    alt: "Redário com redes coloridas",
+    title: "Redário",
+  },
+  {
+    src: galleryChickens,
+    alt: "Galinheiro do clube",
+    title: "Galinheiro",
+  },
+  {
+    src: galleryBilliards,
+    alt: "Sala de bilhar",
+    title: "Bilhar",
   },
 ];
 
