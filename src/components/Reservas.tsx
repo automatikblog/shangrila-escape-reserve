@@ -51,7 +51,7 @@ const Reservas = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
-            Reserve sua Mesa
+            Faça sua Reserva
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Café da manhã disponível nas sextas, sábados e domingos
