@@ -6,6 +6,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import logoShangrila from "@/assets/logo-shangrila.jpg";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -55,11 +56,13 @@ const Navbar = () => {
           {/* Logo */}
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className={`text-xl md:text-2xl font-bold hover:scale-105 transition-all ${
-              isScrolled ? "text-foreground" : "text-white"
-            }`}
+            className="hover:scale-105 transition-all"
           >
-            Shangrilá
+            <img 
+              src={logoShangrila} 
+              alt="Shangrilá Clube de Lazer" 
+              className="h-14 md:h-16 w-auto"
+            />
           </button>
 
           {/* Desktop Menu */}
