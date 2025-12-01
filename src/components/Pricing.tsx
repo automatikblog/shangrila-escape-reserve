@@ -6,7 +6,7 @@ const pricingOptions = [
     title: "Entrada do Clube",
     price: "R$ 10",
     description: "Acesso às áreas de lazer",
-    features: ["Playground", "Áreas de convivência", "Estacionamento"],
+    features: ["Playground", "Áreas de convivência"],
   },
   {
     title: "Piscina",
