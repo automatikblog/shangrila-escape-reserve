@@ -7,7 +7,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import logoShangrila from "@/assets/logo-shangrila.jpg";
+import logoShangrila from "@/assets/logo-shangrila.webp";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
