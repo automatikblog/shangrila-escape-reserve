@@ -126,14 +126,7 @@ const Reservas = () => {
   };
   return <section id="reservas" className="py-20 bg-muted/30">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
-            Faça sua Reserva
-          </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Funcionamento: Sextas, Sábados, Domingos e Feriados das 10h às 18h
-          </p>
-        </div>
+        
 
         <Card className="max-w-4xl mx-auto shadow-xl">
           <CardHeader>
