@@ -65,8 +65,8 @@ const Navbar = () => {
       }`}
     >
       <div className="container mx-auto px-4">
-        <div className={`flex items-start justify-between transition-all duration-300 ${
-          isScrolled ? "h-20" : "h-32 md:h-40"
+        <div className={`flex justify-between transition-all duration-300 ${
+          isScrolled ? "h-20 items-center" : "h-32 md:h-40 items-start"
         }`}>
           {/* Logo */}
           <button
