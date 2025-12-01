@@ -36,10 +36,10 @@ const Pricing = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
-            Preços e Opções
+            Faça sua Reserva
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Valores justos para você aproveitar o melhor do clube
+            Funcionamento: Sextas, Sábados, Domingos e Feriados das 10h às 18h
           </p>
         </div>
 
