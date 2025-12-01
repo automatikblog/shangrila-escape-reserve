@@ -12,7 +12,7 @@ const pricingOptions = [
     title: "Piscina",
     price: "R$ 20",
     description: "Acesso completo à piscina",
-    features: ["Inclui entrada do clube", "Uso da piscina", "Vestiários"],
+    features: ["Inclui entrada do clube", "Uso da piscina", "Banheiros"],
     popular: true,
   },
   {
