@@ -11,7 +11,7 @@ import { ClientNameModal } from '@/components/menu/ClientNameModal';
 import { OrderStatusView } from '@/components/menu/OrderStatusView';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ShoppingCart, Loader2, AlertCircle } from 'lucide-react';
+import { ShoppingCart, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import logoShangrila from '@/assets/logo-shangrila.webp';
 
@@ -191,18 +191,30 @@ const TableMenuContent: React.FC = () => {
 
       {/* Menu Content */}
       <Tabs defaultValue={menuSections[0]?.category} className="w-full">
-        <div className="sticky top-[73px] z-40 bg-background border-b border-border">
-          <TabsList className="w-full h-auto p-2 overflow-x-auto flex justify-start gap-2 bg-transparent">
+        <div className="sticky top-[73px] z-40 bg-background border-b border-border relative">
+          {/* Scroll hint gradient on the right */}
+          <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-background via-background/80 to-transparent z-10 pointer-events-none flex items-center justify-end pr-1">
+            <div className="animate-pulse">
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </div>
+          
+          <TabsList className="w-full h-auto p-2 pr-14 overflow-x-auto flex justify-start gap-2 bg-transparent scrollbar-hide">
             {menuSections.map((section) => (
               <TabsTrigger 
                 key={section.category} 
                 value={section.category}
-                className="whitespace-nowrap text-xs px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full"
+                className="whitespace-nowrap text-xs px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full shrink-0"
               >
                 {section.title}
               </TabsTrigger>
             ))}
           </TabsList>
+          
+          {/* Scroll hint text */}
+          <p className="text-[10px] text-muted-foreground text-center pb-1 -mt-1">
+            Deslize para ver mais categorias →
+          </p>
         </div>
 
         {menuSections.map((section) => (
