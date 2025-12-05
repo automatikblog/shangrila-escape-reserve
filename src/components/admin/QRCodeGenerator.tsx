@@ -3,6 +3,9 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 import { Download, ExternalLink } from 'lucide-react';
 
+// URL fixa do domínio publicado
+const PUBLIC_URL = 'https://clubedelazershangrila.com.br';
+
 interface QRCodeGeneratorProps {
   tableId: string;
   tableName: string;
@@ -14,7 +17,7 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
   tableName,
   tableNumber
 }) => {
-  const menuUrl = `${window.location.origin}/mesa/${tableId}`;
+  const menuUrl = `${PUBLIC_URL}/mesa/${tableId}`;
 
   const downloadQRCode = () => {
     const svg = document.getElementById(`qr-${tableId}`);
