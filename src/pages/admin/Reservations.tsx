@@ -100,7 +100,7 @@ const AdminReservations: React.FC = () => {
     return 'text-green-600';
   };
 
-  const ReservationCard = ({ reservation, showDate = false }: { reservation: any; showDate?: boolean }) => (
+  const ReservationCard = ({ reservation }: { reservation: any }) => (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-card rounded-lg border">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -110,11 +110,6 @@ const AdminReservations: React.FC = () => {
           <Badge className="bg-primary text-primary-foreground text-xs">
             R$ {RESERVATION_PRICES[reservation.reservation_type]}
           </Badge>
-          {showDate && (
-            <Badge variant="secondary" className="text-xs">
-              {format(parseISO(reservation.reservation_date), "dd/MM")}
-            </Badge>
-          )}
         </div>
         <p className="font-semibold">{reservation.client_name}</p>
         <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1 flex-wrap">
@@ -178,17 +173,23 @@ const AdminReservations: React.FC = () => {
 
         {/* Tab: Por Data */}
         <TabsContent value="calendario" className="mt-6 space-y-6">
-          {/* Linha 1: Calendário + Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Calendário e Ocupação lado a lado */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Calendário */}
             <Card>
-              <CardContent className="p-4">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5" />
+                  Selecione a Data
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
                   onSelect={(date) => date && setSelectedDate(date)}
                   locale={ptBR}
-                  className="pointer-events-auto mx-auto"
+                  className="pointer-events-auto"
                   modifiers={{
                     hasReservation: (date) => datesWithReservations.has(format(date, 'yyyy-MM-dd'))
                   }}
@@ -196,7 +197,7 @@ const AdminReservations: React.FC = () => {
                     hasReservation: 'bg-primary/20 font-bold text-primary'
                   }}
                 />
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2 justify-center">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4">
                   <div className="w-3 h-3 rounded bg-primary/20 border border-primary/30"></div>
                   <span>Dias com reservas</span>
                 </div>
@@ -206,11 +207,14 @@ const AdminReservations: React.FC = () => {
             {/* Ocupação */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">
+                <CardTitle className="text-lg">
                   Ocupação - {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
                 </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {dayReservations.length} reserva(s) • {dayReservations.reduce((acc, r) => acc + r.num_people, 0)} pessoa(s)
+                </p>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3">
                 {Object.entries(RESERVATION_LABELS).map(([key, label]) => {
                   const count = availability[key] || 0;
                   const limit = RESERVATION_LIMITS[key];
@@ -219,15 +223,15 @@ const AdminReservations: React.FC = () => {
                   if (key === 'cafe' && !isSunday) return null;
                   
                   return (
-                    <div key={key} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                    <div key={key} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div>
-                        <p className="font-medium text-sm">{label}</p>
-                        <p className="text-xs text-muted-foreground">R$ {RESERVATION_PRICES[key]}</p>
+                        <p className="font-medium">{label}</p>
+                        <p className="text-sm text-muted-foreground">R$ {RESERVATION_PRICES[key]}</p>
                       </div>
-                      <p className={`font-bold text-sm ${getOccupancyColor(key, count)}`}>
+                      <p className={`font-bold ${getOccupancyColor(key, count)}`}>
                         {limit === null ? (
                           <span className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3" />
+                            <CheckCircle className="h-4 w-4" />
                             Ilimitado
                           </span>
                         ) : (
@@ -239,28 +243,9 @@ const AdminReservations: React.FC = () => {
                 })}
               </CardContent>
             </Card>
-
-            {/* Resumo */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Resumo do Dia</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
-                  <span className="text-sm">Total de Reservas</span>
-                  <span className="text-3xl font-bold">{dayReservations.length}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <span className="text-sm">Total de Pessoas</span>
-                  <span className="text-3xl font-bold">
-                    {dayReservations.reduce((acc, r) => acc + r.num_people, 0)}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
-          {/* Linha 2: Lista de Reservas */}
+          {/* Lista de Reservas */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle>
