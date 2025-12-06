@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { CartProvider, useCart } from '@/contexts/CartContext';
 import { useClientSession } from '@/hooks/useClientSession';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
-import { menuSections, parsePrice } from '@/lib/menuData';
+import { useMenuItems, categoryLabels } from '@/hooks/useMenuItems';
 import { MenuItemCard } from '@/components/menu/MenuItemCard';
 import { CartDrawer } from '@/components/menu/CartDrawer';
 import { ClientNameModal } from '@/components/menu/ClientNameModal';
@@ -33,8 +33,36 @@ const TableMenuContent: React.FC = () => {
   
   const { session, isLoading: sessionLoading, needsName, createSession } = useClientSession(tableId);
   const { createOrder, orders } = useRealtimeOrders();
+  const { items: menuItems, isLoading: menuLoading } = useMenuItems();
   const { items, totalItems, clearCart, notes } = useCart();
   const { toast } = useToast();
+
+  // Group available menu items by category
+  const menuSections = useMemo(() => {
+    const availableItems = menuItems.filter(item => item.is_available);
+    const grouped: Record<string, typeof availableItems> = {};
+    
+    availableItems.forEach(item => {
+      if (!grouped[item.category]) {
+        grouped[item.category] = [];
+      }
+      grouped[item.category].push(item);
+    });
+
+    return Object.entries(grouped).map(([category, items]) => ({
+      category,
+      title: categoryLabels[category] || category,
+      items: items.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: `R$ ${item.price.toFixed(2).replace('.', ',')}`,
+        description: item.description || undefined,
+        category: item.category,
+        isAvailable: item.is_available,
+        stockQuantity: item.stock_quantity
+      }))
+    }));
+  }, [menuItems]);
 
   // Fetch table info
   useEffect(() => {
@@ -89,12 +117,18 @@ const TableMenuContent: React.FC = () => {
 
     setIsSubmitting(true);
 
-    const orderItems = items.map(item => ({
-      name: item.name,
-      price: parsePrice(item.price),
-      quantity: item.quantity,
-      category: item.category
-    }));
+    // Find menu item IDs for stock deduction
+    const orderItems = items.map(item => {
+      const menuItem = menuItems.find(mi => mi.name === item.name && mi.category === item.category);
+      const price = parseFloat(item.price.replace('R$', '').replace(',', '.').trim());
+      return {
+        name: item.name,
+        price: price,
+        quantity: item.quantity,
+        category: item.category,
+        menuItemId: menuItem?.id
+      };
+    });
 
     const { data, error } = await createOrder(
       tableId,
@@ -127,7 +161,7 @@ const TableMenuContent: React.FC = () => {
   };
 
   // Loading states
-  if (tableLoading || sessionLoading) {
+  if (tableLoading || sessionLoading || menuLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -164,8 +198,7 @@ const TableMenuContent: React.FC = () => {
     );
   }
 
-  const categories = menuSections.map(s => s.category);
-  const uniqueCategories = [...new Set(categories)];
+  const defaultCategory = menuSections[0]?.category || '';
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -190,47 +223,51 @@ const TableMenuContent: React.FC = () => {
       </header>
 
       {/* Menu Content */}
-      <Tabs defaultValue={menuSections[0]?.category} className="w-full">
-        <div className="sticky top-[73px] z-40 bg-background border-b border-border relative">
-          {/* Scroll hint gradient on the right */}
-          <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-background via-background/80 to-transparent z-10 pointer-events-none flex items-center justify-end pr-1">
-            <div className="animate-pulse">
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </div>
-          
-          <TabsList className="w-full h-auto p-2 pr-14 overflow-x-auto flex justify-start gap-2 bg-transparent scrollbar-hide">
-            {menuSections.map((section) => (
-              <TabsTrigger 
-                key={section.category} 
-                value={section.category}
-                className="whitespace-nowrap text-xs px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full shrink-0"
-              >
-                {section.title}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          
-          {/* Scroll hint text */}
-          <p className="text-[10px] text-muted-foreground text-center pb-1 -mt-1">
-            Deslize para ver mais categorias →
-          </p>
+      {menuSections.length === 0 ? (
+        <div className="p-8 text-center">
+          <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">Nenhum item disponível no momento</p>
         </div>
-
-        {menuSections.map((section) => (
-          <TabsContent key={section.category} value={section.category} className="p-4 mt-0">
-            <h2 className="text-lg font-bold mb-4 text-foreground">{section.title}</h2>
-            {section.note && (
-              <p className="text-sm text-muted-foreground mb-4 italic">{section.note}</p>
-            )}
-            <div className="space-y-3">
-              {section.items.map((item, idx) => (
-                <MenuItemCard key={`${section.category}-${idx}`} item={item} />
-              ))}
+      ) : (
+        <Tabs defaultValue={defaultCategory} className="w-full">
+          <div className="sticky top-[73px] z-40 bg-background border-b border-border relative">
+            {/* Scroll hint gradient on the right */}
+            <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-background via-background/80 to-transparent z-10 pointer-events-none flex items-center justify-end pr-1">
+              <div className="animate-pulse">
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
             </div>
-          </TabsContent>
-        ))}
-      </Tabs>
+            
+            <TabsList className="w-full h-auto p-2 pr-14 overflow-x-auto flex justify-start gap-2 bg-transparent scrollbar-hide">
+              {menuSections.map((section) => (
+                <TabsTrigger 
+                  key={section.category} 
+                  value={section.category}
+                  className="whitespace-nowrap text-xs px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full shrink-0"
+                >
+                  {section.title}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            
+            {/* Scroll hint text */}
+            <p className="text-[10px] text-muted-foreground text-center pb-1 -mt-1">
+              Deslize para ver mais categorias →
+            </p>
+          </div>
+
+          {menuSections.map((section) => (
+            <TabsContent key={section.category} value={section.category} className="p-4 mt-0">
+              <h2 className="text-lg font-bold mb-4 text-foreground">{section.title}</h2>
+              <div className="space-y-3">
+                {section.items.map((item, idx) => (
+                  <MenuItemCard key={`${section.category}-${idx}`} item={item} />
+                ))}
+              </div>
+            </TabsContent>
+          ))}
+        </Tabs>
+      )}
 
       {/* Cart FAB */}
       {totalItems > 0 && (
