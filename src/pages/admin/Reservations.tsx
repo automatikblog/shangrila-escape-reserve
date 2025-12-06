@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   useReservations, 
   RESERVATION_LABELS, 
   RESERVATION_PRICES, 
   RESERVATION_LIMITS 
 } from '@/hooks/useReservations';
-import { format } from 'date-fns';
+import { format, parseISO, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { 
@@ -18,7 +19,8 @@ import {
   Phone, 
   Trash2, 
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  List
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -39,10 +41,35 @@ const AdminReservations: React.FC = () => {
   const { 
     reservations, 
     loading, 
-    fetchReservations, 
     getAvailability,
     deleteReservation 
   } = useReservations();
+
+  // Datas que têm reservas (para marcar no calendário)
+  const datesWithReservations = useMemo(() => {
+    const dates = new Set<string>();
+    reservations.forEach(r => {
+      if (r.status === 'confirmed') {
+        dates.add(r.reservation_date);
+      }
+    });
+    return dates;
+  }, [reservations]);
+
+  // Agrupar todas as reservas por data para a visão geral
+  const reservationsByDate = useMemo(() => {
+    const grouped: Record<string, any[]> = {};
+    reservations
+      .filter(r => r.status === 'confirmed')
+      .sort((a, b) => new Date(a.reservation_date).getTime() - new Date(b.reservation_date).getTime())
+      .forEach(r => {
+        if (!grouped[r.reservation_date]) {
+          grouped[r.reservation_date] = [];
+        }
+        grouped[r.reservation_date].push(r);
+      });
+    return grouped;
+  }, [reservations]);
 
   useEffect(() => {
     loadDayData();
@@ -50,7 +77,7 @@ const AdminReservations: React.FC = () => {
 
   const loadDayData = async () => {
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    const dayRes = reservations.filter(r => r.reservation_date === dateStr);
+    const dayRes = reservations.filter(r => r.reservation_date === dateStr && r.status === 'confirmed');
     setDayReservations(dayRes);
     
     const avail = await getAvailability(selectedDate);
@@ -68,12 +95,71 @@ const AdminReservations: React.FC = () => {
 
   const getOccupancyColor = (type: string, count: number) => {
     const limit = RESERVATION_LIMITS[type];
-    if (limit === null) return 'text-green-500';
+    if (limit === null) return 'text-green-600';
     const percentage = count / limit;
-    if (percentage >= 1) return 'text-red-500';
-    if (percentage >= 0.8) return 'text-yellow-500';
-    return 'text-green-500';
+    if (percentage >= 1) return 'text-red-600';
+    if (percentage >= 0.8) return 'text-amber-600';
+    return 'text-green-600';
   };
+
+  // Componente de card de reserva reutilizável
+  const ReservationCard = ({ reservation }: { reservation: any }) => (
+    <div 
+      className="flex items-center justify-between p-4 bg-card rounded-lg border"
+    >
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <Badge variant="outline">
+            {RESERVATION_LABELS[reservation.reservation_type] || reservation.reservation_type}
+          </Badge>
+          <Badge className="bg-primary text-primary-foreground">
+            R$ {RESERVATION_PRICES[reservation.reservation_type]}
+          </Badge>
+        </div>
+        <p className="font-semibold text-lg">{reservation.client_name}</p>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1 flex-wrap">
+          <span className="flex items-center gap-1">
+            <Phone className="h-4 w-4" />
+            {reservation.client_whatsapp}
+          </span>
+          <span className="flex items-center gap-1">
+            <Users className="h-4 w-4" />
+            {reservation.num_people} pessoa(s)
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          Reservado em: {format(new Date(reservation.created_at), "dd/MM/yyyy 'às' HH:mm")}
+        </p>
+      </div>
+
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="destructive" size="sm">
+            <Trash2 className="h-4 w-4 mr-2" />
+            Remover
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover Reserva?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação irá remover a reserva de <strong>{reservation.client_name}</strong> e 
+              liberar a vaga para novas reservas. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => handleDelete(reservation.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Sim, remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -82,168 +168,202 @@ const AdminReservations: React.FC = () => {
         <p className="text-muted-foreground">Gerencie as reservas do clube</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendário */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CalendarDays className="h-5 w-5" />
-              Selecione a Data
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex justify-center">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => date && setSelectedDate(date)}
-              locale={ptBR}
-              className="rounded-md border"
-            />
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="calendario" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="calendario" className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" />
+            Por Data
+          </TabsTrigger>
+          <TabsTrigger value="todas" className="flex items-center gap-2">
+            <List className="h-4 w-4" />
+            Todas ({reservations.filter(r => r.status === 'confirmed').length})
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Ocupação do Dia */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Ocupação - {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {Object.entries(RESERVATION_LABELS).map(([key, label]) => {
-              const count = availability[key] || 0;
-              const limit = RESERVATION_LIMITS[key];
-              const isSunday = selectedDate.getDay() === 0;
-              
-              // Café só aparece aos domingos
-              if (key === 'cafe' && !isSunday) return null;
-              
-              return (
-                <div key={key} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="font-medium">{label}</p>
-                    <p className="text-sm text-muted-foreground">R$ {RESERVATION_PRICES[key]}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-bold ${getOccupancyColor(key, count)}`}>
-                      {limit === null ? (
-                        <span className="flex items-center gap-1">
-                          <CheckCircle className="h-4 w-4" />
-                          Ilimitado
-                        </span>
-                      ) : (
-                        `${count}/${limit}`
-                      )}
-                    </p>
-                    {limit !== null && count >= limit && (
-                      <Badge variant="destructive" className="text-xs mt-1">
-                        Esgotado
-                      </Badge>
-                    )}
-                  </div>
+        {/* Tab: Por Data */}
+        <TabsContent value="calendario" className="mt-6">
+          <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            {/* Calendário */}
+            <Card className="xl:col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <CalendarDays className="h-5 w-5" />
+                  Selecione a Data
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex justify-center p-2">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  locale={ptBR}
+                  className="rounded-md border w-full pointer-events-auto"
+                  modifiers={{
+                    hasReservation: (date) => {
+                      const dateStr = format(date, 'yyyy-MM-dd');
+                      return datesWithReservations.has(dateStr);
+                    }
+                  }}
+                  modifiersClassNames={{
+                    hasReservation: 'bg-primary/20 font-bold text-primary'
+                  }}
+                />
+              </CardContent>
+              <div className="px-4 pb-4">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="w-3 h-3 rounded bg-primary/20"></div>
+                  <span>Dias com reservas</span>
                 </div>
-              );
-            })}
-          </CardContent>
-        </Card>
+              </div>
+            </Card>
 
-        {/* Estatísticas */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Resumo do Dia</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
-              <span>Total de Reservas</span>
-              <span className="text-2xl font-bold">{dayReservations.length}</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-              <span>Total de Pessoas</span>
-              <span className="text-2xl font-bold">
-                {dayReservations.reduce((acc, r) => acc + r.num_people, 0)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Lista de Reservas */}
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            Reservas para {format(selectedDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-center py-8 text-muted-foreground">Carregando...</p>
-          ) : dayReservations.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhuma reserva para esta data</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {dayReservations.map((reservation) => (
-                <div 
-                  key={reservation.id} 
-                  className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Badge variant="outline">
-                        {RESERVATION_LABELS[reservation.reservation_type] || reservation.reservation_type}
-                      </Badge>
-                      <Badge variant="secondary">
-                        R$ {RESERVATION_PRICES[reservation.reservation_type]}
-                      </Badge>
+            {/* Ocupação do Dia */}
+            <Card className="xl:col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">
+                  Ocupação - {format(selectedDate, "dd/MM", { locale: ptBR })}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {Object.entries(RESERVATION_LABELS).map(([key, label]) => {
+                  const count = availability[key] || 0;
+                  const limit = RESERVATION_LIMITS[key];
+                  const isSunday = selectedDate.getDay() === 0;
+                  
+                  if (key === 'cafe' && !isSunday) return null;
+                  
+                  return (
+                    <div key={key} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-sm">{label}</p>
+                        <p className="text-xs text-muted-foreground">R$ {RESERVATION_PRICES[key]}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-bold text-sm ${getOccupancyColor(key, count)}`}>
+                          {limit === null ? (
+                            <span className="flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3" />
+                              Ilimitado
+                            </span>
+                          ) : (
+                            `${count}/${limit}`
+                          )}
+                        </p>
+                        {limit !== null && count >= limit && (
+                          <Badge variant="destructive" className="text-xs mt-1">
+                            Esgotado
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                    <p className="font-semibold text-lg">{reservation.client_name}</p>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                      <span className="flex items-center gap-1">
-                        <Phone className="h-4 w-4" />
-                        {reservation.client_whatsapp}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Users className="h-4 w-4" />
-                        {reservation.num_people} pessoa(s)
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Reservado em: {format(new Date(reservation.created_at), "dd/MM/yyyy 'às' HH:mm")}
-                    </p>
-                  </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
 
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Remover
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remover Reserva?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta ação irá remover a reserva de <strong>{reservation.client_name}</strong> e 
-                          liberar a vaga para novas reservas. Esta ação não pode ser desfeita.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction 
-                          onClick={() => handleDelete(reservation.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Sim, remover
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+            {/* Resumo */}
+            <Card className="xl:col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Resumo do Dia</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
+                  <span className="text-sm">Total de Reservas</span>
+                  <span className="text-2xl font-bold">{dayReservations.length}</span>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <span className="text-sm">Total de Pessoas</span>
+                  <span className="text-2xl font-bold">
+                    {dayReservations.reduce((acc, r) => acc + r.num_people, 0)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Lista de Reservas do Dia */}
+            <Card className="xl:col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">
+                  Reservas - {format(selectedDate, "dd/MM", { locale: ptBR })}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <p className="text-center py-4 text-muted-foreground text-sm">Carregando...</p>
+                ) : dayReservations.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Nenhuma reserva</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                    {dayReservations.map((reservation) => (
+                      <ReservationCard key={reservation.id} reservation={reservation} />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Tab: Todas as Reservas */}
+        <TabsContent value="todas" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <List className="h-5 w-5" />
+                Todas as Reservas Confirmadas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <p className="text-center py-8 text-muted-foreground">Carregando...</p>
+              ) : Object.keys(reservationsByDate).length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Nenhuma reserva encontrada</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {Object.entries(reservationsByDate).map(([dateStr, dateReservations]) => {
+                    const date = parseISO(dateStr);
+                    const isToday = isSameDay(date, new Date());
+                    const isPast = date < new Date() && !isToday;
+                    
+                    return (
+                      <div key={dateStr} className={isPast ? 'opacity-60' : ''}>
+                        <div className="flex items-center gap-3 mb-3">
+                          <h3 className="text-lg font-semibold">
+                            {format(date, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                          </h3>
+                          {isToday && (
+                            <Badge className="bg-green-600">Hoje</Badge>
+                          )}
+                          {isPast && (
+                            <Badge variant="secondary">Passado</Badge>
+                          )}
+                          <Badge variant="outline">
+                            {dateReservations.length} reserva(s)
+                          </Badge>
+                          <Badge variant="outline">
+                            {dateReservations.reduce((acc, r) => acc + r.num_people, 0)} pessoa(s)
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {dateReservations.map((reservation) => (
+                            <ReservationCard key={reservation.id} reservation={reservation} />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
