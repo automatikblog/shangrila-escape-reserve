@@ -128,26 +128,13 @@ export const useRealtimeOrders = (statusFilter?: OrderStatus[]) => {
 
       if (itemsError) throw itemsError;
 
-      // Decrement stock for items that have menu_item_id
+      // Decrement stock for items that have menu_item_id using RPC (bypasses RLS)
       for (const item of items) {
         if (item.menuItemId) {
-          // Get current stock
-          const { data: menuItem } = await supabase
-            .from('menu_items')
-            .select('stock_quantity')
-            .eq('id', item.menuItemId)
-            .single();
-
-          if (menuItem && menuItem.stock_quantity !== null) {
-            const newStock = Math.max(0, menuItem.stock_quantity - item.quantity);
-            await supabase
-              .from('menu_items')
-              .update({ 
-                stock_quantity: newStock,
-                is_available: newStock > 0
-              })
-              .eq('id', item.menuItemId);
-          }
+          await supabase.rpc('decrement_stock', {
+            p_menu_item_id: item.menuItemId,
+            p_quantity: item.quantity
+          });
         }
       }
 

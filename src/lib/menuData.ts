@@ -5,6 +5,7 @@ export interface MenuItem {
   description?: string;
   category: string;
   isAvailable?: boolean;
+  stockQuantity?: number | null;
 }
 
 export interface MenuSection {
