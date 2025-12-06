@@ -7,7 +7,7 @@ export interface Reservation {
   reservation_date: string;
   reservation_type: string;
   client_name: string;
-  client_whatsapp: string;
+  client_email: string;
   num_people: number;
   status: string;
   created_at: string;
@@ -55,7 +55,7 @@ export function useReservations() {
       const { data, error } = await query;
 
       if (error) throw error;
-      setReservations(data || []);
+      setReservations((data as Reservation[]) || []);
     } catch (error) {
       console.error('Error fetching reservations:', error);
     } finally {
@@ -111,7 +111,11 @@ export function useReservations() {
     const { data, error } = await supabase
       .from('reservations')
       .insert({
-        ...reservation,
+        reservation_date: reservation.reservation_date,
+        reservation_type: reservation.reservation_type,
+        client_name: reservation.client_name,
+        client_email: reservation.client_email,
+        num_people: reservation.num_people,
         status: 'confirmed',
       })
       .select()
