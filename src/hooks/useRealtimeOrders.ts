@@ -128,6 +128,29 @@ export const useRealtimeOrders = (statusFilter?: OrderStatus[]) => {
 
       if (itemsError) throw itemsError;
 
+      // Decrement stock for items that have menu_item_id
+      for (const item of items) {
+        if (item.menuItemId) {
+          // Get current stock
+          const { data: menuItem } = await supabase
+            .from('menu_items')
+            .select('stock_quantity')
+            .eq('id', item.menuItemId)
+            .single();
+
+          if (menuItem && menuItem.stock_quantity !== null) {
+            const newStock = Math.max(0, menuItem.stock_quantity - item.quantity);
+            await supabase
+              .from('menu_items')
+              .update({ 
+                stock_quantity: newStock,
+                is_available: newStock > 0
+              })
+              .eq('id', item.menuItemId);
+          }
+        }
+      }
+
       return { data: order, error: null };
     } catch (err: any) {
       console.error('Error creating order:', err);
