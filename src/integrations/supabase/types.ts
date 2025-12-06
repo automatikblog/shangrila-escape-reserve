@@ -174,8 +174,8 @@ export type Database = {
       }
       reservations: {
         Row: {
+          client_email: string
           client_name: string
-          client_whatsapp: string
           created_at: string
           id: string
           num_people: number
@@ -184,8 +184,8 @@ export type Database = {
           status: string
         }
         Insert: {
+          client_email: string
           client_name: string
-          client_whatsapp: string
           created_at?: string
           id?: string
           num_people: number
@@ -194,8 +194,8 @@ export type Database = {
           status?: string
         }
         Update: {
+          client_email?: string
           client_name?: string
-          client_whatsapp?: string
           created_at?: string
           id?: string
           num_people?: number

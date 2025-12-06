@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Calendar as CalendarIcon, Users, MessageCircle, AlertTriangle, CheckCircle } from "lucide-react";
+import { Calendar as CalendarIcon, Users, Mail, AlertTriangle, CheckCircle } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,7 +19,7 @@ import {
 const Reservas = () => {
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [name, setName] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
+  const [email, setEmail] = useState("");
   const [tipoReserva, setTipoReserva] = useState("");
   const [numeroPessoas, setNumeroPessoas] = useState("");
   const [availability, setAvailability] = useState<Record<string, number>>({});
@@ -118,6 +118,28 @@ const Reservas = () => {
     return (availability[type] || 0) < limit;
   };
 
+  const sendConfirmationEmail = async (reservationData: {
+    clientName: string;
+    clientEmail: string;
+    reservationDate: string;
+    reservationType: string;
+    reservationPrice: number;
+    numPeople: number;
+  }) => {
+    try {
+      const { error } = await supabase.functions.invoke('send-reservation-email', {
+        body: reservationData,
+      });
+
+      if (error) {
+        console.error('Error sending confirmation email:', error);
+        // Não falha a reserva se o email não for enviado
+      }
+    } catch (error) {
+      console.error('Error calling email function:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -125,8 +147,15 @@ const Reservas = () => {
       toast.error("Por favor, selecione uma data");
       return;
     }
-    if (!name || !whatsapp || !tipoReserva || !numeroPessoas) {
+    if (!name || !email || !tipoReserva || !numeroPessoas) {
       toast.error("Por favor, preencha todos os campos");
+      return;
+    }
+
+    // Validar email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error("Por favor, informe um email válido");
       return;
     }
 
@@ -144,25 +173,37 @@ const Reservas = () => {
 
     setSubmitting(true);
     try {
+      const reservationDate = format(date, 'yyyy-MM-dd');
+      
       const { error } = await supabase
         .from('reservations')
         .insert({
-          reservation_date: format(date, 'yyyy-MM-dd'),
+          reservation_date: reservationDate,
           reservation_type: tipoReserva,
           client_name: name,
-          client_whatsapp: whatsapp,
+          client_email: email,
           num_people: parseInt(numeroPessoas),
           status: 'confirmed',
         });
 
       if (error) throw error;
 
-      toast.success("Reserva confirmada com sucesso! Você receberá a confirmação no WhatsApp informado.");
+      // Enviar email de confirmação
+      await sendConfirmationEmail({
+        clientName: name,
+        clientEmail: email,
+        reservationDate: reservationDate,
+        reservationType: tipoReserva,
+        reservationPrice: RESERVATION_PRICES[tipoReserva],
+        numPeople: parseInt(numeroPessoas),
+      });
+
+      toast.success("Reserva confirmada! Você receberá a confirmação no email informado.");
       
       // Reset form
       setDate(undefined);
       setName("");
-      setWhatsapp("");
+      setEmail("");
       setTipoReserva("");
       setNumeroPessoas("");
       setAvailability({});
@@ -329,7 +370,7 @@ const Reservas = () => {
                 />
               </div>
 
-              {/* 4. Nome e WhatsApp */}
+              {/* 4. Nome e Email */}
               <div className="space-y-4 pt-2">
                 <Label className="text-lg font-semibold block">4. Seus dados de contato</Label>
                 
@@ -346,19 +387,20 @@ const Reservas = () => {
                 </div>
 
                 <div>
-                  <Label htmlFor="whatsapp">WhatsApp *</Label>
+                  <Label htmlFor="email">Email *</Label>
                   <Input 
-                    id="whatsapp" 
-                    value={whatsapp} 
-                    onChange={e => setWhatsapp(e.target.value)} 
-                    placeholder="(00) 00000-0000" 
+                    id="email" 
+                    type="email"
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)} 
+                    placeholder="seu@email.com" 
                     required 
                     className="mt-1" 
                   />
                   <div className="mt-2 p-3 bg-primary/10 border border-primary/30 rounded-md">
                     <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <MessageCircle className="h-4 w-4" />
-                      Você receberá a confirmação da sua reserva neste WhatsApp
+                      <Mail className="h-4 w-4" />
+                      Você receberá a confirmação da sua reserva neste email
                     </p>
                   </div>
                 </div>
