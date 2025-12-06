@@ -1,12 +1,28 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { useAdminTables } from '@/hooks/useAdminTables';
-import { Table2, ClipboardList, Clock, CheckCircle } from 'lucide-react';
+import { Table2, ClipboardList, Clock, CheckCircle, CalendarDays } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
 
 const AdminDashboard: React.FC = () => {
   const { orders } = useRealtimeOrders();
   const { tables } = useAdminTables();
+  const [todayReservations, setTodayReservations] = useState(0);
+
+  useEffect(() => {
+    const fetchTodayReservations = async () => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { count } = await supabase
+        .from('reservations')
+        .select('*', { count: 'exact', head: true })
+        .eq('reservation_date', today)
+        .eq('status', 'confirmed');
+      setTodayReservations(count || 0);
+    };
+    fetchTodayReservations();
+  }, []);
 
   const pendingOrders = orders.filter(o => o.status === 'pending').length;
   const preparingOrders = orders.filter(o => o.status === 'preparing').length;
@@ -25,6 +41,13 @@ const AdminDashboard: React.FC = () => {
       bgColor: 'bg-blue-500/10'
     },
     { 
+      title: 'Reservas Hoje', 
+      value: todayReservations, 
+      icon: CalendarDays,
+      color: 'text-orange-500',
+      bgColor: 'bg-orange-500/10'
+    },
+    { 
       title: 'Pedidos Hoje', 
       value: todayOrders, 
       icon: ClipboardList,
@@ -37,13 +60,6 @@ const AdminDashboard: React.FC = () => {
       icon: Clock,
       color: 'text-yellow-500',
       bgColor: 'bg-yellow-500/10'
-    },
-    { 
-      title: 'Preparando', 
-      value: preparingOrders, 
-      icon: CheckCircle,
-      color: 'text-purple-500',
-      bgColor: 'bg-purple-500/10'
     },
   ];
 

@@ -11,6 +11,7 @@ import AdminLogin from "./pages/admin/Login";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminTables from "./pages/admin/Tables";
 import Kitchen from "./pages/admin/Kitchen";
+import AdminReservations from "./pages/admin/Reservations";
 import TableMenu from "./pages/mesa/TableMenu";
 import { AdminLayout } from "./components/admin/AdminLayout";
 import { ProtectedRoute } from "./components/admin/ProtectedRoute";
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/admin" element={<AdminLogin />} />
             <Route element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/reservas" element={<AdminReservations />} />
               <Route path="/admin/mesas" element={<AdminTables />} />
               <Route path="/admin/cozinha" element={<Kitchen />} />
             </Route>
