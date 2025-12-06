@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Calendar as CalendarIcon, Users, Mail, AlertTriangle, CheckCircle } from "lucide-react";
+import { Calendar as CalendarIcon, Users, Mail, Phone, AlertTriangle, CheckCircle } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,7 @@ const Reservas = () => {
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [tipoReserva, setTipoReserva] = useState("");
   const [numeroPessoas, setNumeroPessoas] = useState("");
   const [availability, setAvailability] = useState<Record<string, number>>({});
@@ -147,7 +148,7 @@ const Reservas = () => {
       toast.error("Por favor, selecione uma data");
       return;
     }
-    if (!name || !email || !tipoReserva || !numeroPessoas) {
+    if (!name || !email || !whatsapp || !tipoReserva || !numeroPessoas) {
       toast.error("Por favor, preencha todos os campos");
       return;
     }
@@ -182,6 +183,7 @@ const Reservas = () => {
           reservation_type: tipoReserva,
           client_name: name,
           client_email: email,
+          client_whatsapp: whatsapp,
           num_people: parseInt(numeroPessoas),
           status: 'confirmed',
         });
@@ -204,6 +206,7 @@ const Reservas = () => {
       setDate(undefined);
       setName("");
       setEmail("");
+      setWhatsapp("");
       setTipoReserva("");
       setNumeroPessoas("");
       setAvailability({});
@@ -403,6 +406,22 @@ const Reservas = () => {
                       Você receberá a confirmação da sua reserva neste email
                     </p>
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="whatsapp">WhatsApp *</Label>
+                  <Input 
+                    id="whatsapp" 
+                    value={whatsapp} 
+                    onChange={e => setWhatsapp(e.target.value)} 
+                    placeholder="(00) 00000-0000" 
+                    required 
+                    className="mt-1" 
+                  />
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <Phone className="h-3 w-3" />
+                    Para contato em caso de necessidade
+                  </p>
                 </div>
               </div>
 

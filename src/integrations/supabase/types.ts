@@ -176,6 +176,7 @@ export type Database = {
         Row: {
           client_email: string
           client_name: string
+          client_whatsapp: string | null
           created_at: string
           id: string
           num_people: number
@@ -186,6 +187,7 @@ export type Database = {
         Insert: {
           client_email: string
           client_name: string
+          client_whatsapp?: string | null
           created_at?: string
           id?: string
           num_people: number
@@ -196,6 +198,7 @@ export type Database = {
         Update: {
           client_email?: string
           client_name?: string
+          client_whatsapp?: string | null
           created_at?: string
           id?: string
           num_people?: number
