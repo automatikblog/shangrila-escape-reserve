@@ -8,6 +8,7 @@ export interface Reservation {
   reservation_type: string;
   client_name: string;
   client_email: string;
+  client_whatsapp?: string | null;
   num_people: number;
   status: string;
   created_at: string;
