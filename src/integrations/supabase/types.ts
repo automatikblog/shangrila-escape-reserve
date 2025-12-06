@@ -172,6 +172,39 @@ export type Database = {
           },
         ]
       }
+      reservations: {
+        Row: {
+          client_name: string
+          client_whatsapp: string
+          created_at: string
+          id: string
+          num_people: number
+          reservation_date: string
+          reservation_type: string
+          status: string
+        }
+        Insert: {
+          client_name: string
+          client_whatsapp: string
+          created_at?: string
+          id?: string
+          num_people: number
+          reservation_date: string
+          reservation_type: string
+          status?: string
+        }
+        Update: {
+          client_name?: string
+          client_whatsapp?: string
+          created_at?: string
+          id?: string
+          num_people?: number
+          reservation_date?: string
+          reservation_type?: string
+          status?: string
+        }
+        Relationships: []
+      }
       tables: {
         Row: {
           created_at: string

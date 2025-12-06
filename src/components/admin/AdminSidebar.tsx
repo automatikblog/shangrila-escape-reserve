@@ -5,7 +5,8 @@ import {
   Table2, 
   ChefHat, 
   LogOut,
-  Menu
+  Menu,
+  CalendarDays
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/admin/reservas', icon: CalendarDays, label: 'Reservas' },
   { to: '/admin/mesas', icon: Table2, label: 'Mesas' },
   { to: '/admin/cozinha', icon: ChefHat, label: 'Cozinha' },
 ];
