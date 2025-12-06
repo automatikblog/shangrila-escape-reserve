@@ -4,16 +4,20 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Minus } from 'lucide-react';
 import { MenuItem } from '@/lib/menuData';
 import { useCart } from '@/contexts/CartContext';
+import { Badge } from '@/components/ui/badge';
 
 interface MenuItemCardProps {
   item: MenuItem;
 }
 
 export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
-  const { items, addItem, updateQuantity } = useCart();
+  const { items, addItem, updateQuantity, canAddMore } = useCart();
   
   const cartItem = items.find(i => i.name === item.name && i.category === item.category);
   const quantity = cartItem?.quantity || 0;
+  const hasLimitedStock = item.stockQuantity !== null && item.stockQuantity !== undefined;
+  const remainingStock = hasLimitedStock ? (item.stockQuantity! - quantity) : null;
+  const canAdd = canAddMore(item);
 
   const handleAdd = () => {
     addItem(item);
@@ -36,7 +40,19 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
             {item.description && (
               <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
             )}
-            <p className="text-primary font-semibold mt-2 text-sm">{item.price}</p>
+            <div className="flex items-center gap-2 mt-2">
+              <p className="text-primary font-semibold text-sm">{item.price}</p>
+              {hasLimitedStock && remainingStock !== null && remainingStock <= 5 && remainingStock > 0 && (
+                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 bg-amber-50">
+                  Últimas {remainingStock}
+                </Badge>
+              )}
+              {hasLimitedStock && remainingStock === 0 && quantity > 0 && (
+                <Badge variant="outline" className="text-xs text-muted-foreground">
+                  Máximo no carrinho
+                </Badge>
+              )}
+            </div>
           </div>
           
           <div className="flex items-center gap-2">
@@ -56,6 +72,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
                   variant="ghost"
                   className="h-7 w-7 rounded-full"
                   onClick={handleAdd}
+                  disabled={!canAdd}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -66,6 +83,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
                 variant="outline"
                 className="rounded-full"
                 onClick={handleAdd}
+                disabled={!canAdd}
               >
                 <Plus className="h-4 w-4" />
               </Button>
