@@ -86,13 +86,15 @@ const Atendimento: React.FC = () => {
   };
 
   const updateQuantity = (cartItemId: string, delta: number) => {
-    setCart(cart.map(item => {
-      if (item.id === cartItemId) {
-        const newQuantity = item.quantity + delta;
-        return newQuantity > 0 ? { ...item, quantity: newQuantity } : item;
-      }
-      return item;
-    }).filter(item => item.quantity > 0));
+    setCart(prevCart => prevCart
+      .map(item => {
+        if (item.id === cartItemId) {
+          return { ...item, quantity: item.quantity + delta };
+        }
+        return item;
+      })
+      .filter(item => item.quantity > 0)
+    );
   };
 
   const removeFromCart = (cartItemId: string) => {
