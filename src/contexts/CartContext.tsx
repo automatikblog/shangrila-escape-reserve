@@ -32,20 +32,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [deliveryType, setDeliveryType] = useState<DeliveryType>(null);
 
   const canAddMore = useCallback((item: MenuItem): boolean => {
-    if (item.stockQuantity === null || item.stockQuantity === undefined) {
-      return true; // unlimited stock
-    }
-    const existingItem = items.find(i => i.name === item.name && i.category === item.category);
-    const currentQty = existingItem?.quantity || 0;
-    return currentQty < item.stockQuantity;
-  }, [items]);
+    return true; // Stock is informational only, no limits
+  }, []);
 
   const addItem = useCallback((item: MenuItem): boolean => {
-    if (!canAddMore(item)) {
-      toast.error(`Estoque insuficiente. Apenas ${item.stockQuantity} disponível.`);
-      return false;
-    }
-    
     setItems(prev => {
       const existingItem = prev.find(i => i.name === item.name && i.category === item.category);
       if (existingItem) {
@@ -58,7 +48,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [...prev, { ...item, quantity: 1, cartId: `${item.name}-${Date.now()}` }];
     });
     return true;
-  }, [canAddMore]);
+  }, []);
 
   const removeItem = useCallback((cartId: string) => {
     setItems(prev => prev.filter(i => i.cartId !== cartId));
@@ -70,19 +60,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
     }
     
-    const cartItem = items.find(i => i.cartId === cartId);
-    if (cartItem && cartItem.stockQuantity !== null && cartItem.stockQuantity !== undefined) {
-      if (quantity > cartItem.stockQuantity) {
-        toast.error(`Estoque insuficiente. Apenas ${cartItem.stockQuantity} disponível.`);
-        return false;
-      }
-    }
-    
     setItems(prev => prev.map(i =>
       i.cartId === cartId ? { ...i, quantity } : i
     ));
     return true;
-  }, [removeItem, items]);
+  }, [removeItem]);
 
   const clearCart = useCallback(() => {
     setItems([]);
