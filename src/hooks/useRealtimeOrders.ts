@@ -18,6 +18,7 @@ interface Order {
   client_session_id: string;
   status: OrderStatus;
   notes: string | null;
+  delivery_type: string;
   created_at: string;
   updated_at: string;
   items?: OrderItem[];
@@ -98,7 +99,8 @@ export const useRealtimeOrders = (statusFilter?: OrderStatus[]) => {
     tableId: string,
     clientSessionId: string,
     items: { name: string; price: number; quantity: number; category: string; menuItemId?: string }[],
-    notes?: string
+    notes?: string,
+    deliveryType: 'mesa' | 'balcao' = 'mesa'
   ) => {
     try {
       const { data: order, error: orderError } = await supabase
@@ -106,7 +108,8 @@ export const useRealtimeOrders = (statusFilter?: OrderStatus[]) => {
         .insert({
           table_id: tableId,
           client_session_id: clientSessionId,
-          notes: notes || null
+          notes: notes || null,
+          delivery_type: deliveryType
         })
         .select()
         .single();

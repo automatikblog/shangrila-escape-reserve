@@ -7,6 +7,8 @@ export interface CartItem extends MenuItem {
   cartId: string;
 }
 
+export type DeliveryType = 'mesa' | 'balcao' | null;
+
 interface CartContextType {
   items: CartItem[];
   addItem: (item: MenuItem) => boolean;
@@ -18,6 +20,8 @@ interface CartContextType {
   notes: string;
   setNotes: (notes: string) => void;
   canAddMore: (item: MenuItem) => boolean;
+  deliveryType: DeliveryType;
+  setDeliveryType: (type: DeliveryType) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -25,6 +29,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [notes, setNotes] = useState('');
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>(null);
 
   const canAddMore = useCallback((item: MenuItem): boolean => {
     if (item.stockQuantity === null || item.stockQuantity === undefined) {
@@ -82,6 +87,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearCart = useCallback(() => {
     setItems([]);
     setNotes('');
+    setDeliveryType(null);
   }, []);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -102,7 +108,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       totalPrice,
       notes,
       setNotes,
-      canAddMore
+      canAddMore,
+      deliveryType,
+      setDeliveryType
     }}>
       {children}
     </CartContext.Provider>

@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Minus } from 'lucide-react';
 import { MenuItem } from '@/lib/menuData';
 import { useCart } from '@/contexts/CartContext';
-import { Badge } from '@/components/ui/badge';
+
 
 interface MenuItemCardProps {
   item: MenuItem;
@@ -40,19 +40,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
             {item.description && (
               <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
             )}
-            <div className="flex items-center gap-2 mt-2">
-              <p className="text-primary font-semibold text-sm">{item.price}</p>
-              {hasLimitedStock && remainingStock !== null && remainingStock <= 5 && remainingStock > 0 && (
-                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 bg-amber-50">
-                  Últimas {remainingStock}
-                </Badge>
-              )}
-              {hasLimitedStock && remainingStock === 0 && quantity > 0 && (
-                <Badge variant="outline" className="text-xs text-muted-foreground">
-                  Máximo no carrinho
-                </Badge>
-              )}
-            </div>
+            <p className="text-primary font-semibold text-sm mt-2">{item.price}</p>
           </div>
           
           <div className="flex items-center gap-2">
