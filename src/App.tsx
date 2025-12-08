@@ -13,6 +13,7 @@ import AdminTables from "./pages/admin/Tables";
 import Kitchen from "./pages/admin/Kitchen";
 import AdminReservations from "./pages/admin/Reservations";
 import AdminMenuItems from "./pages/admin/MenuItems";
+import AdminAtendimento from "./pages/admin/Atendimento";
 import TableMenu from "./pages/mesa/TableMenu";
 import { AdminLayout } from "./components/admin/AdminLayout";
 import { ProtectedRoute } from "./components/admin/ProtectedRoute";
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/admin/reservas" element={<AdminReservations />} />
               <Route path="/admin/mesas" element={<AdminTables />} />
               <Route path="/admin/cardapio" element={<AdminMenuItems />} />
+              <Route path="/admin/atendimento" element={<AdminAtendimento />} />
               <Route path="/admin/cozinha" element={<Kitchen />} />
             </Route>
             
