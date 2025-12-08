@@ -134,6 +134,7 @@ export type Database = {
         Row: {
           client_session_id: string
           created_at: string
+          delivery_type: string
           id: string
           notes: string | null
           status: Database["public"]["Enums"]["order_status"]
@@ -143,6 +144,7 @@ export type Database = {
         Insert: {
           client_session_id: string
           created_at?: string
+          delivery_type?: string
           id?: string
           notes?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -152,6 +154,7 @@ export type Database = {
         Update: {
           client_session_id?: string
           created_at?: string
+          delivery_type?: string
           id?: string
           notes?: string | null
           status?: Database["public"]["Enums"]["order_status"]

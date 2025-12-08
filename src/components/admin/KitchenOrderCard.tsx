@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, ChefHat, XCircle } from 'lucide-react';
+import { Clock, CheckCircle, ChefHat, MapPin, Store } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Database } from '@/integrations/supabase/types';
@@ -21,6 +21,7 @@ interface KitchenOrderCardProps {
     id: string;
     status: OrderStatus;
     notes: string | null;
+    delivery_type?: string;
     created_at: string;
     items?: OrderItem[];
     table?: { number: number; name: string };
@@ -48,6 +49,9 @@ export const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
     locale: ptBR
   });
 
+  const deliveryLabel = order.delivery_type === 'balcao' ? 'Retirar no balcão' : 'Entregar na mesa';
+  const DeliveryIcon = order.delivery_type === 'balcao' ? Store : MapPin;
+
   return (
     <Card className={`transition-all ${order.status === 'pending' ? 'border-yellow-500 border-2 animate-pulse' : ''}`}>
       <CardHeader className="pb-3">
@@ -59,6 +63,13 @@ export const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
             <p className="text-sm text-muted-foreground">
               {order.client?.client_name} • {timeAgo}
             </p>
+            <Badge 
+              variant="outline" 
+              className={`mt-2 ${order.delivery_type === 'balcao' ? 'border-purple-500 text-purple-700 bg-purple-50' : 'border-emerald-500 text-emerald-700 bg-emerald-50'}`}
+            >
+              <DeliveryIcon className="h-3 w-3 mr-1" />
+              {deliveryLabel}
+            </Badge>
           </div>
           <Badge className={`${config.color} text-white`}>
             <StatusIcon className="h-3 w-3 mr-1" />

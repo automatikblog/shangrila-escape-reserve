@@ -34,7 +34,7 @@ const TableMenuContent: React.FC = () => {
   const { session, isLoading: sessionLoading, needsName, createSession } = useClientSession(tableId);
   const { createOrder, orders } = useRealtimeOrders();
   const { items: menuItems, isLoading: menuLoading } = useMenuItems();
-  const { items, totalItems, clearCart, notes } = useCart();
+  const { items, totalItems, clearCart, notes, deliveryType } = useCart();
   const { toast } = useToast();
 
   // Group available menu items by category
@@ -113,7 +113,7 @@ const TableMenuContent: React.FC = () => {
   }, [session, orders]);
 
   const handleConfirmOrder = async () => {
-    if (!session || !tableId || items.length === 0) return;
+    if (!session || !tableId || items.length === 0 || !deliveryType) return;
 
     setIsSubmitting(true);
 
@@ -134,7 +134,8 @@ const TableMenuContent: React.FC = () => {
       tableId,
       session.id,
       orderItems,
-      notes
+      notes,
+      deliveryType
     );
 
     setIsSubmitting(false);

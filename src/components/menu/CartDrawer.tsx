@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Drawer,
   DrawerContent,
@@ -8,8 +8,10 @@ import {
 } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, DeliveryType } from '@/contexts/CartContext';
 import { Minus, Plus, Trash2, ShoppingBag, Loader2 } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 interface CartDrawerProps {
   open: boolean;
@@ -24,11 +26,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onConfirmOrder,
   isSubmitting
 }) => {
-  const { items, updateQuantity, removeItem, totalItems, totalPrice, notes, setNotes, clearCart } = useCart();
+  const { items, updateQuantity, removeItem, totalItems, totalPrice, notes, setNotes, clearCart, deliveryType, setDeliveryType } = useCart();
 
   const handleConfirm = async () => {
     await onConfirmOrder();
   };
+
+  const canConfirm = items.length > 0 && deliveryType !== null;
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -91,6 +95,31 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
               ))}
 
+              {/* Delivery Option */}
+              <div className="pt-4 border-t">
+                <p className="text-sm font-medium text-foreground mb-3">
+                  Como deseja receber? <span className="text-destructive">*</span>
+                </p>
+                <RadioGroup 
+                  value={deliveryType || ''} 
+                  onValueChange={(value) => setDeliveryType(value as DeliveryType)}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="mesa" id="delivery-mesa" />
+                    <Label htmlFor="delivery-mesa" className="cursor-pointer">
+                      Receber na mesa
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="balcao" id="delivery-balcao" />
+                    <Label htmlFor="delivery-balcao" className="cursor-pointer">
+                      Retirar no balcão
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
               <div className="pt-4">
                 <label className="text-sm font-medium text-foreground mb-2 block">
                   Observações (opcional)
@@ -116,7 +145,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           <Button 
             className="w-full" 
             size="lg"
-            disabled={items.length === 0 || isSubmitting}
+            disabled={!canConfirm || isSubmitting}
             onClick={handleConfirm}
           >
             {isSubmitting ? (
@@ -125,6 +154,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               'Confirmar Pedido'
             )}
           </Button>
+          {!deliveryType && items.length > 0 && (
+            <p className="text-xs text-center text-destructive">
+              Selecione como deseja receber seu pedido
+            </p>
+          )}
           {items.length > 0 && (
             <Button variant="ghost" onClick={clearCart} disabled={isSubmitting}>
               Limpar carrinho
