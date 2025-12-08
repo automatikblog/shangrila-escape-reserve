@@ -11,6 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle } from 'lucide-react';
 
+// Dynamic category labels that can be extended at runtime
+const dynamicCategoryLabels: Record<string, string> = { ...categoryLabels };
+
+const getCategoryLabel = (category: string): string => {
+  return dynamicCategoryLabels[category] || categoryLabels[category] || category;
+};
+
 const MenuItemsPage: React.FC = () => {
   const { items, categories, isLoading, createItem, updateItem, deleteItem } = useMenuItems();
   
@@ -19,6 +26,9 @@ const MenuItemsPage: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isNewCategory, setIsNewCategory] = useState(false);
+  const [newCategoryKey, setNewCategoryKey] = useState('');
+  const [newCategoryLabel, setNewCategoryLabel] = useState('');
 
   const [formData, setFormData] = useState<MenuItemInput>({
     name: '',
@@ -50,11 +60,14 @@ const MenuItemsPage: React.FC = () => {
 
   const openNewItemDialog = () => {
     setEditingItem(null);
+    setIsNewCategory(false);
+    setNewCategoryKey('');
+    setNewCategoryLabel('');
     setFormData({
       name: '',
       price: 0,
       description: '',
-      category: categories[0] || 'cachacas',
+      category: categories[0] || '',
       is_available: true,
       stock_quantity: null
     });
@@ -63,6 +76,9 @@ const MenuItemsPage: React.FC = () => {
 
   const openEditDialog = (item: MenuItem) => {
     setEditingItem(item);
+    setIsNewCategory(false);
+    setNewCategoryKey('');
+    setNewCategoryLabel('');
     setFormData({
       name: item.name,
       price: item.price,
@@ -75,15 +91,27 @@ const MenuItemsPage: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!formData.name || !formData.category || formData.price <= 0) {
+    const finalCategory = isNewCategory ? newCategoryKey.toLowerCase().replace(/\s+/g, '-') : formData.category;
+    
+    if (!formData.name || !finalCategory || formData.price <= 0) {
       toast.error('Preencha todos os campos obrigatórios');
+      return;
+    }
+    
+    if (isNewCategory && !newCategoryLabel) {
+      toast.error('Informe o nome da nova categoria');
       return;
     }
 
     // Auto-set is_available based on stock: 0 = unavailable, null or 1+ = available
     const stockQty = formData.stock_quantity;
     const isAvailable = stockQty === null || stockQty > 0;
-    const dataToSave = { ...formData, is_available: isAvailable };
+    const dataToSave = { ...formData, category: finalCategory, is_available: isAvailable };
+    
+    // If creating new category, add to dynamic labels
+    if (isNewCategory && newCategoryKey && newCategoryLabel) {
+      dynamicCategoryLabels[finalCategory] = newCategoryLabel;
+    }
 
     setIsSaving(true);
 
@@ -142,7 +170,7 @@ const MenuItemsPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Cardápio</h1>
+          <h1 className="text-2xl font-bold text-foreground">Estoque</h1>
           <p className="text-muted-foreground">{items.length} itens cadastrados</p>
         </div>
         <Button onClick={openNewItemDialog}>
@@ -172,7 +200,7 @@ const MenuItemsPage: React.FC = () => {
                 <SelectItem value="all">Todas as categorias</SelectItem>
                 {categories.map(cat => (
                   <SelectItem key={cat} value={cat}>
-                    {categoryLabels[cat] || cat}
+                    {getCategoryLabel(cat)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -193,9 +221,9 @@ const MenuItemsPage: React.FC = () => {
         Object.entries(groupedItems).map(([category, categoryItems]) => (
           <Card key={category}>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-lg flex items-center gap-2">
                 <Package className="h-5 w-5 text-primary" />
-                {categoryLabels[category] || category}
+                {getCategoryLabel(category)}
                 <Badge variant="outline" className="ml-2">{categoryItems.length}</Badge>
               </CardTitle>
             </CardHeader>
@@ -289,19 +317,51 @@ const MenuItemsPage: React.FC = () => {
 
             <div>
               <Label htmlFor="category">Categoria *</Label>
-              <Select 
-                value={formData.category} 
-                onValueChange={val => setFormData(prev => ({ ...prev, category: val }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(categoryLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {!isNewCategory ? (
+                <div className="space-y-2">
+                  <Select 
+                    value={formData.category} 
+                    onValueChange={val => {
+                      if (val === '__new__') {
+                        setIsNewCategory(true);
+                      } else {
+                        setFormData(prev => ({ ...prev, category: val }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries({ ...categoryLabels, ...dynamicCategoryLabels }).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                      <SelectItem value="__new__" className="text-primary font-medium">
+                        + Nova categoria
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Nome da categoria (ex: Sobremesas)"
+                    value={newCategoryLabel}
+                    onChange={e => {
+                      setNewCategoryLabel(e.target.value);
+                      setNewCategoryKey(e.target.value.toLowerCase().replace(/\s+/g, '-'));
+                    }}
+                  />
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setIsNewCategory(false)}
+                  >
+                    Cancelar nova categoria
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div>

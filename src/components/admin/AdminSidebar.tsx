@@ -18,7 +18,7 @@ const navItems = [
   { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/admin/reservas', icon: CalendarDays, label: 'Reservas' },
   { to: '/admin/mesas', icon: Table2, label: 'Mesas' },
-  { to: '/admin/cardapio', icon: UtensilsCrossed, label: 'Cardápio' },
+  { to: '/admin/estoque', icon: UtensilsCrossed, label: 'Estoque' },
   { to: '/admin/atendimento', icon: ClipboardList, label: 'Atendimento' },
   { to: '/admin/cozinha', icon: ChefHat, label: 'Cozinha' },
 ];
