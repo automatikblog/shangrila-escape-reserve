@@ -157,5 +157,6 @@ export const categoryLabels: Record<string, string> = {
   'lanches-tradicionais': 'Lanches Tradicionais (55g)',
   'lanches-gourmet': 'Lanches Gourmet (150g)',
   'baldes': 'Baldes Promocionais',
-  'churrasqueira': 'Churrasqueira'
+  'churrasqueira': 'Churrasqueira',
+  'sobremesas': 'Sobremesas'
 };
