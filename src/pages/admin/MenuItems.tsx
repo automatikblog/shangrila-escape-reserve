@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -81,10 +80,15 @@ const MenuItemsPage: React.FC = () => {
       return;
     }
 
+    // Auto-set is_available based on stock: 0 = unavailable, null or 1+ = available
+    const stockQty = formData.stock_quantity;
+    const isAvailable = stockQty === null || stockQty > 0;
+    const dataToSave = { ...formData, is_available: isAvailable };
+
     setIsSaving(true);
 
     if (editingItem) {
-      const { error } = await updateItem(editingItem.id, formData);
+      const { error } = await updateItem(editingItem.id, dataToSave);
       if (error) {
         toast.error('Erro ao atualizar item');
       } else {
@@ -92,7 +96,7 @@ const MenuItemsPage: React.FC = () => {
         setIsDialogOpen(false);
       }
     } else {
-      const { error } = await createItem(formData);
+      const { error } = await createItem(dataToSave);
       if (error) {
         toast.error('Erro ao criar item');
       } else {
@@ -325,14 +329,9 @@ const MenuItemsPage: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="available">Disponível para venda</Label>
-              <Switch
-                id="available"
-                checked={formData.is_available}
-                onCheckedChange={checked => setFormData(prev => ({ ...prev, is_available: checked }))}
-              />
-            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Estoque 0 = indisponível automaticamente
+            </p>
           </div>
 
           <DialogFooter>

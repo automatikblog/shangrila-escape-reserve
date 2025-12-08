@@ -12,6 +12,7 @@ type OrderStatus = Database['public']['Enums']['order_status'];
 interface OrderItem {
   id: string;
   item_name: string;
+  item_price: number;
   quantity: number;
   category: string;
 }
@@ -49,6 +50,9 @@ export const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
     locale: ptBR
   });
 
+  // Calculate order total
+  const orderTotal = order.items?.reduce((sum, item) => sum + (item.item_price * item.quantity), 0) || 0;
+
   const deliveryLabel = order.delivery_type === 'balcao' ? 'Retirar no balcão' : 'Entregar na mesa';
   const DeliveryIcon = order.delivery_type === 'balcao' ? Store : MapPin;
 
@@ -84,11 +88,18 @@ export const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
               <span className="font-medium">
                 {item.quantity}x {item.item_name}
               </span>
-              <Badge variant="outline" className="text-xs">
-                {item.category}
-              </Badge>
+              <span className="text-sm text-muted-foreground">
+                R$ {(item.item_price * item.quantity).toFixed(2).replace('.', ',')}
+              </span>
             </div>
           ))}
+        </div>
+
+        <div className="flex justify-between items-center py-2 border-t border-b mb-4">
+          <span className="font-semibold">Total do Pedido:</span>
+          <span className="font-bold text-lg text-primary">
+            R$ {orderTotal.toFixed(2).replace('.', ',')}
+          </span>
         </div>
 
         {order.notes && (
