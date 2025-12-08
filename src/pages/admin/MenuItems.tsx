@@ -55,8 +55,22 @@ const MenuItemsPage: React.FC = () => {
       }
       groups[item.category].push(item);
     });
+    // Sort items alphabetically within each category
+    Object.keys(groups).forEach(cat => {
+      groups[cat].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    });
     return groups;
   }, [filteredItems]);
+
+  // All available categories (from items + predefined labels)
+  const allCategories = useMemo(() => {
+    const fromItems = new Set(items.map(i => i.category));
+    const fromLabels = new Set(Object.keys(categoryLabels));
+    const fromDynamic = new Set(Object.keys(dynamicCategoryLabels));
+    return [...new Set([...fromItems, ...fromLabels, ...fromDynamic])].sort((a, b) => 
+      getCategoryLabel(a).localeCompare(getCategoryLabel(b), 'pt-BR')
+    );
+  }, [items]);
 
   const openNewItemDialog = () => {
     setEditingItem(null);
@@ -324,6 +338,7 @@ const MenuItemsPage: React.FC = () => {
                     onValueChange={val => {
                       if (val === '__new__') {
                         setIsNewCategory(true);
+                        setFormData(prev => ({ ...prev, category: '' }));
                       } else {
                         setFormData(prev => ({ ...prev, category: val }));
                       }
@@ -333,12 +348,12 @@ const MenuItemsPage: React.FC = () => {
                       <SelectValue placeholder="Selecione a categoria" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries({ ...categoryLabels, ...dynamicCategoryLabels }).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
-                      <SelectItem value="__new__" className="text-primary font-medium">
-                        + Nova categoria
+                      <SelectItem value="__new__" className="text-primary font-medium border-b border-border mb-1 pb-2">
+                        + Criar nova categoria
                       </SelectItem>
+                      {allCategories.map(key => (
+                        <SelectItem key={key} value={key}>{getCategoryLabel(key)}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
