@@ -84,8 +84,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggle 
                   to={to}
                   className={({ isActive }) =>
                     cn(
-                      'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
-                      collapsed && 'justify-center px-2',
+                      'flex items-center rounded-lg transition-colors',
+                      collapsed 
+                        ? 'justify-center w-10 h-10 mx-auto' 
+                        : 'gap-3 px-4 py-3',
                       isActive
                         ? 'bg-primary text-primary-foreground'
                         : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
