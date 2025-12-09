@@ -268,6 +268,13 @@ export type Database = {
         Args: { p_menu_item_id: string; p_quantity: number }
         Returns: undefined
       }
+      get_reservation_counts: {
+        Args: { p_date: string }
+        Returns: {
+          count: number
+          reservation_type: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

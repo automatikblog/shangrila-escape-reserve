@@ -67,22 +67,20 @@ export function useReservations() {
   const getAvailability = async (date: Date): Promise<Record<string, number>> => {
     const dateStr = format(date, 'yyyy-MM-dd');
     
+    // Use security definer function to get counts without exposing PII
     const { data, error } = await supabase
-      .from('reservations')
-      .select('reservation_type')
-      .eq('reservation_date', dateStr)
-      .eq('status', 'confirmed');
+      .rpc('get_reservation_counts', { p_date: dateStr });
 
     if (error) {
       console.error('Error fetching availability:', error);
       return { entrada: 0, piscina: 0, quiosque: 0, cafe: 0 };
     }
 
-    // Contar reservas por tipo
+    // Convert array response to counts object
     const counts: Record<string, number> = { entrada: 0, piscina: 0, quiosque: 0, cafe: 0 };
-    data?.forEach(r => {
+    data?.forEach((r: { reservation_type: string; count: number }) => {
       if (counts[r.reservation_type] !== undefined) {
-        counts[r.reservation_type]++;
+        counts[r.reservation_type] = Number(r.count);
       }
     });
 
