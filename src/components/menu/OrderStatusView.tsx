@@ -12,6 +12,7 @@ interface OrderStatusViewProps {
     status: OrderStatus;
     notes: string | null;
     created_at: string;
+    delivery_type?: string;
     items?: { item_name: string; quantity: number }[];
   };
   onNewOrder: () => void;
@@ -107,7 +108,9 @@ export const OrderStatusView: React.FC<OrderStatusViewProps> = ({ order, onNewOr
             )}
             {order.status === 'ready' && (
               <p className="text-foreground font-medium text-green-600">
-                ✅ Seu pedido está pronto! Aguarde a entrega na mesa.
+                ✅ Seu pedido está pronto! {order.delivery_type === 'balcao' 
+                  ? 'Retire no balcão.' 
+                  : 'Aguarde a entrega na mesa.'}
               </p>
             )}
             {order.status === 'delivered' && (
