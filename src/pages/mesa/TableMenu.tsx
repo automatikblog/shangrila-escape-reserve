@@ -9,9 +9,16 @@ import { MenuItemCard } from '@/components/menu/MenuItemCard';
 import { CartDrawer } from '@/components/menu/CartDrawer';
 import { ClientNameModal } from '@/components/menu/ClientNameModal';
 import { OrderStatusView } from '@/components/menu/OrderStatusView';
+import { ActiveOrdersList } from '@/components/menu/ActiveOrdersList';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ShoppingCart, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
+import { 
+  Drawer, 
+  DrawerContent, 
+  DrawerHeader, 
+  DrawerTitle 
+} from '@/components/ui/drawer';
+import { ShoppingCart, Loader2, AlertCircle, ChevronRight, ClipboardList } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import logoShangrila from '@/assets/logo-shangrila.webp';
 
@@ -28,6 +35,7 @@ const TableMenuContent: React.FC = () => {
   const [tableLoading, setTableLoading] = useState(true);
   const [tableError, setTableError] = useState<string | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  const [ordersDrawerOpen, setOrdersDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   
@@ -36,6 +44,15 @@ const TableMenuContent: React.FC = () => {
   const { items: menuItems, isLoading: menuLoading } = useMenuItems();
   const { items, totalItems, clearCart, notes, deliveryType } = useCart();
   const { toast } = useToast();
+
+  // Filter active orders for current session
+  const activeOrders = useMemo(() => {
+    if (!session) return [];
+    return orders.filter(
+      o => o.client_session_id === session.id && 
+      ['pending', 'preparing', 'ready'].includes(o.status)
+    );
+  }, [session, orders]);
 
   // Group available menu items by category
   const menuSections = useMemo(() => {
@@ -99,18 +116,11 @@ const TableMenuContent: React.FC = () => {
     fetchTable();
   }, [tableId]);
 
-  // Check for active order
-  useEffect(() => {
-    if (session && orders.length > 0) {
-      const activeOrder = orders.find(
-        o => o.client_session_id === session.id && 
-        ['pending', 'preparing', 'ready'].includes(o.status)
-      );
-      if (activeOrder) {
-        setCurrentOrderId(activeOrder.id);
-      }
-    }
-  }, [session, orders]);
+  // Handle order selection from active orders list
+  const handleSelectOrder = (orderId: string) => {
+    setCurrentOrderId(orderId);
+    setOrdersDrawerOpen(false);
+  };
 
   const handleConfirmOrder = async () => {
     if (!session || !tableId || items.length === 0 || !deliveryType) return;
@@ -211,8 +221,8 @@ const TableMenuContent: React.FC = () => {
       />
 
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border p-4">
-        <div className="flex items-center justify-between">
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
+        <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
             <img src={logoShangrila} alt="Shangri-La" className="h-10 object-contain" />
           </div>
@@ -221,7 +231,38 @@ const TableMenuContent: React.FC = () => {
             <p className="text-xs text-muted-foreground">{session?.client_name}</p>
           </div>
         </div>
+        
+        {/* Active Orders Banner */}
+        {activeOrders.length > 0 && (
+          <button
+            onClick={() => setOrdersDrawerOpen(true)}
+            className="w-full px-4 py-2 bg-primary/10 border-t border-primary/20 flex items-center justify-between hover:bg-primary/20 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <ClipboardList className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium text-primary">
+                {activeOrders.length === 1 
+                  ? '1 pedido em andamento' 
+                  : `${activeOrders.length} pedidos em andamento`}
+              </span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-primary" />
+          </button>
+        )}
       </header>
+
+      {/* Active Orders Drawer */}
+      <Drawer open={ordersDrawerOpen} onOpenChange={setOrdersDrawerOpen}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Seus Pedidos</DrawerTitle>
+          </DrawerHeader>
+          <ActiveOrdersList 
+            orders={activeOrders} 
+            onSelectOrder={handleSelectOrder} 
+          />
+        </DrawerContent>
+      </Drawer>
 
       {/* Menu Content */}
       {menuSections.length === 0 ? (
