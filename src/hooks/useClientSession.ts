@@ -20,12 +20,17 @@ export const useClientSession = (tableId: string | undefined) => {
     if (!fingerprint || !tableId) return;
 
     try {
+      // Get start of today in local timezone (Brazil)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
       const { data, error } = await supabase
         .from('client_sessions')
         .select('*')
         .eq('device_fingerprint', fingerprint)
         .eq('table_id', tableId)
         .eq('is_active', true)
+        .gte('created_at', today.toISOString())
         .maybeSingle();
 
       if (error) {
