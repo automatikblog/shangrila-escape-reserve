@@ -20,64 +20,30 @@ export const useClientSession = (tableId: string | undefined) => {
     if (!fingerprint || !tableId) return;
 
     try {
-      // First, check if there's an active session for THIS table TODAY
-      const { data: tableSession, error: tableError } = await supabase
-        .rpc('get_session_by_fingerprint', {
-          p_fingerprint: fingerprint,
-          p_table_id: tableId
-        });
+      const { data, error } = await supabase
+        .from('client_sessions')
+        .select('*')
+        .eq('device_fingerprint', fingerprint)
+        .eq('table_id', tableId)
+        .eq('is_active', true)
+        .maybeSingle();
 
-      if (tableError) {
-        console.error('Error checking session:', tableError);
+      if (error) {
+        console.error('Error checking session:', error);
         setNeedsName(true);
-        setIsLoading(false);
         return;
       }
 
-      // If we have a session for this table today, use it
-      if (tableSession && tableSession.length > 0) {
-        const sessionData = tableSession[0];
-        setSession({
-          id: sessionData.id,
-          client_name: sessionData.client_name,
-          device_fingerprint: sessionData.device_fingerprint,
-          table_id: sessionData.table_id,
-          is_active: sessionData.is_active
-        });
+      if (data) {
+        setSession(data);
         setNeedsName(false);
-        setIsLoading(false);
-        return;
-      }
-
-      // No session for this table today - check if client has a name from another table today
-      const { data: existingName, error: nameError } = await supabase
-        .rpc('get_client_name_for_today', {
-          p_fingerprint: fingerprint
-        });
-
-      if (nameError) {
-        console.error('Error checking existing name:', nameError);
+      } else {
         setNeedsName(true);
-        setIsLoading(false);
-        return;
       }
-
-      // If client has a name from today, auto-create session for this table
-      if (existingName) {
-        const success = await createSession(existingName);
-        if (!success) {
-          setNeedsName(true);
-        }
-        setIsLoading(false);
-        return;
-      }
-
-      // No name found for today - need to ask for name
-      setNeedsName(true);
-      setIsLoading(false);
     } catch (error) {
       console.error('Error:', error);
       setNeedsName(true);
+    } finally {
       setIsLoading(false);
     }
   }, [fingerprint, tableId]);

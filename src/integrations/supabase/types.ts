@@ -268,53 +268,6 @@ export type Database = {
         Args: { p_menu_item_id: string; p_quantity: number }
         Returns: undefined
       }
-      get_client_name_for_today: {
-        Args: { p_fingerprint: string }
-        Returns: string
-      }
-      get_order_items_by_order: {
-        Args: { p_order_id: string }
-        Returns: {
-          category: string
-          id: string
-          item_name: string
-          item_price: number
-          menu_item_id: string
-          order_id: string
-          quantity: number
-        }[]
-      }
-      get_orders_by_session: {
-        Args: { p_session_id: string }
-        Returns: {
-          client_session_id: string
-          created_at: string
-          delivery_type: string
-          id: string
-          notes: string
-          status: Database["public"]["Enums"]["order_status"]
-          table_id: string
-          updated_at: string
-        }[]
-      }
-      get_reservation_counts: {
-        Args: { p_date: string }
-        Returns: {
-          count: number
-          reservation_type: string
-        }[]
-      }
-      get_session_by_fingerprint: {
-        Args: { p_fingerprint: string; p_table_id: string }
-        Returns: {
-          client_name: string
-          created_at: string
-          device_fingerprint: string
-          id: string
-          is_active: boolean
-          table_id: string
-        }[]
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

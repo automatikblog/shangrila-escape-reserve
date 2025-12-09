@@ -18,7 +18,7 @@ export interface Reservation {
 export const RESERVATION_LIMITS: Record<string, number | null> = {
   entrada: null, // Ilimitado
   piscina: null, // Ilimitado
-  quiosque: 5,   // 5 mesas
+  quiosque: 6,   // 6 mesas
   cafe: 30,      // 30 mesas
 };
 
@@ -67,20 +67,22 @@ export function useReservations() {
   const getAvailability = async (date: Date): Promise<Record<string, number>> => {
     const dateStr = format(date, 'yyyy-MM-dd');
     
-    // Use security definer function to get counts without exposing PII
     const { data, error } = await supabase
-      .rpc('get_reservation_counts', { p_date: dateStr });
+      .from('reservations')
+      .select('reservation_type')
+      .eq('reservation_date', dateStr)
+      .eq('status', 'confirmed');
 
     if (error) {
       console.error('Error fetching availability:', error);
       return { entrada: 0, piscina: 0, quiosque: 0, cafe: 0 };
     }
 
-    // Convert array response to counts object
+    // Contar reservas por tipo
     const counts: Record<string, number> = { entrada: 0, piscina: 0, quiosque: 0, cafe: 0 };
-    data?.forEach((r: { reservation_type: string; count: number }) => {
+    data?.forEach(r => {
       if (counts[r.reservation_type] !== undefined) {
-        counts[r.reservation_type] = Number(r.count);
+        counts[r.reservation_type]++;
       }
     });
 
