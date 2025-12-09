@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { CartProvider, useCart } from '@/contexts/CartContext';
 import { useClientSession } from '@/hooks/useClientSession';
-import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
+import { useCustomerOrders } from '@/hooks/useCustomerOrders';
 import { useMenuItems, categoryLabels } from '@/hooks/useMenuItems';
 import { MenuItemCard } from '@/components/menu/MenuItemCard';
 import { CartDrawer } from '@/components/menu/CartDrawer';
@@ -32,7 +32,7 @@ const TableMenuContent: React.FC = () => {
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   
   const { session, isLoading: sessionLoading, needsName, createSession } = useClientSession(tableId);
-  const { createOrder, orders } = useRealtimeOrders();
+  const { createOrder, orders } = useCustomerOrders(session?.id || null);
   const { items: menuItems, isLoading: menuLoading } = useMenuItems();
   const { items, totalItems, clearCart, notes, deliveryType } = useCart();
   const { toast } = useToast();
@@ -99,18 +99,17 @@ const TableMenuContent: React.FC = () => {
     fetchTable();
   }, [tableId]);
 
-  // Check for active order
+  // Check for active order (orders already filtered by session via secure function)
   useEffect(() => {
-    if (session && orders.length > 0) {
+    if (orders.length > 0) {
       const activeOrder = orders.find(
-        o => o.client_session_id === session.id && 
-        ['pending', 'preparing', 'ready'].includes(o.status)
+        o => ['pending', 'preparing', 'ready'].includes(o.status)
       );
       if (activeOrder) {
         setCurrentOrderId(activeOrder.id);
       }
     }
-  }, [session, orders]);
+  }, [orders]);
 
   const handleConfirmOrder = async () => {
     if (!session || !tableId || items.length === 0 || !deliveryType) return;
