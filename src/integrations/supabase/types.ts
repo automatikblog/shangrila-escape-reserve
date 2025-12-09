@@ -300,6 +300,17 @@ export type Database = {
           reservation_type: string
         }[]
       }
+      get_session_by_fingerprint: {
+        Args: { p_fingerprint: string; p_table_id: string }
+        Returns: {
+          client_name: string
+          created_at: string
+          device_fingerprint: string
+          id: string
+          is_active: boolean
+          table_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -21,12 +21,10 @@ export const useClientSession = (tableId: string | undefined) => {
 
     try {
       const { data, error } = await supabase
-        .from('client_sessions')
-        .select('*')
-        .eq('device_fingerprint', fingerprint)
-        .eq('table_id', tableId)
-        .eq('is_active', true)
-        .maybeSingle();
+        .rpc('get_session_by_fingerprint', {
+          p_fingerprint: fingerprint,
+          p_table_id: tableId
+        });
 
       if (error) {
         console.error('Error checking session:', error);
@@ -34,8 +32,15 @@ export const useClientSession = (tableId: string | undefined) => {
         return;
       }
 
-      if (data) {
-        setSession(data);
+      if (data && data.length > 0) {
+        const sessionData = data[0];
+        setSession({
+          id: sessionData.id,
+          client_name: sessionData.client_name,
+          device_fingerprint: sessionData.device_fingerprint,
+          table_id: sessionData.table_id,
+          is_active: sessionData.is_active
+        });
         setNeedsName(false);
       } else {
         setNeedsName(true);
