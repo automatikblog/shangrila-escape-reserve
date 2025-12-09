@@ -18,7 +18,7 @@ export interface Reservation {
 export const RESERVATION_LIMITS: Record<string, number | null> = {
   entrada: null, // Ilimitado
   piscina: null, // Ilimitado
-  quiosque: 6,   // 6 mesas
+  quiosque: 5,   // 5 mesas
   cafe: 30,      // 30 mesas
 };
 
