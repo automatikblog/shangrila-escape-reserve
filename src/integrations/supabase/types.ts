@@ -268,6 +268,10 @@ export type Database = {
         Args: { p_menu_item_id: string; p_quantity: number }
         Returns: undefined
       }
+      get_client_name_for_today: {
+        Args: { p_fingerprint: string }
+        Returns: string
+      }
       get_order_items_by_order: {
         Args: { p_order_id: string }
         Returns: {
