@@ -253,7 +253,7 @@ const Reservas = () => {
               <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                 <p className="text-sm font-medium flex items-center gap-2 text-amber-700 dark:text-amber-400">
                   <AlertTriangle className="h-4 w-4" />
-                  Vagas limitadas! Quiosque/Churrasqueira: 6 vagas | Café da manhã: 30 vagas
+                  Vagas limitadas! Quiosque/Churrasqueira: 5 vagas | Café da manhã: 30 vagas
                 </p>
               </div>
 
