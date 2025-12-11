@@ -76,7 +76,14 @@ const TableMenuContent: React.FC = () => {
         description: item.description || undefined,
         category: item.category,
         isAvailable: item.is_available,
-        stockQuantity: item.stock_quantity
+        stockQuantity: item.stock_quantity,
+        // Bottle/dose fields
+        productCode: item.product_code,
+        isBottle: item.is_bottle,
+        bottleMl: item.bottle_ml,
+        doseMl: item.dose_ml,
+        bottlesInStock: item.bottles_in_stock,
+        currentBottleMl: item.current_bottle_ml
       }))
     }));
   }, [menuItems]);

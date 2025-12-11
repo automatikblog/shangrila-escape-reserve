@@ -6,6 +6,14 @@ export interface MenuItem {
   category: string;
   isAvailable?: boolean;
   stockQuantity?: number | null;
+  // Bottle/dose fields
+  productCode?: string | null;
+  isBottle?: boolean;
+  bottleMl?: number | null;
+  doseMl?: number | null;
+  bottlesInStock?: number | null;
+  currentBottleMl?: number | null;
+  costPrice?: number | null;
 }
 
 export interface MenuSection {

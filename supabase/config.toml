@@ -2,3 +2,6 @@ project_id = "gehmvvvlinstfprgtkeg"
 
 [functions.send-reservation-email]
 verify_jwt = false
+
+[functions.parse-invoice]
+verify_jwt = false
