@@ -4,7 +4,7 @@ import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { useTablesWithActivity, getTableStatus, TableStatus } from '@/hooks/useTablesWithActivity';
 import { useStaleProducts } from '@/hooks/useStaleProducts';
 import { useSettings } from '@/hooks/useSettings';
-import { Table2, ClipboardList, Clock, CalendarDays, Users, DollarSign, AlertTriangle, PackageX, Settings, User } from 'lucide-react';
+import { Table2, ClipboardList, Clock, CalendarDays, Users, DollarSign, AlertTriangle, PackageX, Settings, User, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 
 interface LowStockItem {
@@ -56,7 +67,7 @@ const statusConfig: Record<TableStatus, { bg: string; border: string; label: str
 
 const AdminDashboard: React.FC = () => {
   const { orders } = useRealtimeOrders();
-  const { tables } = useTablesWithActivity();
+  const { tables, refetch: refetchTables } = useTablesWithActivity();
   const { settings, updateSetting } = useSettings();
   const { products: staleProducts } = useStaleProducts(settings.no_sales_alert_days);
   const [todayReservations, setTodayReservations] = useState(0);
@@ -109,6 +120,27 @@ const AdminDashboard: React.FC = () => {
       setSettingsOpen(false);
     } else {
       toast.error('Erro ao salvar configurações');
+    }
+  };
+
+  const closeTable = async (sessionId: string, tableNumber: number) => {
+    try {
+      const { error } = await supabase
+        .from('client_sessions')
+        .update({ is_active: false })
+        .eq('id', sessionId);
+
+      if (error) {
+        toast.error('Erro ao fechar mesa');
+        console.error('Error closing table:', error);
+        return;
+      }
+
+      toast.success(`Mesa ${tableNumber} fechada`);
+      refetchTables();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Erro ao fechar mesa');
     }
   };
 
@@ -407,11 +439,43 @@ const AdminDashboard: React.FC = () => {
                   return (
                     <div 
                       key={table.id}
-                      className={`p-3 rounded-lg border ${config.bg} ${config.border}`}
+                      className={`p-3 rounded-lg border ${config.bg} ${config.border} relative group`}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <p className="font-bold text-lg">{table.number}</p>
-                        <div className={`w-2 h-2 rounded-full ${config.dot}`} />
+                        {table.session_id && table.client_name ? (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Fechar Mesa {table.number}?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Isso encerrará a sessão de <strong>{table.client_name}</strong>.
+                                  A mesa ficará disponível para novos clientes.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => closeTable(table.session_id!, table.number)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Fechar Mesa
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        ) : (
+                          <div className={`w-2 h-2 rounded-full ${config.dot}`} />
+                        )}
                       </div>
                       {table.client_name ? (
                         <>
