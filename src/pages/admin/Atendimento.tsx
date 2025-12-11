@@ -209,7 +209,7 @@ const Atendimento: React.FC = () => {
       </div>
 
       {/* Top Row - Mesa/Cliente and Menu Items */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6">
         {/* Left Column - Table & Client Selection */}
         <Card>
           <CardHeader>
