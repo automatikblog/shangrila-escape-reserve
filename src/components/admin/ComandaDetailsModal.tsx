@@ -111,7 +111,7 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
 
         <Separator className="shrink-0" />
 
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea className="flex-1 min-h-0 h-[40vh]">
           <div className="space-y-4 pr-4">
             {/* Orders */}
             {comanda.orders.length === 0 ? (
