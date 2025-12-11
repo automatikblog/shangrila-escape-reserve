@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Comanda } from '@/hooks/useComandas';
+import { Comanda, ComandaOrder } from '@/hooks/useComandas';
 import { Clock, DollarSign, FileText, User, MapPin, Store, Check, X } from 'lucide-react';
 
 interface ComandaDetailsModalProps {
@@ -19,6 +19,8 @@ interface ComandaDetailsModalProps {
   onMarkPaid: (comanda: Comanda) => void;
   onMarkUnpaid: (comanda: Comanda) => void;
   onClose: (comanda: Comanda) => void;
+  onMarkOrderPaid?: (orderId: string) => void;
+  onMarkOrderUnpaid?: (orderId: string) => void;
 }
 
 export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
@@ -28,6 +30,8 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   onMarkPaid,
   onMarkUnpaid,
   onClose,
+  onMarkOrderPaid,
+  onMarkOrderUnpaid,
 }) => {
   if (!comanda) return null;
 
@@ -50,6 +54,9 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
     });
   };
 
+  const allOrdersPaid = comanda.orders.length > 0 && comanda.orders.every(o => o.is_paid);
+  const hasUnpaidOrders = comanda.orders.some(o => !o.is_paid);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
@@ -61,9 +68,6 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
         </DialogHeader>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <Badge variant={comanda.is_paid ? 'default' : 'destructive'}>
-            {comanda.is_paid ? 'Pago' : 'Não pago'}
-          </Badge>
           <span className="text-sm text-muted-foreground flex items-center gap-1">
             <Clock className="h-4 w-4" />
             Aberta há {formatTimeElapsed(comanda.created_at)}
@@ -92,24 +96,49 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
               </p>
             ) : (
               comanda.orders.map((order, index) => (
-                <div key={order.id} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      Pedido #{index + 1}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {formatTime(order.created_at)}
-                    </span>
-                    <Badge variant="secondary" className="text-xs">
-                      {order.delivery_type === 'mesa' ? (
-                        <><MapPin className="h-3 w-3 mr-1" />Mesa</>
-                      ) : (
-                        <><Store className="h-3 w-3 mr-1" />Balcão</>
-                      )}
-                    </Badge>
+                <div key={order.id} className={`space-y-2 p-3 rounded-lg border ${order.is_paid ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900' : 'bg-background'}`}>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        Pedido #{index + 1}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {formatTime(order.created_at)}
+                      </span>
+                      <Badge variant="secondary" className="text-xs">
+                        {order.delivery_type === 'mesa' ? (
+                          <><MapPin className="h-3 w-3 mr-1" />Mesa</>
+                        ) : (
+                          <><Store className="h-3 w-3 mr-1" />Balcão</>
+                        )}
+                      </Badge>
+                    </div>
+                    
+                    {/* Payment toggle per order */}
+                    {order.is_paid ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs text-green-600 hover:text-red-600"
+                        onClick={() => onMarkOrderUnpaid?.(order.id)}
+                      >
+                        <Check className="h-3 w-3 mr-1" />
+                        Pago
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => onMarkOrderPaid?.(order.id)}
+                      >
+                        <DollarSign className="h-3 w-3 mr-1" />
+                        Marcar Pago
+                      </Button>
+                    )}
                   </div>
                   
-                  <div className="ml-2 space-y-1">
+                  <div className="space-y-1">
                     {order.items.map((item, idx) => (
                       <div key={idx} className="flex justify-between text-sm">
                         <span>{item.quantity}x {item.item_name}</span>
@@ -121,15 +150,17 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
                   </div>
 
                   {order.notes && (
-                    <div className="ml-2 flex items-start gap-2 text-sm bg-muted/50 p-2 rounded">
+                    <div className="flex items-start gap-2 text-sm bg-muted/50 p-2 rounded">
                       <FileText className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                       <span className="text-muted-foreground">{order.notes}</span>
                     </div>
                   )}
-
-                  {index < comanda.orders.length - 1 && (
-                    <Separator className="my-3" />
-                  )}
+                  
+                  <div className="flex justify-end">
+                    <span className="text-sm font-medium">
+                      Subtotal: R$ {order.order_total.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               ))
             )}
@@ -138,33 +169,60 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
 
         <Separator />
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-primary" />
+        {/* Totals */}
+        <div className="space-y-2">
+          {comanda.paid_total > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-green-600 flex items-center gap-1">
+                <Check className="h-4 w-4" />
+                Pago
+              </span>
+              <span className="text-green-600 font-medium">
+                R$ {comanda.paid_total.toFixed(2)}
+              </span>
+            </div>
+          )}
+          {comanda.unpaid_total > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-destructive flex items-center gap-1">
+                <X className="h-4 w-4" />
+                A pagar
+              </span>
+              <span className="text-destructive font-medium">
+                R$ {comanda.unpaid_total.toFixed(2)}
+              </span>
+            </div>
+          )}
+          <Separator />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              <span className="text-lg font-bold">Total</span>
+            </div>
             <span className="text-lg font-bold">
-              Total: R$ {comanda.total.toFixed(2)}
+              R$ {comanda.total.toFixed(2)}
             </span>
           </div>
         </div>
 
         <div className="flex gap-2">
-          {comanda.is_paid ? (
-            <Button
-              variant="outline"
-              onClick={() => onMarkUnpaid(comanda)}
-              className="flex-1"
-            >
-              <X className="h-4 w-4 mr-2" />
-              Desmarcar Pago
-            </Button>
-          ) : (
+          {hasUnpaidOrders ? (
             <Button
               variant="default"
               onClick={() => onMarkPaid(comanda)}
               className="flex-1"
             >
               <Check className="h-4 w-4 mr-2" />
-              Marcar Pago
+              Pagar Tudo
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() => onMarkUnpaid(comanda)}
+              className="flex-1"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Desmarcar Todos
             </Button>
           )}
           <Button

@@ -12,7 +12,10 @@ export interface ComandaOrder {
   notes: string | null;
   delivery_type: string;
   created_at: string;
+  is_paid: boolean;
+  paid_at: string | null;
   items: ComandaItem[];
+  order_total: number;
 }
 
 export interface Comanda {
@@ -25,6 +28,8 @@ export interface Comanda {
   paid_at: string | null;
   created_at: string;
   total: number;
+  paid_total: number;
+  unpaid_total: number;
   items: ComandaItem[];
   orders: ComandaOrder[];
 }
@@ -93,11 +98,13 @@ export const useComandas = (options?: UseComandaOptions) => {
         filteredSessions.map(async (session: any) => {
           const { data: orders } = await supabase
             .from('orders')
-            .select('id, notes, delivery_type, created_at')
+            .select('id, notes, delivery_type, created_at, is_paid, paid_at')
             .eq('client_session_id', session.id)
             .order('created_at', { ascending: true });
 
           let total = 0;
+          let paidTotal = 0;
+          let unpaidTotal = 0;
           let allItems: ComandaItem[] = [];
           let ordersWithItems: ComandaOrder[] = [];
 
@@ -114,6 +121,13 @@ export const useComandas = (options?: UseComandaOptions) => {
                 0
               );
               total += orderTotal;
+              
+              if (order.is_paid) {
+                paidTotal += orderTotal;
+              } else {
+                unpaidTotal += orderTotal;
+              }
+              
               allItems = [...allItems, ...items];
 
               ordersWithItems.push({
@@ -121,7 +135,10 @@ export const useComandas = (options?: UseComandaOptions) => {
                 notes: order.notes,
                 delivery_type: order.delivery_type,
                 created_at: order.created_at,
+                is_paid: order.is_paid,
+                paid_at: order.paid_at,
                 items,
+                order_total: orderTotal,
               });
             }
           }
@@ -136,6 +153,8 @@ export const useComandas = (options?: UseComandaOptions) => {
             paid_at: session.paid_at,
             created_at: session.created_at,
             total,
+            paid_total: paidTotal,
+            unpaid_total: unpaidTotal,
             items: allItems,
             orders: ordersWithItems,
           };
@@ -224,13 +243,54 @@ export const useComandas = (options?: UseComandaOptions) => {
     }
   };
 
-  const unpaidTotal = comandas
-    .filter(c => !c.is_paid)
-    .reduce((sum, c) => sum + c.total, 0);
+  const markOrderPaid = async (orderId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          is_paid: true, 
+          paid_at: new Date().toISOString() 
+        })
+        .eq('id', orderId);
 
-  const paidTotal = comandas
-    .filter(c => c.is_paid)
-    .reduce((sum, c) => sum + c.total, 0);
+      if (error) {
+        console.error('Error marking order as paid:', error);
+        return false;
+      }
+
+      await fetchComandas();
+      return true;
+    } catch (error) {
+      console.error('Error:', error);
+      return false;
+    }
+  };
+
+  const markOrderUnpaid = async (orderId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          is_paid: false, 
+          paid_at: null 
+        })
+        .eq('id', orderId);
+
+      if (error) {
+        console.error('Error marking order as unpaid:', error);
+        return false;
+      }
+
+      await fetchComandas();
+      return true;
+    } catch (error) {
+      console.error('Error:', error);
+      return false;
+    }
+  };
+
+  const unpaidTotal = comandas.reduce((sum, c) => sum + c.unpaid_total, 0);
+  const paidTotal = comandas.reduce((sum, c) => sum + c.paid_total, 0);
 
   return {
     comandas,
@@ -239,6 +299,8 @@ export const useComandas = (options?: UseComandaOptions) => {
     markAsPaid,
     markAsUnpaid,
     closeComanda,
+    markOrderPaid,
+    markOrderUnpaid,
     unpaidTotal,
     paidTotal,
   };

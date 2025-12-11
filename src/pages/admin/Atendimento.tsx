@@ -71,7 +71,9 @@ const Atendimento: React.FC = () => {
     refetch: refetchComandas,
     markAsPaid,
     markAsUnpaid,
-    closeComanda
+    closeComanda,
+    markOrderPaid,
+    markOrderUnpaid,
   } = useComandas();
 
   // Filter comandas for current table
@@ -167,33 +169,37 @@ const Atendimento: React.FC = () => {
     return `${minutes}m`;
   };
 
-  // Handle mark as paid
+  // Handle mark all orders as paid
   const handleMarkPaid = async (comanda: Comanda) => {
-    const success = await markAsPaid(comanda.session_id);
-    if (success) {
-      toast.success('Comanda marcada como paga');
-      if (selectedComanda?.session_id === comanda.session_id) {
-        setSelectedComanda({ ...comanda, is_paid: true, paid_at: new Date().toISOString() });
-      }
-      if (detailsModalComanda?.session_id === comanda.session_id) {
-        setDetailsModalComanda({ ...comanda, is_paid: true, paid_at: new Date().toISOString() });
-      }
+    const unpaidOrders = comanda.orders.filter(o => !o.is_paid);
+    let allSuccess = true;
+    
+    for (const order of unpaidOrders) {
+      const success = await markOrderPaid(order.id);
+      if (!success) allSuccess = false;
+    }
+    
+    if (allSuccess) {
+      toast.success('Todos os pedidos marcados como pagos');
+      await refetchComandas();
     } else {
       toast.error('Erro ao marcar como paga');
     }
   };
 
-  // Handle mark as unpaid
+  // Handle mark all orders as unpaid
   const handleMarkUnpaid = async (comanda: Comanda) => {
-    const success = await markAsUnpaid(comanda.session_id);
-    if (success) {
-      toast.success('Comanda marcada como não paga');
-      if (selectedComanda?.session_id === comanda.session_id) {
-        setSelectedComanda({ ...comanda, is_paid: false, paid_at: null });
-      }
-      if (detailsModalComanda?.session_id === comanda.session_id) {
-        setDetailsModalComanda({ ...comanda, is_paid: false, paid_at: null });
-      }
+    const paidOrders = comanda.orders.filter(o => o.is_paid);
+    let allSuccess = true;
+    
+    for (const order of paidOrders) {
+      const success = await markOrderUnpaid(order.id);
+      if (!success) allSuccess = false;
+    }
+    
+    if (allSuccess) {
+      toast.success('Todos os pedidos marcados como não pagos');
+      await refetchComandas();
     } else {
       toast.error('Erro ao marcar como não paga');
     }
@@ -509,8 +515,8 @@ const Atendimento: React.FC = () => {
                               <span className="font-medium">{comanda.client_name}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge variant={comanda.is_paid ? 'default' : 'destructive'} className="text-xs">
-                                {comanda.is_paid ? 'Pago' : 'Não pago'}
+                              <Badge variant={comanda.unpaid_total === 0 ? 'default' : 'destructive'} className="text-xs">
+                                {comanda.unpaid_total === 0 ? 'Pago' : `R$ ${comanda.unpaid_total.toFixed(2)}`}
                               </Badge>
                               <Button
                                 variant="ghost"
@@ -890,6 +896,22 @@ const Atendimento: React.FC = () => {
         onMarkPaid={handleMarkPaid}
         onMarkUnpaid={handleMarkUnpaid}
         onClose={handleCloseFromModal}
+        onMarkOrderPaid={async (orderId) => {
+          await markOrderPaid(orderId);
+          // Refresh the modal comanda data
+          if (detailsModalComanda) {
+            const updated = allComandas.find(c => c.session_id === detailsModalComanda.session_id);
+            if (updated) setDetailsModalComanda(updated);
+          }
+        }}
+        onMarkOrderUnpaid={async (orderId) => {
+          await markOrderUnpaid(orderId);
+          // Refresh the modal comanda data
+          if (detailsModalComanda) {
+            const updated = allComandas.find(c => c.session_id === detailsModalComanda.session_id);
+            if (updated) setDetailsModalComanda(updated);
+          }
+        }}
       />
 
       {/* Close Comanda Confirmation Dialog */}
@@ -898,10 +920,10 @@ const Atendimento: React.FC = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Fechar Comanda</AlertDialogTitle>
             <AlertDialogDescription>
-              {comandaToClose && !comandaToClose.is_paid ? (
+              {comandaToClose && comandaToClose.unpaid_total > 0 ? (
                 <>
-                  A comanda de <strong>{comandaToClose?.client_name}</strong> ainda não foi paga 
-                  (R$ {comandaToClose?.total.toFixed(2)}). Deseja fechar mesmo assim?
+                  A comanda de <strong>{comandaToClose?.client_name}</strong> tem pedidos não pagos 
+                  (R$ {comandaToClose?.unpaid_total.toFixed(2)} de R$ {comandaToClose?.total.toFixed(2)}). Deseja fechar mesmo assim?
                 </>
               ) : (
                 <>
@@ -912,7 +934,7 @@ const Atendimento: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            {comandaToClose && !comandaToClose.is_paid && (
+            {comandaToClose && comandaToClose.unpaid_total > 0 && (
               <Button
                 variant="outline"
                 onClick={async () => {
@@ -920,11 +942,11 @@ const Atendimento: React.FC = () => {
                   await handleCloseComanda();
                 }}
               >
-                Marcar Pago e Fechar
+                Pagar Tudo e Fechar
               </Button>
             )}
             <AlertDialogAction onClick={handleCloseComanda}>
-              {comandaToClose && !comandaToClose.is_paid ? 'Fechar sem Pagar' : 'Fechar'}
+              {comandaToClose && comandaToClose.unpaid_total > 0 ? 'Fechar sem Pagar' : 'Fechar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -71,7 +71,7 @@ const AdminDashboard: React.FC = () => {
   const { tables, refetch: refetchTables } = useTablesWithActivity();
   const { settings, updateSetting } = useSettings();
   const { products: staleProducts } = useStaleProducts(settings.no_sales_alert_days);
-  const { comandas, markAsPaid, markAsUnpaid, closeComanda, unpaidTotal, refetch: refetchComandas } = useComandas();
+  const { comandas, markAsPaid, markAsUnpaid, closeComanda, markOrderPaid, markOrderUnpaid, unpaidTotal, refetch: refetchComandas } = useComandas();
   const [todayReservations, setTodayReservations] = useState(0);
   const [todayPeopleCount, setTodayPeopleCount] = useState(0);
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
@@ -149,23 +149,27 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleMarkPaid = async (sessionId: string) => {
-    const success = await markAsPaid(sessionId);
-    if (success) {
-      toast.success('Comanda marcada como paga!');
-      refetchTables();
-    } else {
-      toast.error('Erro ao marcar como paga');
+    const comanda = comandas.find(c => c.session_id === sessionId);
+    if (!comanda) return;
+    
+    // Mark all unpaid orders as paid
+    for (const order of comanda.orders.filter(o => !o.is_paid)) {
+      await markOrderPaid(order.id);
     }
+    toast.success('Todos os pedidos marcados como pagos!');
+    refetchTables();
   };
 
   const handleMarkUnpaid = async (sessionId: string) => {
-    const success = await markAsUnpaid(sessionId);
-    if (success) {
-      toast.success('Comanda desmarcada');
-      refetchTables();
-    } else {
-      toast.error('Erro ao desmarcar pagamento');
+    const comanda = comandas.find(c => c.session_id === sessionId);
+    if (!comanda) return;
+    
+    // Mark all paid orders as unpaid
+    for (const order of comanda.orders.filter(o => o.is_paid)) {
+      await markOrderUnpaid(order.id);
     }
+    toast.success('Pagamentos desmarcados');
+    refetchTables();
   };
 
   const handleCloseComanda = async (sessionId: string, tableNumber: number) => {
@@ -179,8 +183,8 @@ const AdminDashboard: React.FC = () => {
   };
 
   const filteredComandas = comandas.filter(c => {
-    if (comandaFilter === 'unpaid') return !c.is_paid;
-    if (comandaFilter === 'paid') return c.is_paid;
+    if (comandaFilter === 'unpaid') return c.unpaid_total > 0;
+    if (comandaFilter === 'paid') return c.unpaid_total === 0;
     return true;
   });
 
@@ -465,7 +469,7 @@ const AdminDashboard: React.FC = () => {
                 <div 
                   key={comanda.session_id}
                   className={`border rounded-lg overflow-hidden transition-all ${
-                    comanda.is_paid ? 'bg-green-500/5 border-green-500/30' : 'bg-background'
+                    comanda.unpaid_total === 0 ? 'bg-green-500/5 border-green-500/30' : 'bg-background'
                   }`}
                 >
                   <div 
@@ -500,9 +504,17 @@ const AdminDashboard: React.FC = () => {
                         <p className="font-bold text-lg">
                           R$ {comanda.total.toFixed(2).replace('.', ',')}
                         </p>
-                        {comanda.is_paid && (
+                        {comanda.unpaid_total === 0 ? (
                           <Badge variant="outline" className="text-green-600 border-green-500/50">
                             <Check className="h-3 w-3 mr-1" /> Pago
+                          </Badge>
+                        ) : comanda.paid_total > 0 ? (
+                          <span className="text-xs text-muted-foreground">
+                            Pago: R$ {comanda.paid_total.toFixed(2)} | A pagar: R$ {comanda.unpaid_total.toFixed(2)}
+                          </span>
+                        ) : (
+                          <Badge variant="destructive" className="text-xs">
+                            A pagar
                           </Badge>
                         )}
                       </div>
@@ -533,7 +545,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
                       )}
                       <div className="flex gap-2">
-                        {comanda.is_paid ? (
+                        {comanda.unpaid_total === 0 ? (
                           <>
                             <Button
                               variant="outline"
@@ -576,7 +588,7 @@ const AdminDashboard: React.FC = () => {
                             onClick={() => handleMarkPaid(comanda.session_id)}
                           >
                             <Check className="h-4 w-4 mr-1" />
-                            Marcar como Pago
+                            Pagar Tudo (R$ {comanda.unpaid_total.toFixed(2)})
                           </Button>
                         )}
                       </div>
