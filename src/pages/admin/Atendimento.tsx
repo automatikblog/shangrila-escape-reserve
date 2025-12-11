@@ -173,13 +173,17 @@ const Atendimento: React.FC = () => {
     }
   };
 
+  // Normalize string to remove accents for search
+  const normalizeString = (str: string) => 
+    str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
   // Filter and group menu items by category
   const filteredItems = useMemo(() => {
     if (!searchTerm.trim()) return menuItems;
-    const term = searchTerm.toLowerCase();
+    const term = normalizeString(searchTerm);
     return menuItems.filter(item => 
-      item.name.toLowerCase().includes(term) || 
-      (categoryLabels[item.category] || item.category).toLowerCase().includes(term)
+      normalizeString(item.name).includes(term) || 
+      normalizeString(categoryLabels[item.category] || item.category).includes(term)
     );
   }, [menuItems, searchTerm]);
 
