@@ -47,10 +47,10 @@ const Pricing = () => {
           {pricingOptions.map((option, index) => (
             <Card
               key={index}
-              className={`relative transition-all duration-300 hover:shadow-xl hover:-translate-y-2 ${
-                option.popular ? "border-primary border-2 shadow-lg" : ""
+              className={`relative overflow-visible transition-all duration-300 hover:shadow-xl hover:-translate-y-2 ${
+                option.popular ? "border-primary border-2 shadow-lg mt-4" : ""
               } ${
-                option.special ? "border-orange-500 border-2 shadow-lg bg-gradient-to-br from-primary/5 to-orange-500/5" : ""
+                option.special ? "border-orange-500 border-2 shadow-lg bg-gradient-to-br from-primary/5 to-orange-500/5 mt-4" : ""
               }`}
             >
               {option.popular && (
