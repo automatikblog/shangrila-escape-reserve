@@ -8,9 +8,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, Upload, Camera, FileImage, Check, AlertCircle, Edit2 } from 'lucide-react';
+import { Loader2, Upload, Camera, FileImage, Check, AlertCircle, Package } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { MenuItem, categoryLabels } from '@/hooks/useMenuItems';
+import { MenuItem } from '@/hooks/useMenuItems';
 
 interface ParsedItem {
   codigo: string;
@@ -21,7 +21,11 @@ interface ParsedItem {
   selected: boolean;
   linkedItemId?: string;
   createNew: boolean;
-  editedQuantity?: number;
+  // Pack detection
+  unitsPerPack: number;
+  totalUnits: number;
+  editedTotalUnits: number;
+  isPack: boolean;
 }
 
 interface InvoiceImporterProps {
@@ -31,6 +35,32 @@ interface InvoiceImporterProps {
   categories: string[];
   onImportComplete: () => void;
 }
+
+// Detect pack pattern and extract units per pack
+const detectPackInfo = (description: string): { isPack: boolean; unitsPerPack: number } => {
+  // Match patterns like "12X269ML", "6X1L", "24 x 350ml", "12UN", "CX 12"
+  const patterns = [
+    /(\d+)\s*[xX×]\s*\d+/,           // 12X269ML, 6x1L
+    /(\d+)\s*UN/i,                    // 12UN
+    /CX\s*(\d+)/i,                    // CX 12
+    /(\d+)\s*UNID/i,                  // 12 UNIDADES
+    /PACK\s*(\d+)/i,                  // PACK 12
+    /(\d+)\s*LATAS?/i,                // 12 LATAS
+    /(\d+)\s*GARRAFAS?/i,             // 6 GARRAFAS
+  ];
+  
+  for (const pattern of patterns) {
+    const match = description.match(pattern);
+    if (match) {
+      const units = parseInt(match[1]);
+      if (units > 1 && units <= 48) { // Reasonable pack size
+        return { isPack: true, unitsPerPack: units };
+      }
+    }
+  }
+  
+  return { isPack: false, unitsPerPack: 1 };
+};
 
 // Helper function to normalize strings for matching
 const normalizeForMatch = (str: string): string => {
@@ -46,7 +76,6 @@ const normalizeForMatch = (str: string): string => {
 // Helper function to extract key terms from product description
 const extractKeyTerms = (description: string): string[] => {
   const normalized = normalizeForMatch(description);
-  // Common brand names and product types to match
   const terms = normalized.split(' ').filter(term => term.length > 2);
   return terms;
 };
@@ -68,7 +97,7 @@ const calculateMatchScore = (invoiceDesc: string, invoiceCode: string, existingI
   const invoiceTerms = extractKeyTerms(invoiceDesc);
   const itemTerms = extractKeyTerms(existingItem.name);
   
-  // Check for brand matches (important terms like AMSTEL, HEINEKEN, etc)
+  // Check for brand matches
   const brandMatches = invoiceTerms.filter(term => itemTerms.includes(term));
   score += brandMatches.length * 15;
   
@@ -81,12 +110,13 @@ const calculateMatchScore = (invoiceDesc: string, invoiceCode: string, existingI
     score += 30;
   }
   
-  // Penalize if description suggests pack vs single item mismatch
-  const invoiceIsPack = /\d+\s*x\s*\d+|pack|caixa|fardo|engradado/i.test(invoiceDesc);
-  const itemIsPack = /balde|pack|caixa|fardo|\d+\s*unid/i.test(existingItem.name);
+  // For individual items (latas, garrafas), prefer items without "balde" or "pack"
+  const invoiceIsPack = detectPackInfo(invoiceDesc).isPack;
+  const itemIsBalde = /balde|pack|caixa|fardo|\d+\s*unid/i.test(existingItem.name);
   
-  if (invoiceIsPack !== itemIsPack) {
-    score -= 20;
+  // If invoice is a pack of individual items, prefer individual stock items
+  if (invoiceIsPack && !itemIsBalde) {
+    score += 20;
   }
   
   return Math.max(0, score);
@@ -99,7 +129,7 @@ const findBestMatch = (invoiceDesc: string, invoiceCode: string, existingItems: 
   
   for (const item of existingItems) {
     const score = calculateMatchScore(invoiceDesc, invoiceCode, item);
-    if (score > bestScore && score >= 15) { // Minimum threshold
+    if (score > bestScore && score >= 15) {
       bestScore = score;
       bestMatch = item;
     }
@@ -146,8 +176,10 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
         return;
       }
 
-      // Try to match parsed items with existing items using smart matching
+      // Process items with pack detection and smart matching
       const itemsWithMatches: ParsedItem[] = data.items.map((item: any) => {
+        const packInfo = detectPackInfo(item.descricao);
+        const totalUnits = item.quantidade * packInfo.unitsPerPack;
         const bestMatch = findBestMatch(item.descricao, item.codigo, existingItems);
         
         return {
@@ -155,7 +187,10 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
           selected: true,
           linkedItemId: bestMatch?.id || undefined,
           createNew: !bestMatch,
-          editedQuantity: item.quantidade
+          unitsPerPack: packInfo.unitsPerPack,
+          totalUnits: totalUnits,
+          editedTotalUnits: totalUnits,
+          isPack: packInfo.isPack
         };
       });
 
@@ -185,25 +220,24 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
         const existingItem = existingItems.find(e => e.id === item.linkedItemId);
         if (!existingItem) continue;
 
-        const quantityToAdd = item.editedQuantity ?? item.quantidade;
+        const quantityToAdd = item.editedTotalUnits;
+        const unitCost = item.valorUnitario / item.unitsPerPack; // Cost per individual unit
 
         if (existingItem.is_bottle) {
-          // Add bottles to stock
           await supabase
             .from('menu_items')
             .update({
               bottles_in_stock: (existingItem.bottles_in_stock || 0) + quantityToAdd,
-              cost_price: item.valorUnitario,
+              cost_price: unitCost,
               product_code: existingItem.product_code || item.codigo
             })
             .eq('id', item.linkedItemId);
         } else {
-          // Add units to stock
           await supabase
             .from('menu_items')
             .update({
               stock_quantity: (existingItem.stock_quantity || 0) + quantityToAdd,
-              cost_price: item.valorUnitario,
+              cost_price: unitCost,
               product_code: existingItem.product_code || item.codigo
             })
             .eq('id', item.linkedItemId);
@@ -240,9 +274,9 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
     ));
   };
 
-  const updateItemQuantity = (index: number, quantity: number) => {
+  const updateTotalUnits = (index: number, totalUnits: number) => {
     setParsedItems(prev => prev.map((item, i) => 
-      i === index ? { ...item, editedQuantity: quantity } : item
+      i === index ? { ...item, editedTotalUnits: totalUnits } : item
     ));
   };
 
@@ -267,7 +301,7 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
         {step === 'upload' && (
           <div className="space-y-6 py-4">
             <div className="text-center text-muted-foreground text-sm mb-4">
-              Envie uma foto ou arquivo da nota fiscal para identificar os produtos automaticamente
+              Envie uma foto da nota fiscal. O sistema detecta automaticamente packs (ex: 12X269ML = 12 unidades)
             </div>
 
             <input
@@ -349,20 +383,30 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
                           <span className="font-medium text-sm">{item.descricao}</span>
                         </div>
                         
-                        {/* Editable quantity and price */}
-                        <div className="flex items-center gap-4 text-sm">
+                        {/* Pack detection info */}
+                        {item.isPack && (
+                          <div className="flex items-center gap-2 text-xs bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 p-2 rounded">
+                            <Package className="h-4 w-4" />
+                            <span>
+                              Pack detectado: {item.quantidade} caixas × {item.unitsPerPack} unidades = <strong>{item.totalUnits} unidades</strong>
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Quantity and price */}
+                        <div className="flex items-center gap-4 text-sm flex-wrap">
                           <div className="flex items-center gap-2">
-                            <Label className="text-xs text-muted-foreground">Qtd:</Label>
+                            <Label className="text-xs text-muted-foreground">Total unidades:</Label>
                             <Input
                               type="number"
                               min="1"
-                              value={item.editedQuantity ?? item.quantidade}
-                              onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)}
-                              className="w-20 h-8"
+                              value={item.editedTotalUnits}
+                              onChange={(e) => updateTotalUnits(index, parseInt(e.target.value) || 1)}
+                              className="w-24 h-8"
                             />
                           </div>
-                          <span className="text-muted-foreground">
-                            R$ {item.valorUnitario.toFixed(2).replace('.', ',')}/un
+                          <span className="text-muted-foreground text-xs">
+                            Custo: R$ {(item.valorUnitario / item.unitsPerPack).toFixed(2).replace('.', ',')}/un
                           </span>
                         </div>
                         
@@ -417,7 +461,7 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
                           <div className="flex items-center gap-1 text-xs text-green-600">
                             <Check className="h-3 w-3" />
                             <span>
-                              +{item.editedQuantity ?? item.quantidade} será adicionado ao estoque
+                              +{item.editedTotalUnits} unidades serão adicionadas ao estoque
                             </span>
                           </div>
                         )}
