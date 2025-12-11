@@ -209,7 +209,7 @@ const Atendimento: React.FC = () => {
       </div>
 
       {/* Top Row - Mesa/Cliente and Menu Items */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Left Column - Table & Client Selection */}
         <Card>
           <CardHeader>
@@ -320,7 +320,7 @@ const Atendimento: React.FC = () => {
                       <h3 className="font-semibold text-sm text-muted-foreground mb-2 sticky top-0 bg-card py-1">
                         {categoryLabels[category] || category}
                       </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                         {items.map(item => {
                           const cartItem = cart.find(c => c.menuItemId === item.id);
                           const isUnavailable = item.stock_quantity === 0;
