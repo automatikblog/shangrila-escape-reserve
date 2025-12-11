@@ -21,9 +21,15 @@ const Kitchen: React.FC = () => {
     );
   }
 
-  const pendingOrders = orders.filter(o => o.status === 'pending');
-  const preparingOrders = orders.filter(o => o.status === 'preparing');
-  const readyOrders = orders.filter(o => o.status === 'ready');
+  // Filter out orders that have no kitchen items
+  const ordersWithKitchenItems = orders.filter(order => {
+    const kitchenItems = order.items?.filter(item => item.goes_to_kitchen !== false) || [];
+    return kitchenItems.length > 0;
+  });
+
+  const pendingOrders = ordersWithKitchenItems.filter(o => o.status === 'pending');
+  const preparingOrders = ordersWithKitchenItems.filter(o => o.status === 'preparing');
+  const readyOrders = ordersWithKitchenItems.filter(o => o.status === 'ready');
 
   return (
     <div className="space-y-6">
@@ -35,7 +41,7 @@ const Kitchen: React.FC = () => {
         </div>
       </div>
 
-      {orders.length === 0 ? (
+      {ordersWithKitchenItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20">
           <ChefHat className="h-16 w-16 text-muted-foreground mb-4" />
           <p className="text-muted-foreground text-lg">Nenhum pedido no momento</p>
