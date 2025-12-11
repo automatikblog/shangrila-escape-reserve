@@ -38,19 +38,26 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Você é um especialista em ler notas fiscais brasileiras. Analise a imagem da nota fiscal e extraia os produtos listados.
+            content: `Você é um especialista em ler notas fiscais brasileiras (NF-e/DANFE). Analise a imagem e extraia os produtos da seção "DADOS DOS PRODUTOS/SERVIÇOS".
+
+IMPORTANTE - Colunas da nota fiscal:
+- A coluna "QUANTIDADE" ou "QTD.COM" contém a quantidade de CAIXAS/PACKS
+- A coluna "QTD.TRIB" ou "QTD TRIB" contém a quantidade REAL de unidades individuais
+- SEMPRE use a QTD.TRIB para o campo "quantidade" pois é o total de unidades soltas
+
+Exemplo: Se QTD.COM=5 (caixas) e QTD.TRIB=40 (unidades), use quantidade=40
 
 Para cada produto, extraia:
-- codigo: código do produto (número ou código alfanumérico)
-- descricao: nome/descrição do produto
-- quantidade: quantidade (número inteiro)
-- valorUnitario: valor unitário em reais (número decimal)
+- codigo: código do produto (COD.PRODUTO)
+- descricao: nome/descrição do produto (DESCRIÇÃO DOS PRODUTOS)
+- quantidade: use QTD.TRIB (quantidade tributável/unidades individuais), NÃO a quantidade de caixas
+- valorUnitario: valor unitário da CAIXA (VL.UN.COM), não precisa dividir
 - ncm: código NCM se disponível
 
 Retorne APENAS um JSON válido no formato:
 {
   "items": [
-    { "codigo": "123", "descricao": "PRODUTO X", "quantidade": 10, "valorUnitario": 5.99, "ncm": "22030000" }
+    { "codigo": "23457", "descricao": "BUDWEISER LT 269ML CX C/8", "quantidade": 40, "valorUnitario": 21.56, "ncm": "22030000" }
   ]
 }
 

@@ -24,8 +24,11 @@ interface ParsedItem {
   // Pack detection
   unitsPerPack: number;
   totalUnits: number;
-  editedTotalUnits: number;
+  editedTotalUnits: string; // Changed to string to allow empty field during editing
   isPack: boolean;
+  // New item creation
+  newItemName?: string;
+  newItemCategory?: string;
 }
 
 interface InvoiceImporterProps {
@@ -180,11 +183,18 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
         return;
       }
 
-      // Process items with pack detection and smart matching
+      // Process items - AI should return QTD.TRIB directly now
       const itemsWithMatches: ParsedItem[] = data.items.map((item: any) => {
         const packInfo = detectPackInfo(item.descricao);
-        const totalUnits = item.quantidade * packInfo.unitsPerPack;
+        // AI now returns total units directly from QTD.TRIB, so no need to multiply
+        const totalUnits = item.quantidade;
         const bestMatch = findBestMatch(item.descricao, item.codigo, existingItems);
+        
+        // Extract a clean name for new items (remove pack info like "CX C/8")
+        const cleanName = item.descricao
+          .replace(/\s*CX?\s*[Cc]?\/?(\d+)/g, '')
+          .replace(/\s*FRIDGE\s*PACK/gi, '')
+          .trim();
         
         return {
           ...item,
@@ -193,8 +203,10 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
           createNew: !bestMatch,
           unitsPerPack: packInfo.unitsPerPack,
           totalUnits: totalUnits,
-          editedTotalUnits: totalUnits,
-          isPack: packInfo.isPack
+          editedTotalUnits: String(totalUnits),
+          isPack: packInfo.isPack,
+          newItemName: cleanName,
+          newItemCategory: 'cervejas' // Default category for new items
         };
       });
 
@@ -210,24 +222,29 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
   };
 
   const handleImport = async () => {
-    const selectedItems = parsedItems.filter(item => item.selected && item.linkedItemId);
-    if (selectedItems.length === 0) {
-      toast.error('Selecione ao menos um item vinculado');
+    const linkedItems = parsedItems.filter(item => item.selected && item.linkedItemId);
+    const newItems = parsedItems.filter(item => item.selected && item.createNew && item.newItemName);
+    
+    if (linkedItems.length === 0 && newItems.length === 0) {
+      toast.error('Selecione ao menos um item para importar');
       return;
     }
 
     setIsLoading(true);
     let imported = 0;
+    let created = 0;
 
     try {
-      for (const item of selectedItems) {
+      // Update existing items
+      for (const item of linkedItems) {
         const existingItem = existingItems.find(e => e.id === item.linkedItemId);
         if (!existingItem) continue;
 
-        const quantityToAdd = item.editedTotalUnits;
-        const unitCost = item.valorUnitario / item.unitsPerPack; // Cost per individual unit
+        const quantityToAdd = parseInt(item.editedTotalUnits) || 0;
+        if (quantityToAdd <= 0) continue;
+        
+        const unitCost = item.valorUnitario / (item.isPack ? item.unitsPerPack : 1);
 
-        // Add new code to existing codes array (if not already present)
         const existingCodes = existingItem.product_code || [];
         const updatedCodes = existingCodes.includes(item.codigo) 
           ? existingCodes 
@@ -255,7 +272,32 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
         imported++;
       }
 
-      toast.success(`${imported} itens atualizados no estoque`);
+      // Create new items
+      for (const item of newItems) {
+        const quantityToAdd = parseInt(item.editedTotalUnits) || 0;
+        if (quantityToAdd <= 0 || !item.newItemName) continue;
+        
+        const unitCost = item.valorUnitario / (item.isPack ? item.unitsPerPack : 1);
+
+        await supabase
+          .from('menu_items')
+          .insert({
+            name: item.newItemName,
+            category: item.newItemCategory || 'outros',
+            price: 0, // Owner needs to set price
+            stock_quantity: quantityToAdd,
+            cost_price: unitCost,
+            product_code: [item.codigo],
+            is_available: true
+          });
+        created++;
+      }
+
+      const messages = [];
+      if (imported > 0) messages.push(`${imported} atualizados`);
+      if (created > 0) messages.push(`${created} criados`);
+      toast.success(`Itens: ${messages.join(', ')}`);
+      
       onImportComplete();
       handleClose();
     } catch (err: any) {
@@ -284,9 +326,27 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
     ));
   };
 
-  const updateTotalUnits = (index: number, totalUnits: number) => {
+  const updateTotalUnits = (index: number, value: string) => {
     setParsedItems(prev => prev.map((item, i) => 
-      i === index ? { ...item, editedTotalUnits: totalUnits } : item
+      i === index ? { ...item, editedTotalUnits: value } : item
+    ));
+  };
+
+  const updateNewItemName = (index: number, name: string) => {
+    setParsedItems(prev => prev.map((item, i) => 
+      i === index ? { ...item, newItemName: name } : item
+    ));
+  };
+
+  const updateNewItemCategory = (index: number, category: string) => {
+    setParsedItems(prev => prev.map((item, i) => 
+      i === index ? { ...item, newItemCategory: category } : item
+    ));
+  };
+
+  const toggleCreateNew = (index: number) => {
+    setParsedItems(prev => prev.map((item, i) => 
+      i === index ? { ...item, createNew: !item.createNew, linkedItemId: undefined } : item
     ));
   };
 
@@ -408,77 +468,136 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
                           <div className="flex items-center gap-2">
                             <Label className="text-xs text-muted-foreground">Total unidades:</Label>
                             <Input
-                              type="number"
-                              min="1"
+                              type="text"
+                              inputMode="numeric"
                               value={item.editedTotalUnits}
-                              onChange={(e) => updateTotalUnits(index, parseInt(e.target.value) || 1)}
+                              onChange={(e) => updateTotalUnits(index, e.target.value.replace(/[^0-9]/g, ''))}
                               className="w-24 h-8"
+                              placeholder="0"
                             />
                           </div>
                           <span className="text-muted-foreground text-xs">
-                            Custo: R$ {(item.valorUnitario / item.unitsPerPack).toFixed(2).replace('.', ',')}/un
+                            Custo: R$ {(item.valorUnitario / (item.isPack ? item.unitsPerPack : 1)).toFixed(2).replace('.', ',')}/un
                           </span>
                         </div>
                         
-                        <div>
-                          <Label className="text-xs">Vincular a item do estoque:</Label>
-                          <Select
-                            value={item.linkedItemId || '__none__'}
-                            onValueChange={(val) => updateItemLink(index, val === '__none__' ? undefined : val)}
-                          >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue placeholder="Selecione..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">
-                                <span className="text-muted-foreground">Não vincular</span>
-                              </SelectItem>
-                              {getSortedExistingItems(item).map(existing => {
-                                const matchScore = calculateMatchScore(item.descricao, item.codigo, existing);
-                                return (
-                                  <SelectItem key={existing.id} value={existing.id}>
-                                    <div className="flex items-center gap-2">
-                                      {matchScore >= 30 && (
-                                        <Badge variant="secondary" className="text-[10px] px-1">
-                                          Sugerido
-                                        </Badge>
-                                      )}
-                                      {existing.product_code && existing.product_code.length > 0 && (
-                                        <span className="text-xs text-muted-foreground font-mono">
-                                          [{existing.product_code[0]}{existing.product_code.length > 1 ? `+${existing.product_code.length - 1}` : ''}]
-                                        </span>
-                                      )}
-                                      <span>{existing.name}</span>
-                                      {existing.is_bottle && (
-                                        <span className="text-xs text-muted-foreground">
-                                          ({existing.bottles_in_stock || 0} gfs)
-                                        </span>
-                                      )}
-                                      {!existing.is_bottle && existing.stock_quantity !== null && (
-                                        <span className="text-xs text-muted-foreground">
-                                          ({existing.stock_quantity} un)
-                                        </span>
-                                      )}
-                                    </div>
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
+                        {/* Create new item checkbox */}
+                        <div className="flex items-center gap-2 p-2 rounded bg-muted/50">
+                          <Checkbox
+                            id={`create-new-${index}`}
+                            checked={item.createNew}
+                            onCheckedChange={() => toggleCreateNew(index)}
+                          />
+                          <Label htmlFor={`create-new-${index}`} className="text-xs cursor-pointer">
+                            Criar novo produto
+                          </Label>
                         </div>
 
-                        {item.linkedItemId && (
+                        {/* New item fields */}
+                        {item.createNew && (
+                          <div className="space-y-2 p-3 border rounded bg-green-50 dark:bg-green-950/30">
+                            <div>
+                              <Label className="text-xs">Nome do produto:</Label>
+                              <Input
+                                value={item.newItemName || ''}
+                                onChange={(e) => updateNewItemName(index, e.target.value)}
+                                className="mt-1 h-8"
+                                placeholder="Nome do produto"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Categoria:</Label>
+                              <Select
+                                value={item.newItemCategory || 'outros'}
+                                onValueChange={(val) => updateNewItemCategory(index, val)}
+                              >
+                                <SelectTrigger className="mt-1 h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {categories.map(cat => (
+                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Preço será definido como R$ 0,00 - edite depois
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Existing item link */}
+                        {!item.createNew && (
+                          <div>
+                            <Label className="text-xs">Vincular a item do estoque:</Label>
+                            <Select
+                              value={item.linkedItemId || '__none__'}
+                              onValueChange={(val) => updateItemLink(index, val === '__none__' ? undefined : val)}
+                            >
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Selecione..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">
+                                  <span className="text-muted-foreground">Não vincular</span>
+                                </SelectItem>
+                                {getSortedExistingItems(item).map(existing => {
+                                  const matchScore = calculateMatchScore(item.descricao, item.codigo, existing);
+                                  return (
+                                    <SelectItem key={existing.id} value={existing.id}>
+                                      <div className="flex items-center gap-2">
+                                        {matchScore >= 30 && (
+                                          <Badge variant="secondary" className="text-[10px] px-1">
+                                            Sugerido
+                                          </Badge>
+                                        )}
+                                        {existing.product_code && existing.product_code.length > 0 && (
+                                          <span className="text-xs text-muted-foreground font-mono">
+                                            [{existing.product_code[0]}{existing.product_code.length > 1 ? `+${existing.product_code.length - 1}` : ''}]
+                                          </span>
+                                        )}
+                                        <span>{existing.name}</span>
+                                        {existing.is_bottle && (
+                                          <span className="text-xs text-muted-foreground">
+                                            ({existing.bottles_in_stock || 0} gfs)
+                                          </span>
+                                        )}
+                                        {!existing.is_bottle && existing.stock_quantity !== null && (
+                                          <span className="text-xs text-muted-foreground">
+                                            ({existing.stock_quantity} un)
+                                          </span>
+                                        )}
+                                      </div>
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        {/* Status messages */}
+                        {item.linkedItemId && !item.createNew && (
                           <div className="flex items-center gap-1 text-xs text-green-600">
                             <Check className="h-3 w-3" />
                             <span>
-                              +{item.editedTotalUnits} unidades serão adicionadas ao estoque
+                              +{item.editedTotalUnits || 0} unidades serão adicionadas ao estoque
                             </span>
                           </div>
                         )}
-                        {!item.linkedItemId && item.selected && (
+                        {item.createNew && item.newItemName && (
+                          <div className="flex items-center gap-1 text-xs text-blue-600">
+                            <Package className="h-3 w-3" />
+                            <span>
+                              Novo produto será criado com {item.editedTotalUnits || 0} unidades
+                            </span>
+                          </div>
+                        )}
+                        {!item.linkedItemId && !item.createNew && item.selected && (
                           <div className="flex items-center gap-1 text-xs text-yellow-600">
                             <AlertCircle className="h-3 w-3" />
-                            <span>Selecione um item do estoque para vincular</span>
+                            <span>Selecione um item ou marque "Criar novo"</span>
                           </div>
                         )}
                       </div>
@@ -498,7 +617,7 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
               </Button>
               <Button 
                 onClick={handleImport} 
-                disabled={isLoading || parsedItems.filter(i => i.selected && i.linkedItemId).length === 0}
+                disabled={isLoading || parsedItems.filter(i => i.selected && (i.linkedItemId || (i.createNew && i.newItemName))).length === 0}
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
