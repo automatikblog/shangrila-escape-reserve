@@ -225,15 +225,7 @@ const MenuItemsPage: React.FC = () => {
     return <Badge variant="secondary" className="text-xs">{item.stock_quantity} un</Badge>;
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // Quick access items
+  // Quick access items - must be before any conditional returns
   const quickAccessItems = useMemo(() => {
     const quickNames = ['Entrada do clube', 'Piscina', 'Churrasqueira', 'Café da manhã'];
     return quickNames.map(name => {
@@ -243,6 +235,14 @@ const MenuItemsPage: React.FC = () => {
       return { name, item: found };
     });
   }, [items]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
