@@ -11,7 +11,7 @@ export interface MenuItem {
   stock_quantity: number | null;
   created_at: string;
   // New bottle/dose fields
-  product_code: string | null;
+  product_code: string[] | null; // Now supports multiple codes
   is_bottle: boolean;
   bottle_ml: number | null;
   dose_ml: number | null;
@@ -27,7 +27,7 @@ export interface MenuItemInput {
   category: string;
   is_available?: boolean;
   stock_quantity?: number | null;
-  product_code?: string | null;
+  product_code?: string[] | null; // Now supports multiple codes
   is_bottle?: boolean;
   bottle_ml?: number | null;
   dose_ml?: number | null;
@@ -52,7 +52,7 @@ export const useMenuItems = () => {
         .order('name', { ascending: true });
 
       if (fetchError) throw fetchError;
-      setItems(data || []);
+      setItems((data as MenuItem[]) || []);
     } catch (err: any) {
       console.error('Error fetching menu items:', err);
       setError(err.message);
@@ -69,13 +69,13 @@ export const useMenuItems = () => {
     try {
       const { data, error } = await supabase
         .from('menu_items')
-        .insert(item)
+        .insert(item as any)
         .select()
         .single();
 
       if (error) throw error;
-      setItems(prev => [...prev, data]);
-      return { data, error: null };
+      setItems(prev => [...prev, data as MenuItem]);
+      return { data: data as MenuItem, error: null };
     } catch (err: any) {
       console.error('Error creating menu item:', err);
       return { data: null, error: err.message };
@@ -86,14 +86,14 @@ export const useMenuItems = () => {
     try {
       const { data, error } = await supabase
         .from('menu_items')
-        .update(updates)
+        .update(updates as any)
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
-      setItems(prev => prev.map(item => item.id === id ? data : item));
-      return { data, error: null };
+      setItems(prev => prev.map(item => item.id === id ? (data as MenuItem) : item));
+      return { data: data as MenuItem, error: null };
     } catch (err: any) {
       console.error('Error updating menu item:', err);
       return { data: null, error: err.message };
@@ -118,15 +118,12 @@ export const useMenuItems = () => {
 
   const decrementStock = async (itemId: string, quantity: number) => {
     try {
-      // Call the database function that handles both bottle and regular items
       const { error } = await supabase.rpc('decrement_stock', {
         p_menu_item_id: itemId,
         p_quantity: quantity
       });
 
       if (error) throw error;
-      
-      // Refresh items to get updated stock
       await fetchItems();
       return { error: null };
     } catch (err: any) {
@@ -146,6 +143,20 @@ export const useMenuItems = () => {
     return Math.floor(totalMl / item.dose_ml);
   };
 
+  // Add a new code to an item's product_code array
+  const addProductCode = async (itemId: string, newCode: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return { error: 'Item not found' };
+    
+    const existingCodes = item.product_code || [];
+    if (existingCodes.includes(newCode)) {
+      return { error: null }; // Code already exists
+    }
+    
+    const updatedCodes = [...existingCodes, newCode];
+    return await updateItem(itemId, { product_code: updatedCodes });
+  };
+
   const categories = [...new Set(items.map(item => item.category))];
 
   return {
@@ -158,7 +169,8 @@ export const useMenuItems = () => {
     updateItem,
     deleteItem,
     decrementStock,
-    getAvailableDoses
+    getAvailableDoses,
+    addProductCode
   };
 };
 

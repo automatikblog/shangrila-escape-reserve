@@ -52,7 +52,7 @@ const MenuItemsPage: React.FC = () => {
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.product_code && item.product_code.toLowerCase().includes(searchTerm.toLowerCase()));
+        (item.product_code && item.product_code.some(code => code.toLowerCase().includes(searchTerm.toLowerCase())));
       const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
       return matchesSearch && matchesCategory;
     });
@@ -306,9 +306,10 @@ const MenuItemsPage: React.FC = () => {
                   <div key={item.id} className="py-3 flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        {item.product_code && (
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {item.product_code}
+                        {item.product_code && item.product_code.length > 0 && (
+                          <Badge variant="outline" className="font-mono text-xs" title={item.product_code.join(', ')}>
+                            {item.product_code[0]}
+                            {item.product_code.length > 1 && ` +${item.product_code.length - 1}`}
                           </Badge>
                         )}
                         {item.is_bottle && (
@@ -385,13 +386,20 @@ const MenuItemsPage: React.FC = () => {
           
           <div className="space-y-4">
             <div>
-              <Label htmlFor="product_code">Código do Produto</Label>
+              <Label htmlFor="product_code">Códigos do Produto (separados por vírgula)</Label>
               <Input
                 id="product_code"
-                value={formData.product_code || ''}
-                onChange={e => setFormData(prev => ({ ...prev, product_code: e.target.value || null }))}
-                placeholder="Código interno ou NCM"
+                value={formData.product_code?.join(', ') || ''}
+                onChange={e => {
+                  const value = e.target.value;
+                  const codes = value ? value.split(',').map(c => c.trim()).filter(c => c) : null;
+                  setFormData(prev => ({ ...prev, product_code: codes && codes.length > 0 ? codes : null }));
+                }}
+                placeholder="Ex: 0000001715, 7891149100118"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Códigos de diferentes fornecedores
+              </p>
             </div>
 
             <div>

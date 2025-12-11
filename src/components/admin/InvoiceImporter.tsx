@@ -84,12 +84,16 @@ const extractKeyTerms = (description: string): string[] => {
 const calculateMatchScore = (invoiceDesc: string, invoiceCode: string, existingItem: MenuItem): number => {
   let score = 0;
   
-  // Exact code match is highest priority
-  if (existingItem.product_code && invoiceCode) {
-    if (existingItem.product_code === invoiceCode) {
-      return 100;
+  // Exact code match is highest priority (now checks array of codes)
+  if (existingItem.product_code && existingItem.product_code.length > 0 && invoiceCode) {
+    if (existingItem.product_code.includes(invoiceCode)) {
+      return 100; // Exact match in codes array
     }
-    if (existingItem.product_code.includes(invoiceCode) || invoiceCode.includes(existingItem.product_code)) {
+    // Check if any existing code partially matches
+    const hasPartialMatch = existingItem.product_code.some(code => 
+      code.includes(invoiceCode) || invoiceCode.includes(code)
+    );
+    if (hasPartialMatch) {
       score += 50;
     }
   }
@@ -223,13 +227,19 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
         const quantityToAdd = item.editedTotalUnits;
         const unitCost = item.valorUnitario / item.unitsPerPack; // Cost per individual unit
 
+        // Add new code to existing codes array (if not already present)
+        const existingCodes = existingItem.product_code || [];
+        const updatedCodes = existingCodes.includes(item.codigo) 
+          ? existingCodes 
+          : [...existingCodes, item.codigo];
+
         if (existingItem.is_bottle) {
           await supabase
             .from('menu_items')
             .update({
               bottles_in_stock: (existingItem.bottles_in_stock || 0) + quantityToAdd,
               cost_price: unitCost,
-              product_code: existingItem.product_code || item.codigo
+              product_code: updatedCodes
             })
             .eq('id', item.linkedItemId);
         } else {
@@ -238,7 +248,7 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
             .update({
               stock_quantity: (existingItem.stock_quantity || 0) + quantityToAdd,
               cost_price: unitCost,
-              product_code: existingItem.product_code || item.codigo
+              product_code: updatedCodes
             })
             .eq('id', item.linkedItemId);
         }
@@ -433,9 +443,9 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
                                           Sugerido
                                         </Badge>
                                       )}
-                                      {existing.product_code && (
+                                      {existing.product_code && existing.product_code.length > 0 && (
                                         <span className="text-xs text-muted-foreground font-mono">
-                                          [{existing.product_code}]
+                                          [{existing.product_code[0]}{existing.product_code.length > 1 ? `+${existing.product_code.length - 1}` : ''}]
                                         </span>
                                       )}
                                       <span>{existing.name}</span>

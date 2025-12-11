@@ -64,7 +64,7 @@ export type Database = {
           is_bottle: boolean | null
           name: string
           price: number
-          product_code: string | null
+          product_code: string[] | null
           stock_quantity: number | null
         }
         Insert: {
@@ -81,7 +81,7 @@ export type Database = {
           is_bottle?: boolean | null
           name: string
           price: number
-          product_code?: string | null
+          product_code?: string[] | null
           stock_quantity?: number | null
         }
         Update: {
@@ -98,7 +98,7 @@ export type Database = {
           is_bottle?: boolean | null
           name?: string
           price?: number
-          product_code?: string | null
+          product_code?: string[] | null
           stock_quantity?: number | null
         }
         Relationships: []
