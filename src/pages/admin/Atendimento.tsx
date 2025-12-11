@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useMenuItems, categoryLabels } from '@/hooks/useMenuItems';
+import { useMenuItems, categoryLabels, MenuItem } from '@/hooks/useMenuItems';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { useComandas, Comanda } from '@/hooks/useComandas';
 import { useFrequentItems } from '@/hooks/useFrequentItems';
 import { ComandaDetailsModal } from '@/components/admin/ComandaDetailsModal';
+import { CustomItemModal, CustomIngredient } from '@/components/admin/CustomItemModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame, TrendingUp } from 'lucide-react';
+import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame, TrendingUp, Beaker } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import {
@@ -34,6 +35,8 @@ interface CartItem {
   price: number;
   quantity: number;
   category: string;
+  goes_to_kitchen?: boolean;
+  custom_ingredients?: CustomIngredient[];
 }
 
 interface Table {
@@ -63,6 +66,9 @@ const Atendimento: React.FC = () => {
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [comandaToClose, setComandaToClose] = useState<Comanda | null>(null);
   const [detailsModalComanda, setDetailsModalComanda] = useState<Comanda | null>(null);
+  
+  // Customizable item modal
+  const [customizableItem, setCustomizableItem] = useState<MenuItem | null>(null);
   
   // Fetch all active comandas (we'll filter locally)
   const { 
@@ -243,12 +249,33 @@ const Atendimento: React.FC = () => {
     setCloseDialogOpen(true);
   };
 
-  const addToCart = (item: typeof menuItems[0]) => {
-    const existingItem = cart.find(c => c.menuItemId === item.id);
+  const addToCart = (item: MenuItem, customIngredients?: CustomIngredient[]) => {
+    // If item is customizable and no custom ingredients provided, open modal
+    if (item.is_customizable && !customIngredients) {
+      setCustomizableItem(item);
+      return;
+    }
+    
+    // For customizable items with custom ingredients, always add as new entry
+    if (customIngredients) {
+      setCart([...cart, {
+        id: crypto.randomUUID(),
+        menuItemId: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: 1,
+        category: item.category,
+        goes_to_kitchen: item.goes_to_kitchen,
+        custom_ingredients: customIngredients
+      }]);
+      return;
+    }
+    
+    const existingItem = cart.find(c => c.menuItemId === item.id && !c.custom_ingredients);
     
     if (existingItem) {
       setCart(cart.map(c => 
-        c.menuItemId === item.id 
+        c.id === existingItem.id 
           ? { ...c, quantity: c.quantity + 1 }
           : c
       ));
@@ -259,8 +286,16 @@ const Atendimento: React.FC = () => {
         name: item.name,
         price: item.price,
         quantity: 1,
-        category: item.category
+        category: item.category,
+        goes_to_kitchen: item.goes_to_kitchen
       }]);
+    }
+  };
+  
+  const handleCustomItemConfirm = (ingredients: CustomIngredient[]) => {
+    if (customizableItem) {
+      addToCart(customizableItem, ingredients);
+      setCustomizableItem(null);
     }
   };
 
@@ -336,8 +371,8 @@ const Atendimento: React.FC = () => {
         menuItemId: item.menuItemId
       }));
 
-      // Check if ALL items are service items (won't go to kitchen)
-      const hasOnlyServiceItems = cart.every(item => item.category === 'servicos');
+      // Check if ALL items don't go to kitchen
+      const hasNoKitchenItems = cart.every(item => item.goes_to_kitchen === false);
       
       const { data: orderData, error: orderError } = await createOrder(
         selectedTable.id,
@@ -345,13 +380,13 @@ const Atendimento: React.FC = () => {
         orderItems,
         notes || undefined,
         deliveryType,
-        hasOnlyServiceItems ? 'delivered' : undefined // Skip kitchen for service-only orders
+        hasNoKitchenItems ? 'delivered' : undefined // Skip kitchen for non-kitchen orders
       );
 
       if (orderError) throw new Error(orderError);
 
-      if (hasOnlyServiceItems) {
-        toast.success('Serviço registrado!');
+      if (hasNoKitchenItems) {
+        toast.success('Pedido registrado!');
       } else {
         toast.success('Pedido enviado para a cozinha!');
       }
@@ -819,14 +854,19 @@ const Atendimento: React.FC = () => {
                               }`}
                             >
                               <div className="flex-1 min-w-0 mr-2">
-                                <p className="font-medium text-sm truncate">{item.name}</p>
+                                <div className="flex items-center gap-1">
+                                  <p className="font-medium text-sm truncate">{item.name}</p>
+                                  {item.is_customizable && (
+                                    <Beaker className="h-3 w-3 text-blue-500 shrink-0" />
+                                  )}
+                                </div>
                                 <p className="text-sm text-primary font-semibold">
                                   R$ {item.price.toFixed(2)}
                                 </p>
                               </div>
                               {isUnavailable ? (
                                 <Badge variant="secondary" className="text-xs shrink-0">Esgotado</Badge>
-                              ) : cartItem ? (
+                              ) : cartItem && !item.is_customizable ? (
                                 <div className="flex items-center gap-1 shrink-0">
                                   <Button
                                     size="icon"
@@ -851,12 +891,21 @@ const Atendimento: React.FC = () => {
                               ) : (
                                 <Button
                                   size="sm"
-                                  variant="secondary"
+                                  variant={item.is_customizable ? "outline" : "secondary"}
                                   className="shrink-0"
                                   onClick={() => addToCart(item)}
                                 >
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  Adicionar
+                                  {item.is_customizable ? (
+                                    <>
+                                      <Beaker className="h-4 w-4 mr-1" />
+                                      Montar
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus className="h-4 w-4 mr-1" />
+                                      Adicionar
+                                    </>
+                                  )}
                                 </Button>
                               )}
                             </div>
@@ -980,6 +1029,15 @@ const Atendimento: React.FC = () => {
           await markOrderUnpaid(orderId);
         }}
         onAddPartialPayment={addPartialPayment}
+      />
+      
+      {/* Custom Item Modal */}
+      <CustomItemModal
+        open={!!customizableItem}
+        onOpenChange={(open) => !open && setCustomizableItem(null)}
+        item={customizableItem}
+        allItems={menuItems}
+        onConfirm={handleCustomItemConfirm}
       />
 
       {/* Close Comanda Confirmation Dialog */}
