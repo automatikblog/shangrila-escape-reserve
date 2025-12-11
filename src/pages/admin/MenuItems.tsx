@@ -233,6 +233,17 @@ const MenuItemsPage: React.FC = () => {
     );
   }
 
+  // Quick access items
+  const quickAccessItems = useMemo(() => {
+    const quickNames = ['Entrada do clube', 'Piscina', 'Churrasqueira', 'Café da manhã'];
+    return quickNames.map(name => {
+      const found = items.find(item => 
+        item.name.toLowerCase() === name.toLowerCase()
+      );
+      return { name, item: found };
+    });
+  }, [items]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -251,6 +262,43 @@ const MenuItemsPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Quick Access Section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            ⚡ Acesso Rápido
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {quickAccessItems.map(({ name, item }) => (
+              <div
+                key={name}
+                className={`p-4 border rounded-lg text-center cursor-pointer transition-colors ${
+                  item ? 'hover:bg-accent/50' : 'bg-muted/30'
+                }`}
+                onClick={() => item && openEditDialog(item)}
+              >
+                <p className="font-medium text-sm">{name}</p>
+                {item ? (
+                  <p className="text-lg font-bold text-primary mt-1">
+                    R$ {item.price.toFixed(2).replace('.', ',')}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">Não cadastrado</p>
+                )}
+                {item && (
+                  <Button variant="ghost" size="sm" className="mt-2 h-7 text-xs">
+                    <Edit className="h-3 w-3 mr-1" />
+                    Editar
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Filters */}
       <Card>
