@@ -7,7 +7,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Comanda, ComandaOrder } from '@/hooks/useComandas';
@@ -82,15 +81,15 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader className="shrink-0">
+      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden p-0">
+        <DialogHeader className="shrink-0 p-6 pb-0">
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
             Comanda - {comanda.client_name}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center gap-3 flex-wrap shrink-0">
+        <div className="flex items-center gap-3 flex-wrap shrink-0 px-6">
           <span className="text-sm text-muted-foreground flex items-center gap-1">
             <Clock className="h-4 w-4" />
             Aberta há {formatTimeElapsed(comanda.created_at)}
@@ -109,10 +108,11 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
           )}
         </div>
 
-        <Separator className="shrink-0" />
+        <Separator className="shrink-0 mx-6" />
 
-        <ScrollArea className="flex-1 min-h-0 h-[40vh]">
-          <div className="space-y-4 pr-4">
+        {/* Scrollable content area with native overflow */}
+        <div className="flex-1 overflow-y-auto overscroll-contain px-6 min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="space-y-4 py-2">
             {/* Orders */}
             {comanda.orders.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
@@ -257,12 +257,12 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
-        <Separator className="shrink-0" />
+        <Separator className="shrink-0 mx-6" />
 
         {/* Totals */}
-        <div className="space-y-2 shrink-0">
+        <div className="space-y-2 shrink-0 px-6">
           {comanda.paid_total > 0 && (
             <div className="flex items-center justify-between text-sm">
               <span className="text-green-600 flex items-center gap-1">
@@ -308,7 +308,7 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 shrink-0">
+        <div className="flex flex-col gap-2 shrink-0 px-6 pb-6">
           {/* Partial Payment Button */}
           {!showPartialPaymentForm && comanda.remaining_total > 0 && onAddPartialPayment && (
             <Button
