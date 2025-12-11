@@ -89,7 +89,7 @@ const AdminDashboard: React.FC = () => {
   const [revenueStartDate, setRevenueStartDate] = useState<Date | undefined>(subDays(new Date(), 7));
   const [revenueEndDate, setRevenueEndDate] = useState<Date | undefined>(new Date());
   const [periodRevenue, setPeriodRevenue] = useState<number | null>(null);
-  const [periodOrderCount, setPeriodOrderCount] = useState<number>(0);
+  const [periodClientCount, setPeriodClientCount] = useState<number>(0);
   const [loadingRevenue, setLoadingRevenue] = useState(false);
 
   useEffect(() => {
@@ -135,17 +135,34 @@ const AdminDashboard: React.FC = () => {
       const startISO = startOfDay(revenueStartDate).toISOString();
       const endISO = endOfDay(revenueEndDate).toISOString();
       
-      const { data: orders, error } = await supabase
-        .from('orders')
-        .select('id, created_at')
+      // Fetch client sessions (unique clients) in period
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('client_sessions')
+        .select('id')
         .gte('created_at', startISO)
         .lte('created_at', endISO);
       
-      if (error) throw error;
+      if (sessionsError) throw sessionsError;
+      
+      if (!sessions || sessions.length === 0) {
+        setPeriodRevenue(0);
+        setPeriodClientCount(0);
+        return;
+      }
+      
+      const sessionIds = sessions.map(s => s.id);
+      
+      // Fetch orders for these sessions
+      const { data: orders, error: ordersError } = await supabase
+        .from('orders')
+        .select('id')
+        .in('client_session_id', sessionIds);
+      
+      if (ordersError) throw ordersError;
       
       if (!orders || orders.length === 0) {
         setPeriodRevenue(0);
-        setPeriodOrderCount(0);
+        setPeriodClientCount(sessions.length);
         return;
       }
       
@@ -153,7 +170,7 @@ const AdminDashboard: React.FC = () => {
       const orderIds = orders.map(o => o.id);
       const { data: items, error: itemsError } = await supabase
         .from('order_items')
-        .select('item_price, quantity, order_id')
+        .select('item_price, quantity')
         .in('order_id', orderIds);
       
       if (itemsError) throw itemsError;
@@ -163,7 +180,7 @@ const AdminDashboard: React.FC = () => {
       );
       
       setPeriodRevenue(total);
-      setPeriodOrderCount(orders.length);
+      setPeriodClientCount(sessions.length);
     } catch (err) {
       console.error('Error fetching revenue:', err);
       toast.error('Erro ao buscar faturamento');
@@ -492,16 +509,16 @@ const AdminDashboard: React.FC = () => {
               </p>
             </div>
             <div className="bg-background p-4 rounded-lg border">
-              <p className="text-sm text-muted-foreground mb-1">Pedidos</p>
+              <p className="text-sm text-muted-foreground mb-1">Clientes</p>
               <p className="text-3xl font-bold">
-                {loadingRevenue ? '-' : periodOrderCount}
+                {loadingRevenue ? '-' : periodClientCount}
               </p>
             </div>
-            {periodOrderCount > 0 && periodRevenue !== null && (
+            {periodClientCount > 0 && periodRevenue !== null && (
               <div className="bg-background p-4 rounded-lg border">
                 <p className="text-sm text-muted-foreground mb-1">Ticket Médio</p>
                 <p className="text-3xl font-bold">
-                  R$ {(periodRevenue / periodOrderCount).toFixed(2).replace('.', ',')}
+                  R$ {(periodRevenue / periodClientCount).toFixed(2).replace('.', ',')}
                 </p>
               </div>
             )}
