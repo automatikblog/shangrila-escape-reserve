@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MenuItem } from '@/hooks/useMenuItems';
-import { Plus, Trash2, Wine, Package, Beaker, Check, ChevronsUpDown, Search } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Plus, Trash2, Wine, Package, Beaker, Check, ChevronsUpDown, Search, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface CustomIngredient {
@@ -39,36 +40,75 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
   const [quantityMl, setQuantityMl] = useState<string>('');
   const [quantityUnits, setQuantityUnits] = useState<string>('1');
   const [comboboxOpen, setComboboxOpen] = useState(false);
+  const [isLoadingRecipe, setIsLoadingRecipe] = useState(false);
 
-  // Parse default suggestions when item changes
-  React.useEffect(() => {
-    if (item?.default_recipe_suggestion) {
-      try {
-        const suggestions = item.default_recipe_suggestion as CustomIngredient[];
-        if (Array.isArray(suggestions)) {
-          // Map suggestions to actual items
-          const mapped = suggestions.map(s => {
-            const foundItem = allItems.find(i => i.id === s.item_id);
-            if (foundItem) {
-              return {
-                item_id: foundItem.id,
-                item_name: foundItem.name,
-                quantity_ml: s.quantity_ml,
-                quantity_units: s.quantity_units || 1,
-                is_bottle: foundItem.is_bottle
-              };
-            }
-            return null;
-          }).filter(Boolean) as CustomIngredient[];
-          setIngredients(mapped);
-        }
-      } catch {
+  // Load recipe ingredients from database when item changes
+  useEffect(() => {
+    const loadRecipeIngredients = async () => {
+      if (!item || !open) {
         setIngredients([]);
+        return;
       }
-    } else {
-      setIngredients([]);
-    }
-  }, [item, allItems]);
+
+      setIsLoadingRecipe(true);
+      try {
+        // First try to load from item_recipes table
+        const { data: recipeData, error } = await supabase
+          .from('item_recipes')
+          .select(`
+            *,
+            ingredient:menu_items!ingredient_item_id(id, name, is_bottle, bottle_ml)
+          `)
+          .eq('parent_item_id', item.id);
+
+        if (error) throw error;
+
+        if (recipeData && recipeData.length > 0) {
+          // Has recipe in database - load those ingredients
+          const mapped: CustomIngredient[] = recipeData.map(r => ({
+            item_id: r.ingredient_item_id,
+            item_name: r.ingredient?.name || 'Item desconhecido',
+            quantity_ml: r.quantity_ml,
+            quantity_units: r.quantity_units || 1,
+            is_bottle: r.ingredient?.is_bottle || false
+          }));
+          setIngredients(mapped);
+        } else if (item.default_recipe_suggestion) {
+          // Fall back to default_recipe_suggestion
+          try {
+            const suggestions = item.default_recipe_suggestion as CustomIngredient[];
+            if (Array.isArray(suggestions)) {
+              const mapped = suggestions.map(s => {
+                const foundItem = allItems.find(i => i.id === s.item_id);
+                if (foundItem) {
+                  return {
+                    item_id: foundItem.id,
+                    item_name: foundItem.name,
+                    quantity_ml: s.quantity_ml,
+                    quantity_units: s.quantity_units || 1,
+                    is_bottle: foundItem.is_bottle
+                  };
+                }
+                return null;
+              }).filter(Boolean) as CustomIngredient[];
+              setIngredients(mapped);
+            }
+          } catch {
+            setIngredients([]);
+          }
+        } else {
+          setIngredients([]);
+        }
+      } catch (err) {
+        console.error('Error loading recipe:', err);
+        setIngredients([]);
+      } finally {
+        setIsLoadingRecipe(false);
+      }
+    };
+
+    loadRecipeIngredients();
+  }, [item, open, allItems]);
 
   // Available ingredients (bottles and regular items)
   const availableIngredients = useMemo(() => {
@@ -135,6 +175,11 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
           </DialogTitle>
         </DialogHeader>
 
+        {isLoadingRecipe ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
         <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
           {/* Add ingredient section */}
           <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
@@ -283,12 +328,13 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
             )}
           </div>
         </div>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleConfirm} disabled={ingredients.length === 0}>
+          <Button onClick={handleConfirm} disabled={ingredients.length === 0 || isLoadingRecipe}>
             <Check className="h-4 w-4 mr-2" />
             Confirmar ({ingredients.length})
           </Button>
