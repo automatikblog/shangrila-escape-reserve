@@ -205,32 +205,43 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
           </div>
         </div>
 
-        <div className="flex gap-2">
-          {hasUnpaidOrders ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            {hasUnpaidOrders ? (
+              <Button
+                variant="default"
+                onClick={() => onMarkPaid(comanda)}
+                className="flex-1"
+              >
+                <Check className="h-4 w-4 mr-2" />
+                Pagar Tudo (R$ {comanda.unpaid_total.toFixed(2)})
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => onMarkUnpaid(comanda)}
+                className="flex-1"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Desmarcar Todos
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
             <Button
-              variant="default"
-              onClick={() => onMarkPaid(comanda)}
+              variant="secondary"
+              onClick={() => onOpenChange(false)}
               className="flex-1"
             >
-              <Check className="h-4 w-4 mr-2" />
-              Pagar Tudo
+              Salvar e Fechar
             </Button>
-          ) : (
             <Button
-              variant="outline"
-              onClick={() => onMarkUnpaid(comanda)}
-              className="flex-1"
+              variant="destructive"
+              onClick={() => onClose(comanda)}
             >
-              <X className="h-4 w-4 mr-2" />
-              Desmarcar Todos
+              Encerrar Comanda
             </Button>
-          )}
-          <Button
-            variant="destructive"
-            onClick={() => onClose(comanda)}
-          >
-            Fechar Comanda
-          </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

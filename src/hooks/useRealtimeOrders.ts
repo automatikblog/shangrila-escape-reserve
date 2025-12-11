@@ -100,7 +100,8 @@ export const useRealtimeOrders = (statusFilter?: OrderStatus[]) => {
     clientSessionId: string,
     items: { name: string; price: number; quantity: number; category: string; menuItemId?: string }[],
     notes?: string,
-    deliveryType: 'mesa' | 'balcao' = 'mesa'
+    deliveryType: 'mesa' | 'balcao' = 'mesa',
+    initialStatus?: OrderStatus
   ) => {
     try {
       const { data: order, error: orderError } = await supabase
@@ -109,7 +110,8 @@ export const useRealtimeOrders = (statusFilter?: OrderStatus[]) => {
           table_id: tableId,
           client_session_id: clientSessionId,
           notes: notes || null,
-          delivery_type: deliveryType
+          delivery_type: deliveryType,
+          ...(initialStatus && { status: initialStatus })
         })
         .select()
         .single();
