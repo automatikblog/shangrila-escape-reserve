@@ -86,6 +86,16 @@ const Atendimento: React.FC = () => {
     fetchTables();
   }, []);
 
+  // Keep modal synced with comandas data
+  useEffect(() => {
+    if (detailsModalComanda) {
+      const updated = allComandas.find(c => c.session_id === detailsModalComanda.session_id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(detailsModalComanda)) {
+        setDetailsModalComanda(updated);
+      }
+    }
+  }, [allComandas, detailsModalComanda]);
+
   const fetchTables = async () => {
     try {
       const { data, error } = await supabase
@@ -293,11 +303,8 @@ const Atendimento: React.FC = () => {
       return;
     }
 
-    // Must either select existing comanda or create new
-    if (tableComandas.length > 0 && !selectedComanda && !isNewComanda) {
-      toast.error('Selecione uma comanda existente ou crie uma nova');
-      return;
-    }
+    // If table has existing comandas and none selected, treat as new comanda
+    const treatAsNewComanda = tableComandas.length === 0 || selectedComanda || isNewComanda;
 
     setIsSubmitting(true);
 
@@ -332,17 +339,25 @@ const Atendimento: React.FC = () => {
         menuItemId: item.menuItemId
       }));
 
-      const { error: orderError } = await createOrder(
+      // Check if ALL items are service items (won't go to kitchen)
+      const hasOnlyServiceItems = cart.every(item => item.category === 'servicos');
+      
+      const { data: orderData, error: orderError } = await createOrder(
         selectedTable.id,
         sessionId,
         orderItems,
         notes || undefined,
-        deliveryType
+        deliveryType,
+        hasOnlyServiceItems ? 'delivered' : undefined // Skip kitchen for service-only orders
       );
 
       if (orderError) throw new Error(orderError);
 
-      toast.success('Pedido enviado para a cozinha!');
+      if (hasOnlyServiceItems) {
+        toast.success('Serviço registrado!');
+      } else {
+        toast.success('Pedido enviado para a cozinha!');
+      }
       
       // Reset form - keep comanda selected if adding to existing
       setCart([]);
@@ -869,8 +884,7 @@ const Atendimento: React.FC = () => {
                     !clientName.trim() || 
                     cart.length === 0 || 
                     !deliveryType || 
-                    isSubmitting ||
-                    (tableComandas.length > 0 && !selectedComanda && !isNewComanda)
+                    isSubmitting
                   }
                   onClick={handleSubmitOrder}
                   className="w-full sm:w-auto"
@@ -898,19 +912,9 @@ const Atendimento: React.FC = () => {
         onClose={handleCloseFromModal}
         onMarkOrderPaid={async (orderId) => {
           await markOrderPaid(orderId);
-          // Refresh the modal comanda data
-          if (detailsModalComanda) {
-            const updated = allComandas.find(c => c.session_id === detailsModalComanda.session_id);
-            if (updated) setDetailsModalComanda(updated);
-          }
         }}
         onMarkOrderUnpaid={async (orderId) => {
           await markOrderUnpaid(orderId);
-          // Refresh the modal comanda data
-          if (detailsModalComanda) {
-            const updated = allComandas.find(c => c.session_id === detailsModalComanda.session_id);
-            if (updated) setDetailsModalComanda(updated);
-          }
         }}
       />
 
