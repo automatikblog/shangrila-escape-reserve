@@ -32,7 +32,7 @@ const pricingOptions = [
 
 const Pricing = () => {
   return (
-    <section id="precos" className="py-20 bg-muted/30">
+    <section id="precos" className="py-20 bg-muted/30 overflow-visible">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
@@ -54,15 +54,15 @@ const Pricing = () => {
               }`}
             >
               {option.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="bg-primary text-white px-4 py-1 rounded-full text-sm font-semibold">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                  <span className="bg-primary text-primary-foreground px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap shadow-md">
                     Mais Popular
                   </span>
                 </div>
               )}
               {option.special && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="bg-orange-500 text-white px-4 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                  <span className="bg-orange-500 text-white px-4 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1 whitespace-nowrap shadow-md">
                     <Clock className="w-3 h-3" />
                     Domingos
                   </span>
