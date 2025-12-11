@@ -5,13 +5,17 @@ import { useTablesWithActivity, getTableStatus, TableStatus } from '@/hooks/useT
 import { useStaleProducts } from '@/hooks/useStaleProducts';
 import { useSettings } from '@/hooks/useSettings';
 import { useComandas } from '@/hooks/useComandas';
-import { Table2, ClipboardList, Clock, CalendarDays, Users, DollarSign, AlertTriangle, PackageX, Settings, User, X, Receipt, Check, Coffee, ChevronDown, ChevronUp } from 'lucide-react';
+import { Table2, ClipboardList, Clock, CalendarDays, Users, DollarSign, AlertTriangle, PackageX, Settings, User, X, Receipt, Check, Coffee, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, subDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -80,6 +84,13 @@ const AdminDashboard: React.FC = () => {
   const [tempStaleDays, setTempStaleDays] = useState(settings.no_sales_alert_days);
   const [comandaFilter, setComandaFilter] = useState<'all' | 'unpaid' | 'paid'>('unpaid');
   const [expandedComanda, setExpandedComanda] = useState<string | null>(null);
+  
+  // Revenue report state
+  const [revenueStartDate, setRevenueStartDate] = useState<Date | undefined>(subDays(new Date(), 7));
+  const [revenueEndDate, setRevenueEndDate] = useState<Date | undefined>(new Date());
+  const [periodRevenue, setPeriodRevenue] = useState<number | null>(null);
+  const [periodOrderCount, setPeriodOrderCount] = useState<number>(0);
+  const [loadingRevenue, setLoadingRevenue] = useState(false);
 
   useEffect(() => {
     setTempInactivity(settings.table_inactivity_minutes);
@@ -114,6 +125,56 @@ const AdminDashboard: React.FC = () => {
     };
     fetchTodayData();
   }, []);
+
+  // Fetch revenue for selected period
+  const fetchPeriodRevenue = async () => {
+    if (!revenueStartDate || !revenueEndDate) return;
+    
+    setLoadingRevenue(true);
+    try {
+      const startISO = startOfDay(revenueStartDate).toISOString();
+      const endISO = endOfDay(revenueEndDate).toISOString();
+      
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('id, created_at')
+        .gte('created_at', startISO)
+        .lte('created_at', endISO);
+      
+      if (error) throw error;
+      
+      if (!orders || orders.length === 0) {
+        setPeriodRevenue(0);
+        setPeriodOrderCount(0);
+        return;
+      }
+      
+      // Fetch order items for these orders
+      const orderIds = orders.map(o => o.id);
+      const { data: items, error: itemsError } = await supabase
+        .from('order_items')
+        .select('item_price, quantity, order_id')
+        .in('order_id', orderIds);
+      
+      if (itemsError) throw itemsError;
+      
+      const total = (items || []).reduce((sum, item) => 
+        sum + (item.item_price * item.quantity), 0
+      );
+      
+      setPeriodRevenue(total);
+      setPeriodOrderCount(orders.length);
+    } catch (err) {
+      console.error('Error fetching revenue:', err);
+      toast.error('Erro ao buscar faturamento');
+    } finally {
+      setLoadingRevenue(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPeriodRevenue();
+  }, [revenueStartDate, revenueEndDate]);
 
   const handleSaveSettings = async () => {
     const success1 = await updateSetting('table_inactivity_minutes', tempInactivity);
@@ -237,11 +298,12 @@ const AdminDashboard: React.FC = () => {
       bgColor: 'bg-green-500/10'
     },
     { 
-      title: 'Pendentes', 
+      title: 'Pedidos na Cozinha', 
       value: pendingOrders, 
       icon: Clock,
       color: 'text-yellow-500',
-      bgColor: 'bg-yellow-500/10'
+      bgColor: 'bg-yellow-500/10',
+      subtitle: 'aguardando preparo'
     },
   ];
 
@@ -315,6 +377,137 @@ const AdminDashboard: React.FC = () => {
           </Card>
         ))}
       </div>
+
+      {/* Revenue Report Card */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardHeader className="flex flex-row items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-primary" />
+          <CardTitle>Relatório de Faturamento</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-4 items-end">
+            <div className="space-y-2">
+              <Label>Data Inicial</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[180px] justify-start text-left font-normal",
+                      !revenueStartDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {revenueStartDate ? format(revenueStartDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={revenueStartDate}
+                    onSelect={setRevenueStartDate}
+                    disabled={(date) => date > new Date()}
+                    initialFocus
+                    className="pointer-events-auto"
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Data Final</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[180px] justify-start text-left font-normal",
+                      !revenueEndDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {revenueEndDate ? format(revenueEndDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={revenueEndDate}
+                    onSelect={setRevenueEndDate}
+                    disabled={(date) => date > new Date() || (revenueStartDate && date < revenueStartDate)}
+                    initialFocus
+                    className="pointer-events-auto"
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setRevenueStartDate(new Date());
+                  setRevenueEndDate(new Date());
+                }}
+              >
+                Hoje
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setRevenueStartDate(subDays(new Date(), 7));
+                  setRevenueEndDate(new Date());
+                }}
+              >
+                7 dias
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setRevenueStartDate(subDays(new Date(), 30));
+                  setRevenueEndDate(new Date());
+                }}
+              >
+                30 dias
+              </Button>
+            </div>
+          </div>
+          
+          <div className="flex gap-6 pt-2">
+            <div className="bg-background p-4 rounded-lg border flex-1">
+              <p className="text-sm text-muted-foreground mb-1">Faturamento Total</p>
+              <p className="text-3xl font-bold text-primary">
+                {loadingRevenue ? (
+                  <span className="text-muted-foreground">Carregando...</span>
+                ) : periodRevenue !== null ? (
+                  `R$ ${periodRevenue.toFixed(2).replace('.', ',')}`
+                ) : (
+                  '-'
+                )}
+              </p>
+            </div>
+            <div className="bg-background p-4 rounded-lg border">
+              <p className="text-sm text-muted-foreground mb-1">Pedidos</p>
+              <p className="text-3xl font-bold">
+                {loadingRevenue ? '-' : periodOrderCount}
+              </p>
+            </div>
+            {periodOrderCount > 0 && periodRevenue !== null && (
+              <div className="bg-background p-4 rounded-lg border">
+                <p className="text-sm text-muted-foreground mb-1">Ticket Médio</p>
+                <p className="text-3xl font-bold">
+                  R$ {(periodRevenue / periodOrderCount).toFixed(2).replace('.', ',')}
+                </p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Tables Needing Attention Alert */}
       {attentionTables.length > 0 && (
