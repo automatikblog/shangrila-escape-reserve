@@ -172,9 +172,29 @@ export const useComandas = (options?: UseComandaOptions) => {
   useEffect(() => {
     fetchComandas();
     
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchComandas, 30000);
-    return () => clearInterval(interval);
+    // Real-time subscription for instant updates
+    const channel = supabase
+      .channel('comandas-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'client_sessions' },
+        () => fetchComandas()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => fetchComandas()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'order_items' },
+        () => fetchComandas()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchComandas]);
 
   const markAsPaid = async (sessionId: string): Promise<boolean> => {
