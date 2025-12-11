@@ -235,6 +235,24 @@ export type Database = {
         }
         Relationships: []
       }
+      settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       tables: {
         Row: {
           created_at: string
@@ -334,6 +352,29 @@ export type Database = {
           id: string
           is_active: boolean
           table_id: string
+        }[]
+      }
+      get_stale_products: {
+        Args: { days_threshold?: number }
+        Returns: {
+          category: string
+          days_since_sale: number
+          id: string
+          last_sale_at: string
+          name: string
+        }[]
+      }
+      get_tables_with_activity: {
+        Args: never
+        Returns: {
+          client_name: string
+          id: string
+          is_active: boolean
+          last_order_at: string
+          minutes_since_order: number
+          name: string
+          number: number
+          session_id: string
         }[]
       }
       has_role: {
