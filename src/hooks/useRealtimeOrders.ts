@@ -23,6 +23,8 @@ interface Order {
   delivery_type: string;
   created_at: string;
   updated_at: string;
+  is_paid: boolean;
+  paid_at: string | null;
   items?: OrderItem[];
   table?: { number: number; name: string };
   client?: { client_name: string };

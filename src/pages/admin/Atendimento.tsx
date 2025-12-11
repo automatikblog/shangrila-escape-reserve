@@ -333,8 +333,13 @@ const Atendimento: React.FC = () => {
     }
   };
   
-  const handleBaldaoConfirm = (item: MenuItem, quantity: number) => {
-    addToCart(item, undefined, quantity);
+  const handleBaldaoConfirm = (item: MenuItem, quantity: number, customPrice: number) => {
+    // Create a modified item with custom price and name
+    const modifiedItem: MenuItem = {
+      ...item,
+      price: customPrice,
+    };
+    addToCart(modifiedItem, undefined, quantity);
     setBaldaoItem(null);
   };
   

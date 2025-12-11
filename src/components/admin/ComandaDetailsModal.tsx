@@ -10,7 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Comanda, ComandaOrder } from '@/hooks/useComandas';
-import { Clock, DollarSign, FileText, User, MapPin, Store, Check, X, Plus, Banknote } from 'lucide-react';
+import { Clock, DollarSign, FileText, User, MapPin, Store, Check, X, Plus, Banknote, Pencil, Calculator, Users } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface ComandaDetailsModalProps {
   comanda: Comanda | null;
@@ -39,6 +41,14 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   const [partialAmount, setPartialAmount] = useState('');
   const [partialNotes, setPartialNotes] = useState('');
   const [isSubmittingPartial, setIsSubmittingPartial] = useState(false);
+  
+  // Edit notes state
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editedNotes, setEditedNotes] = useState('');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+  
+  // Bill splitter state
+  const [splitPeople, setSplitPeople] = useState<number>(2);
 
   if (!comanda) return null;
 
@@ -78,6 +88,40 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
       setShowPartialPaymentForm(false);
     }
   };
+
+  const handleStartEditNotes = (order: ComandaOrder) => {
+    setEditingOrderId(order.id);
+    setEditedNotes(order.notes || '');
+  };
+
+  const handleSaveNotes = async (orderId: string) => {
+    setIsSavingNotes(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ notes: editedNotes || null })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+      
+      toast.success('Observação atualizada');
+      setEditingOrderId(null);
+      setEditedNotes('');
+    } catch (err) {
+      console.error('Error updating notes:', err);
+      toast.error('Erro ao salvar observação');
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
+
+  const handleCancelEditNotes = () => {
+    setEditingOrderId(null);
+    setEditedNotes('');
+  };
+
+  // Calculate split amount
+  const splitAmount = splitPeople > 0 ? comanda.remaining_total / splitPeople : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -173,10 +217,45 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
                     ))}
                   </div>
 
-                  {order.notes && (
-                    <div className="flex items-start gap-2 text-sm bg-muted/50 p-2 rounded">
+                  {/* Notes section with edit capability */}
+                  {editingOrderId === order.id ? (
+                    <div className="flex items-center gap-2 bg-muted/50 p-2 rounded">
+                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <Input
+                        value={editedNotes}
+                        onChange={(e) => setEditedNotes(e.target.value)}
+                        placeholder="Observação..."
+                        className="flex-1 h-8 text-sm"
+                        autoFocus
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2"
+                        onClick={() => handleSaveNotes(order.id)}
+                        disabled={isSavingNotes}
+                      >
+                        <Check className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2"
+                        onClick={handleCancelEditNotes}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div 
+                      className="flex items-start gap-2 text-sm bg-muted/50 p-2 rounded cursor-pointer hover:bg-muted/70 transition-colors group"
+                      onClick={() => handleStartEditNotes(order)}
+                    >
                       <FileText className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                      <span className="text-muted-foreground">{order.notes}</span>
+                      <span className="text-muted-foreground flex-1">
+                        {order.notes || <span className="italic">Sem observação - clique para adicionar</span>}
+                      </span>
+                      <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   )}
                   
@@ -286,15 +365,36 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
             </div>
           )}
           {comanda.remaining_total > 0 && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-destructive flex items-center gap-1">
-                <X className="h-4 w-4" />
-                Falta Pagar
-              </span>
-              <span className="text-destructive font-medium">
-                R$ {comanda.remaining_total.toFixed(2)}
-              </span>
-            </div>
+            <>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-destructive flex items-center gap-1">
+                  <X className="h-4 w-4" />
+                  Falta Pagar
+                </span>
+                <span className="text-destructive font-medium">
+                  R$ {comanda.remaining_total.toFixed(2)}
+                </span>
+              </div>
+              
+              {/* Bill splitter */}
+              <div className="flex items-center justify-between gap-2 p-2 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Calculator className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Dividir por</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={splitPeople}
+                    onChange={(e) => setSplitPeople(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-14 h-7 text-center text-sm"
+                  />
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <span className="text-sm font-medium">
+                  R$ {splitAmount.toFixed(2)} cada
+                </span>
+              </div>
+            </>
           )}
           <Separator />
           <div className="flex items-center justify-between">
@@ -329,7 +429,7 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
                 className="flex-1"
               >
                 <Check className="h-4 w-4 mr-2" />
-                Pagar Tudo (R$ {comanda.unpaid_total.toFixed(2)})
+                Pagar Tudo (R$ {comanda.remaining_total.toFixed(2)})
               </Button>
             ) : (
               <Button

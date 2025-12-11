@@ -287,6 +287,16 @@ const AdminDashboard: React.FC = () => {
     return total + orderTotal;
   }, 0);
 
+  // Calculate paid vs unpaid for today
+  const todayPaidTotal = todayOrders
+    .filter(o => o.is_paid)
+    .reduce((total, order) => {
+      const orderTotal = order.items?.reduce((sum, item) => sum + (item.item_price * item.quantity), 0) || 0;
+      return total + orderTotal;
+    }, 0);
+
+  const todayUnpaidTotal = todaySalesTotal - todayPaidTotal;
+
   // Tables requiring attention
   const attentionTables = tables.filter(t => 
     getTableStatus(t, settings.table_inactivity_minutes) === 'attention'
@@ -308,11 +318,12 @@ const AdminDashboard: React.FC = () => {
       bgColor: 'bg-orange-500/10'
     },
     { 
-      title: 'Vendas Hoje', 
-      value: `R$ ${todaySalesTotal.toFixed(2).replace('.', ',')}`, 
-      icon: DollarSign,
+      title: 'Recebido Hoje', 
+      value: `R$ ${todayPaidTotal.toFixed(2).replace('.', ',')}`, 
+      icon: Check,
       color: 'text-green-500',
-      bgColor: 'bg-green-500/10'
+      bgColor: 'bg-green-500/10',
+      subtitle: todayUnpaidTotal > 0 ? `+ R$ ${todayUnpaidTotal.toFixed(2).replace('.', ',')} em aberto` : undefined
     },
     { 
       title: 'Pedidos na Cozinha', 
