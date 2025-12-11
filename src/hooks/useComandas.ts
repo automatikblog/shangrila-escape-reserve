@@ -18,6 +18,13 @@ export interface ComandaOrder {
   order_total: number;
 }
 
+export interface PartialPayment {
+  id: string;
+  amount: number;
+  notes: string | null;
+  created_at: string;
+}
+
 export interface Comanda {
   session_id: string;
   client_name: string;
@@ -30,8 +37,11 @@ export interface Comanda {
   total: number;
   paid_total: number;
   unpaid_total: number;
+  partial_payments_total: number;
+  remaining_total: number;
   items: ComandaItem[];
   orders: ComandaOrder[];
+  partial_payments: PartialPayment[];
 }
 
 interface UseComandaOptions {
@@ -102,6 +112,19 @@ export const useComandas = (options?: UseComandaOptions) => {
             .eq('client_session_id', session.id)
             .order('created_at', { ascending: true });
 
+          // Fetch partial payments for this session
+          const { data: partialPaymentsData } = await supabase
+            .from('partial_payments')
+            .select('id, amount, notes, created_at')
+            .eq('client_session_id', session.id)
+            .order('created_at', { ascending: true });
+
+          const partialPayments: PartialPayment[] = partialPaymentsData || [];
+          const partialPaymentsTotal = partialPayments.reduce(
+            (sum, pp) => sum + Number(pp.amount),
+            0
+          );
+
           let total = 0;
           let paidTotal = 0;
           let unpaidTotal = 0;
@@ -143,6 +166,8 @@ export const useComandas = (options?: UseComandaOptions) => {
             }
           }
 
+          const remainingTotal = Math.max(0, total - paidTotal - partialPaymentsTotal);
+
           return {
             session_id: session.id,
             client_name: session.client_name,
@@ -155,8 +180,11 @@ export const useComandas = (options?: UseComandaOptions) => {
             total,
             paid_total: paidTotal,
             unpaid_total: unpaidTotal,
+            partial_payments_total: partialPaymentsTotal,
+            remaining_total: remainingTotal,
             items: allItems,
             orders: ordersWithItems,
+            partial_payments: partialPayments,
           };
         })
       );
@@ -188,6 +216,11 @@ export const useComandas = (options?: UseComandaOptions) => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'order_items' },
+        () => fetchComandas()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'partial_payments' },
         () => fetchComandas()
       )
       .subscribe();
@@ -309,8 +342,36 @@ export const useComandas = (options?: UseComandaOptions) => {
     }
   };
 
+  const addPartialPayment = async (
+    sessionId: string,
+    amount: number,
+    notes?: string
+  ): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('partial_payments')
+        .insert({
+          client_session_id: sessionId,
+          amount,
+          notes: notes || null,
+        });
+
+      if (error) {
+        console.error('Error adding partial payment:', error);
+        return false;
+      }
+
+      await fetchComandas();
+      return true;
+    } catch (error) {
+      console.error('Error:', error);
+      return false;
+    }
+  };
+
   const unpaidTotal = comandas.reduce((sum, c) => sum + c.unpaid_total, 0);
   const paidTotal = comandas.reduce((sum, c) => sum + c.paid_total, 0);
+  const remainingTotal = comandas.reduce((sum, c) => sum + c.remaining_total, 0);
 
   return {
     comandas,
@@ -321,7 +382,9 @@ export const useComandas = (options?: UseComandaOptions) => {
     closeComanda,
     markOrderPaid,
     markOrderUnpaid,
+    addPartialPayment,
     unpaidTotal,
     paidTotal,
+    remainingTotal,
   };
 };
