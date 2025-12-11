@@ -21,6 +21,8 @@ export type Database = {
           device_fingerprint: string
           id: string
           is_active: boolean
+          is_paid: boolean
+          paid_at: string | null
           table_id: string
         }
         Insert: {
@@ -29,6 +31,8 @@ export type Database = {
           device_fingerprint: string
           id?: string
           is_active?: boolean
+          is_paid?: boolean
+          paid_at?: string | null
           table_id: string
         }
         Update: {
@@ -37,6 +41,8 @@ export type Database = {
           device_fingerprint?: string
           id?: string
           is_active?: boolean
+          is_paid?: boolean
+          paid_at?: string | null
           table_id?: string
         }
         Relationships: [

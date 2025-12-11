@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search } from 'lucide-react';
+import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 
 interface CartItem {
@@ -33,8 +34,10 @@ const Atendimento: React.FC = () => {
   const { createOrder } = useRealtimeOrders();
   
   const [tables, setTables] = useState<Table[]>([]);
+  const [balcaoTable, setBalcaoTable] = useState<Table | null>(null);
   const [loadingTables, setLoadingTables] = useState(true);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
+  const [isBalcaoMode, setIsBalcaoMode] = useState(false);
   const [clientName, setClientName] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [notes, setNotes] = useState('');
@@ -55,12 +58,30 @@ const Atendimento: React.FC = () => {
         .order('number');
 
       if (error) throw error;
-      setTables(data || []);
+      
+      // Separate balcão table (number 0) from regular tables
+      const balcao = data?.find(t => t.number === 0) || null;
+      const regularTables = data?.filter(t => t.number !== 0) || [];
+      
+      setBalcaoTable(balcao);
+      setTables(regularTables);
     } catch (err) {
       console.error('Error fetching tables:', err);
       toast.error('Erro ao carregar mesas');
     } finally {
       setLoadingTables(false);
+    }
+  };
+
+  // Handle balcão mode toggle
+  const handleBalcaoModeChange = (enabled: boolean) => {
+    setIsBalcaoMode(enabled);
+    if (enabled && balcaoTable) {
+      setSelectedTable(balcaoTable);
+      setDeliveryType('balcao');
+    } else {
+      setSelectedTable(null);
+      setDeliveryType(null);
     }
   };
 
@@ -165,6 +186,7 @@ const Atendimento: React.FC = () => {
       setDeliveryType(null);
       setClientName('');
       setSelectedTable(null);
+      setIsBalcaoMode(false);
     } catch (err: any) {
       console.error('Error creating order:', err);
       toast.error('Erro ao criar pedido: ' + err.message);
@@ -220,28 +242,47 @@ const Atendimento: React.FC = () => {
             <CardTitle className="text-lg">1. Mesa e Cliente</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Table Selection */}
-            <div className="space-y-2">
-              <Label>Selecione a Mesa</Label>
-              <div className="grid grid-cols-4 gap-2">
-                {tables.map(table => (
-                  <Button
-                    key={table.id}
-                    variant={selectedTable?.id === table.id ? 'default' : 'outline'}
-                    className="h-auto py-3 flex flex-col"
-                    onClick={() => setSelectedTable(table)}
-                  >
-                    <span className="text-lg font-bold">{table.number}</span>
-                    <span className="text-xs truncate w-full">{table.name}</span>
-                  </Button>
-                ))}
+            {/* Balcão Mode Toggle */}
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-accent/30">
+              <div className="flex items-center gap-2">
+                <Coffee className="h-5 w-5 text-primary" />
+                <div>
+                  <Label htmlFor="balcao-mode" className="font-medium">Sem Mesa (Balcão)</Label>
+                  <p className="text-xs text-muted-foreground">Cliente avulso, sem mesa física</p>
+                </div>
               </div>
-              {tables.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Nenhuma mesa ativa
-                </p>
-              )}
+              <Switch
+                id="balcao-mode"
+                checked={isBalcaoMode}
+                onCheckedChange={handleBalcaoModeChange}
+                disabled={!balcaoTable}
+              />
             </div>
+
+            {/* Table Selection - hidden when balcão mode */}
+            {!isBalcaoMode && (
+              <div className="space-y-2">
+                <Label>Selecione a Mesa</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {tables.map(table => (
+                    <Button
+                      key={table.id}
+                      variant={selectedTable?.id === table.id ? 'default' : 'outline'}
+                      className="h-auto py-3 flex flex-col"
+                      onClick={() => setSelectedTable(table)}
+                    >
+                      <span className="text-lg font-bold">{table.number}</span>
+                      <span className="text-xs truncate w-full">{table.name}</span>
+                    </Button>
+                  ))}
+                </div>
+                {tables.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhuma mesa ativa
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Client Name */}
             <div className="space-y-2">

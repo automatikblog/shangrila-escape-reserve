@@ -4,7 +4,8 @@ import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { useTablesWithActivity, getTableStatus, TableStatus } from '@/hooks/useTablesWithActivity';
 import { useStaleProducts } from '@/hooks/useStaleProducts';
 import { useSettings } from '@/hooks/useSettings';
-import { Table2, ClipboardList, Clock, CalendarDays, Users, DollarSign, AlertTriangle, PackageX, Settings, User, X } from 'lucide-react';
+import { useComandas } from '@/hooks/useComandas';
+import { Table2, ClipboardList, Clock, CalendarDays, Users, DollarSign, AlertTriangle, PackageX, Settings, User, X, Receipt, Check, Coffee, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -70,12 +71,15 @@ const AdminDashboard: React.FC = () => {
   const { tables, refetch: refetchTables } = useTablesWithActivity();
   const { settings, updateSetting } = useSettings();
   const { products: staleProducts } = useStaleProducts(settings.no_sales_alert_days);
+  const { comandas, markAsPaid, markAsUnpaid, closeComanda, unpaidTotal, refetch: refetchComandas } = useComandas();
   const [todayReservations, setTodayReservations] = useState(0);
   const [todayPeopleCount, setTodayPeopleCount] = useState(0);
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tempInactivity, setTempInactivity] = useState(settings.table_inactivity_minutes);
   const [tempStaleDays, setTempStaleDays] = useState(settings.no_sales_alert_days);
+  const [comandaFilter, setComandaFilter] = useState<'all' | 'unpaid' | 'paid'>('unpaid');
+  const [expandedComanda, setExpandedComanda] = useState<string | null>(null);
 
   useEffect(() => {
     setTempInactivity(settings.table_inactivity_minutes);
@@ -142,6 +146,50 @@ const AdminDashboard: React.FC = () => {
       console.error('Error:', error);
       toast.error('Erro ao fechar mesa');
     }
+  };
+
+  const handleMarkPaid = async (sessionId: string) => {
+    const success = await markAsPaid(sessionId);
+    if (success) {
+      toast.success('Comanda marcada como paga!');
+      refetchTables();
+    } else {
+      toast.error('Erro ao marcar como paga');
+    }
+  };
+
+  const handleMarkUnpaid = async (sessionId: string) => {
+    const success = await markAsUnpaid(sessionId);
+    if (success) {
+      toast.success('Comanda desmarcada');
+      refetchTables();
+    } else {
+      toast.error('Erro ao desmarcar pagamento');
+    }
+  };
+
+  const handleCloseComanda = async (sessionId: string, tableNumber: number) => {
+    const success = await closeComanda(sessionId);
+    if (success) {
+      toast.success(tableNumber === 0 ? 'Comanda fechada!' : `Mesa ${tableNumber} fechada!`);
+      refetchTables();
+    } else {
+      toast.error('Erro ao fechar comanda');
+    }
+  };
+
+  const filteredComandas = comandas.filter(c => {
+    if (comandaFilter === 'unpaid') return !c.is_paid;
+    if (comandaFilter === 'paid') return c.is_paid;
+    return true;
+  });
+
+  const formatTime = (date: string) => {
+    const diff = Date.now() - new Date(date).getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ${minutes % 60}m`;
   };
 
   const pendingOrders = orders.filter(o => o.status === 'pending').length;
@@ -369,6 +417,177 @@ const AdminDashboard: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Comandas Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-primary" />
+            <CardTitle>Comandas de Hoje</CardTitle>
+            {unpaidTotal > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                A receber: R$ {unpaidTotal.toFixed(2).replace('.', ',')}
+              </Badge>
+            )}
+          </div>
+          <div className="flex gap-1">
+            <Button
+              variant={comandaFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setComandaFilter('all')}
+            >
+              Todas
+            </Button>
+            <Button
+              variant={comandaFilter === 'unpaid' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setComandaFilter('unpaid')}
+            >
+              Não Pagas
+            </Button>
+            <Button
+              variant={comandaFilter === 'paid' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setComandaFilter('paid')}
+            >
+              Pagas
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {filteredComandas.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              {comandaFilter === 'unpaid' ? 'Nenhuma comanda pendente' : 'Nenhuma comanda encontrada'}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {filteredComandas.map((comanda) => (
+                <div 
+                  key={comanda.session_id}
+                  className={`border rounded-lg overflow-hidden transition-all ${
+                    comanda.is_paid ? 'bg-green-500/5 border-green-500/30' : 'bg-background'
+                  }`}
+                >
+                  <div 
+                    className="flex items-center justify-between p-3 cursor-pointer hover:bg-accent/30"
+                    onClick={() => setExpandedComanda(
+                      expandedComanda === comanda.session_id ? null : comanda.session_id
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                        comanda.table_number === 0 
+                          ? 'bg-primary/20 text-primary' 
+                          : 'bg-muted'
+                      }`}>
+                        {comanda.table_number === 0 ? (
+                          <Coffee className="h-5 w-5" />
+                        ) : (
+                          comanda.table_number
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium">{comanda.client_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {comanda.table_number === 0 ? 'Balcão' : `Mesa ${comanda.table_number}`}
+                          {' • '}{formatTime(comanda.created_at)}
+                          {comanda.items.length > 0 && ` • ${comanda.items.length} item(s)`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="font-bold text-lg">
+                          R$ {comanda.total.toFixed(2).replace('.', ',')}
+                        </p>
+                        {comanda.is_paid && (
+                          <Badge variant="outline" className="text-green-600 border-green-500/50">
+                            <Check className="h-3 w-3 mr-1" /> Pago
+                          </Badge>
+                        )}
+                      </div>
+                      {expandedComanda === comanda.session_id ? (
+                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Expanded Details */}
+                  {expandedComanda === comanda.session_id && (
+                    <div className="border-t p-3 bg-muted/30 space-y-3">
+                      {comanda.items.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase">Itens</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+                            {comanda.items.map((item, idx) => (
+                              <div key={idx} className="text-sm flex justify-between">
+                                <span>{item.quantity}x {item.item_name}</span>
+                                <span className="text-muted-foreground">
+                                  R$ {(item.item_price * item.quantity).toFixed(2)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        {comanda.is_paid ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleMarkUnpaid(comanda.session_id)}
+                            >
+                              Desmarcar Pagamento
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm">
+                                  <X className="h-4 w-4 mr-1" />
+                                  Fechar Comanda
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Fechar comanda de {comanda.client_name}?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Isso encerrará a sessão. {comanda.table_number !== 0 && 'A mesa ficará disponível para novos clientes.'}
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleCloseComanda(comanda.session_id, comanda.table_number)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Fechar Comanda
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </>
+                        ) : (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleMarkPaid(comanda.session_id)}
+                          >
+                            <Check className="h-4 w-4 mr-1" />
+                            Marcar como Pago
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Orders */}
