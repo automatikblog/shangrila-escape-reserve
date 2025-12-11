@@ -200,30 +200,45 @@ export const useComandas = (options?: UseComandaOptions) => {
   useEffect(() => {
     fetchComandas();
     
-    // Real-time subscription for instant updates
+    // Real-time subscription for instant updates - using unique channel name
+    const channelName = `comandas-realtime-${Date.now()}`;
     const channel = supabase
-      .channel('comandas-realtime')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'client_sessions' },
-        () => fetchComandas()
+        (payload) => {
+          console.log('Realtime: client_sessions changed', payload);
+          fetchComandas();
+        }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
-        () => fetchComandas()
+        (payload) => {
+          console.log('Realtime: orders changed', payload);
+          fetchComandas();
+        }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'order_items' },
-        () => fetchComandas()
+        (payload) => {
+          console.log('Realtime: order_items changed', payload);
+          fetchComandas();
+        }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'partial_payments' },
-        () => fetchComandas()
+        (payload) => {
+          console.log('Realtime: partial_payments changed', payload);
+          fetchComandas();
+        }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Comandas realtime subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
