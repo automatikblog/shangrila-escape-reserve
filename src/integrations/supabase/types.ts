@@ -211,6 +211,30 @@ export type Database = {
           },
         ]
       }
+      partial_payments: {
+        Row: {
+          amount: number
+          client_session_id: string
+          created_at: string
+          id: string
+          notes: string | null
+        }
+        Insert: {
+          amount: number
+          client_session_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+        }
+        Update: {
+          amount?: number
+          client_session_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+        }
+        Relationships: []
+      }
       reservations: {
         Row: {
           client_email: string

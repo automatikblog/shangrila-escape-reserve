@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMenuItems, categoryLabels } from '@/hooks/useMenuItems';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { useComandas, Comanda } from '@/hooks/useComandas';
+import { useFrequentItems } from '@/hooks/useFrequentItems';
 import { ComandaDetailsModal } from '@/components/admin/ComandaDetailsModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame } from 'lucide-react';
+import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame, TrendingUp } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import {
@@ -44,7 +45,7 @@ interface Table {
 const Atendimento: React.FC = () => {
   const { items: menuItems, isLoading: loadingMenu } = useMenuItems();
   const { createOrder } = useRealtimeOrders();
-  
+  const { items: frequentItems, isLoading: loadingFrequent } = useFrequentItems(6);
   const [tables, setTables] = useState<Table[]>([]);
   const [balcaoTable, setBalcaoTable] = useState<Table | null>(null);
   const [loadingTables, setLoadingTables] = useState(true);
@@ -73,6 +74,7 @@ const Atendimento: React.FC = () => {
     closeComanda,
     markOrderPaid,
     markOrderUnpaid,
+    addPartialPayment,
   } = useComandas();
 
   // Filter comandas for current table
@@ -630,6 +632,75 @@ const Atendimento: React.FC = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">2. Itens do Cardápio</CardTitle>
             
+            {/* Frequent Items - Today's Popular */}
+            {frequentItems.length > 0 && (
+              <div className="mt-3 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-900">
+                <p className="text-xs font-medium text-orange-600 dark:text-orange-400 mb-2 flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" />
+                  Populares Hoje
+                </p>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                  {frequentItems.map((freqItem) => {
+                    const menuItem = menuItems.find(item => item.id === freqItem.menu_item_id);
+                    const cartItem = cart.find(c => c.menuItemId === freqItem.menu_item_id);
+                    
+                    if (!menuItem) return null;
+                    
+                    return (
+                      <div
+                        key={freqItem.menu_item_id}
+                        className="flex items-center justify-between p-2 bg-background rounded-md border"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium truncate">{freqItem.item_name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs text-primary font-bold">
+                              R$ {freqItem.item_price.toFixed(2)}
+                            </p>
+                            <Badge variant="outline" className="text-[10px] h-4 px-1">
+                              {freqItem.order_count}x
+                            </Badge>
+                          </div>
+                        </div>
+                        {cartItem ? (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-6 w-6"
+                              onClick={() => updateQuantity(cartItem.id, -1)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-5 text-center text-xs font-medium">
+                              {cartItem.quantity}
+                            </span>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-6 w-6"
+                              onClick={() => updateQuantity(cartItem.id, 1)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-6 px-2 text-xs shrink-0"
+                            onClick={() => addToCart(menuItem)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            
             {/* Quick Access Items */}
             <div className="mt-3 p-3 bg-accent/20 rounded-lg">
               <p className="text-xs font-medium text-muted-foreground mb-2">⚡ Acesso Rápido</p>
@@ -898,6 +969,7 @@ const Atendimento: React.FC = () => {
         onMarkOrderUnpaid={async (orderId) => {
           await markOrderUnpaid(orderId);
         }}
+        onAddPartialPayment={addPartialPayment}
       />
 
       {/* Close Comanda Confirmation Dialog */}
