@@ -53,13 +53,12 @@ const Atendimento: React.FC = () => {
   const [clientName, setClientName] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [notes, setNotes] = useState('');
-  const [deliveryType, setDeliveryType] = useState<'mesa' | 'balcao' | null>(null);
+  const [deliveryType, setDeliveryType] = useState<'mesa' | 'balcao' | null>('balcao'); // Default to balcão
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Comanda management
   const [selectedComanda, setSelectedComanda] = useState<Comanda | null>(null);
-  const [isNewComanda, setIsNewComanda] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [comandaToClose, setComandaToClose] = useState<Comanda | null>(null);
   const [detailsModalComanda, setDetailsModalComanda] = useState<Comanda | null>(null);
@@ -127,12 +126,10 @@ const Atendimento: React.FC = () => {
       setSelectedTable(balcaoTable);
       setDeliveryType('balcao');
       setSelectedComanda(null);
-      setIsNewComanda(false);
     } else {
       setSelectedTable(null);
-      setDeliveryType(null);
+      setDeliveryType('balcao');
       setSelectedComanda(null);
-      setIsNewComanda(false);
       setClientName('');
     }
   };
@@ -141,7 +138,6 @@ const Atendimento: React.FC = () => {
   const handleSelectTable = (table: Table) => {
     setSelectedTable(table);
     setSelectedComanda(null);
-    setIsNewComanda(false);
     setClientName('');
   };
 
@@ -149,21 +145,21 @@ const Atendimento: React.FC = () => {
   const handleSelectComanda = (comanda: Comanda) => {
     setSelectedComanda(comanda);
     setClientName(comanda.client_name);
-    setIsNewComanda(false);
   };
 
-  // Handle creating new comanda
-  const handleNewComanda = () => {
-    setSelectedComanda(null);
-    setClientName('');
-    setIsNewComanda(true);
+  // Handle typing new client name - auto deselects comanda
+  const handleClientNameChange = (name: string) => {
+    setClientName(name);
+    // If user is typing, they're creating a new comanda
+    if (selectedComanda && name !== selectedComanda.client_name) {
+      setSelectedComanda(null);
+    }
   };
 
   // Handle deselecting comanda
   const handleDeselectComanda = () => {
     setSelectedComanda(null);
     setClientName('');
-    setIsNewComanda(false);
   };
 
   // Format time elapsed
@@ -303,8 +299,7 @@ const Atendimento: React.FC = () => {
       return;
     }
 
-    // If table has existing comandas and none selected, treat as new comanda
-    const treatAsNewComanda = tableComandas.length === 0 || selectedComanda || isNewComanda;
+    // Determine if we're creating a new comanda or using existing
 
     setIsSubmitting(true);
 
@@ -368,11 +363,10 @@ const Atendimento: React.FC = () => {
         refetchComandas();
       } else {
         // Full reset for new order
-        setDeliveryType(null);
+        setDeliveryType('balcao');
         setClientName('');
         setSelectedTable(null);
         setIsBalcaoMode(false);
-        setIsNewComanda(false);
       }
     } catch (err: any) {
       console.error('Error creating order:', err);
@@ -487,19 +481,9 @@ const Atendimento: React.FC = () => {
             {/* Comandas Section - shown when table is selected or balcão mode */}
             {selectedTable && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">
-                    Comandas Abertas {isBalcaoMode ? 'no Balcão' : `na Mesa ${selectedTable.number}`}
-                  </Label>
-                  <Button
-                    size="sm"
-                    variant={isNewComanda ? 'default' : 'outline'}
-                    onClick={handleNewComanda}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Nova Comanda
-                  </Button>
-                </div>
+                <Label className="text-sm font-medium">
+                  Comandas Abertas {isBalcaoMode ? 'no Balcão' : `na Mesa ${selectedTable.number}`}
+                </Label>
 
                 {loadingComandas ? (
                   <div className="flex items-center justify-center py-4">
@@ -579,29 +563,27 @@ const Atendimento: React.FC = () => {
                     </div>
                   </div>
                 )}
-
-                {isNewComanda && (
-                  <div className="p-3 border-2 border-primary rounded-lg bg-primary/5">
-                    <p className="text-xs text-muted-foreground">Criando nova comanda</p>
-                  </div>
-                )}
               </div>
             )}
 
-            {/* Client Name - disabled when selecting existing comanda */}
+            {/* Client Name */}
             <div className="space-y-2">
               <Label htmlFor="clientName">Nome do Cliente</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="clientName"
-                  placeholder="Digite o nome..."
+                  placeholder={selectedComanda ? selectedComanda.client_name : "Digite o nome para nova comanda..."}
                   value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
+                  onChange={(e) => handleClientNameChange(e.target.value)}
                   className="pl-10"
-                  disabled={!!selectedComanda}
                 />
               </div>
+              {selectedComanda && (
+                <p className="text-xs text-muted-foreground">
+                  Adicionando à comanda existente. Digite outro nome para criar nova.
+                </p>
+              )}
             </div>
 
             {/* Delivery Type */}
