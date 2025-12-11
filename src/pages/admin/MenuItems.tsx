@@ -10,8 +10,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, Wine, FileImage } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, Wine, FileImage, ChefHat, FlaskConical, Beaker } from 'lucide-react';
 import { InvoiceImporter } from '@/components/admin/InvoiceImporter';
+import { RecipeManagerModal } from '@/components/admin/RecipeManagerModal';
 
 // Dynamic category labels that can be extended at runtime
 const dynamicCategoryLabels: Record<string, string> = { ...categoryLabels };
@@ -32,6 +33,7 @@ const MenuItemsPage: React.FC = () => {
   const [isNewCategory, setIsNewCategory] = useState(false);
   const [newCategoryKey, setNewCategoryKey] = useState('');
   const [newCategoryLabel, setNewCategoryLabel] = useState('');
+  const [recipeModalItem, setRecipeModalItem] = useState<MenuItem | null>(null);
 
   const [formData, setFormData] = useState<MenuItemInput>({
     name: '',
@@ -46,7 +48,9 @@ const MenuItemsPage: React.FC = () => {
     dose_ml: null,
     bottles_in_stock: 0,
     current_bottle_ml: 0,
-    cost_price: null
+    cost_price: null,
+    goes_to_kitchen: true,
+    is_customizable: false
   });
 
   const filteredItems = useMemo(() => {
@@ -99,7 +103,9 @@ const MenuItemsPage: React.FC = () => {
       dose_ml: null,
       bottles_in_stock: 0,
       current_bottle_ml: 0,
-      cost_price: null
+      cost_price: null,
+      goes_to_kitchen: true,
+      is_customizable: false
     });
     setIsDialogOpen(true);
   };
@@ -122,7 +128,9 @@ const MenuItemsPage: React.FC = () => {
       dose_ml: item.dose_ml,
       bottles_in_stock: item.bottles_in_stock,
       current_bottle_ml: item.current_bottle_ml,
-      cost_price: item.cost_price
+      cost_price: item.cost_price,
+      goes_to_kitchen: item.goes_to_kitchen,
+      is_customizable: item.is_customizable
     });
     setIsDialogOpen(true);
   };
@@ -313,7 +321,19 @@ const MenuItemsPage: React.FC = () => {
                           </Badge>
                         )}
                         {item.is_bottle && (
-                          <Wine className="h-4 w-4 text-purple-500" />
+                          <span title="Vendido por dose">
+                            <Wine className="h-4 w-4 text-purple-500" />
+                          </span>
+                        )}
+                        {item.goes_to_kitchen && (
+                          <span title="Vai para cozinha">
+                            <ChefHat className="h-4 w-4 text-orange-500" />
+                          </span>
+                        )}
+                        {item.is_customizable && (
+                          <span title="Item customizável">
+                            <Beaker className="h-4 w-4 text-blue-500" />
+                          </span>
                         )}
                         <span className={`font-medium truncate ${!item.is_available ? 'text-muted-foreground line-through' : ''}`}>
                           {item.name}
@@ -343,6 +363,14 @@ const MenuItemsPage: React.FC = () => {
                         {item.is_bottle && <span className="text-xs text-muted-foreground">/dose</span>}
                       </span>
                       <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => setRecipeModalItem(item)}
+                          title="Gerenciar receita"
+                        >
+                          <FlaskConical className="h-4 w-4 text-primary" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -501,8 +529,33 @@ const MenuItemsPage: React.FC = () => {
               />
             </div>
 
+            {/* Kitchen & Customizable toggles */}
+            <div className="flex items-center justify-between py-2 border-t">
+              <div className="flex items-center gap-2">
+                <ChefHat className="h-4 w-4 text-orange-500" />
+                <Label htmlFor="goes_to_kitchen" className="cursor-pointer">Vai para Cozinha</Label>
+              </div>
+              <Switch
+                id="goes_to_kitchen"
+                checked={formData.goes_to_kitchen}
+                onCheckedChange={checked => setFormData(prev => ({ ...prev, goes_to_kitchen: checked }))}
+              />
+            </div>
+
+            <div className="flex items-center justify-between py-2 border-b">
+              <div className="flex items-center gap-2">
+                <Beaker className="h-4 w-4 text-blue-500" />
+                <Label htmlFor="is_customizable" className="cursor-pointer">Item Customizável (Copão)</Label>
+              </div>
+              <Switch
+                id="is_customizable"
+                checked={formData.is_customizable}
+                onCheckedChange={checked => setFormData(prev => ({ ...prev, is_customizable: checked }))}
+              />
+            </div>
+
             {/* Bottle toggle */}
-            <div className="flex items-center justify-between py-2 border-t border-b">
+            <div className="flex items-center justify-between py-2 border-b">
               <div className="flex items-center gap-2">
                 <Wine className="h-4 w-4 text-purple-500" />
                 <Label htmlFor="is_bottle" className="cursor-pointer">Vendido por dose (garrafa)</Label>
@@ -628,6 +681,14 @@ const MenuItemsPage: React.FC = () => {
         existingItems={items}
         categories={categories}
         onImportComplete={fetchItems}
+      />
+
+      {/* Recipe Manager Modal */}
+      <RecipeManagerModal
+        open={!!recipeModalItem}
+        onOpenChange={(open) => !open && setRecipeModalItem(null)}
+        item={recipeModalItem}
+        allItems={items}
       />
     </div>
   );

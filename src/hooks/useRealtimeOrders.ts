@@ -10,6 +10,7 @@ interface OrderItem {
   item_price: number;
   quantity: number;
   category: string;
+  menu_item_id: string | null;
 }
 
 interface Order {
@@ -36,7 +37,7 @@ export const useRealtimeOrders = (statusFilter?: OrderStatus[]) => {
         .from('orders')
         .select(`
           *,
-          items:order_items(*),
+          items:order_items(*, menu_item:menu_items(goes_to_kitchen)),
           table:tables(number, name),
           client:client_sessions(client_name)
         `)
@@ -49,7 +50,17 @@ export const useRealtimeOrders = (statusFilter?: OrderStatus[]) => {
       const { data, error } = await query;
 
       if (error) throw error;
-      setOrders(data || []);
+      
+      // Map items to include goes_to_kitchen from joined menu_item
+      const mappedData = (data || []).map(order => ({
+        ...order,
+        items: order.items?.map((item: any) => ({
+          ...item,
+          goes_to_kitchen: item.menu_item?.goes_to_kitchen ?? true
+        }))
+      }));
+      
+      setOrders(mappedData);
     } catch (err) {
       console.error('Error fetching orders:', err);
     } finally {
