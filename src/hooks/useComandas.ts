@@ -7,6 +7,14 @@ export interface ComandaItem {
   quantity: number;
 }
 
+export interface ComandaOrder {
+  id: string;
+  notes: string | null;
+  delivery_type: string;
+  created_at: string;
+  items: ComandaItem[];
+}
+
 export interface Comanda {
   session_id: string;
   client_name: string;
@@ -18,9 +26,15 @@ export interface Comanda {
   created_at: string;
   total: number;
   items: ComandaItem[];
+  orders: ComandaOrder[];
 }
 
-export const useComandas = () => {
+interface UseComandaOptions {
+  tableNumber?: number;
+  activeOnly?: boolean;
+}
+
+export const useComandas = (options?: UseComandaOptions) => {
   const [comandas, setComandas] = useState<Comanda[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -30,8 +44,8 @@ export const useComandas = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // Fetch active sessions for today
-      const { data: sessions, error: sessionsError } = await supabase
+      // Build query
+      let query = supabase
         .from('client_sessions')
         .select(`
           id,
@@ -40,6 +54,7 @@ export const useComandas = () => {
           is_paid,
           paid_at,
           created_at,
+          is_active,
           tables!inner (
             number,
             name
@@ -47,6 +62,13 @@ export const useComandas = () => {
         `)
         .gte('created_at', today.toISOString())
         .order('created_at', { ascending: false });
+
+      // Filter by active only if requested
+      if (options?.activeOnly !== false) {
+        query = query.eq('is_active', true);
+      }
+
+      const { data: sessions, error: sessionsError } = await query;
 
       if (sessionsError) {
         console.error('Error fetching sessions:', sessionsError);
@@ -58,31 +80,49 @@ export const useComandas = () => {
         return;
       }
 
+      // Filter by table number if specified
+      let filteredSessions = sessions;
+      if (options?.tableNumber !== undefined) {
+        filteredSessions = sessions.filter(
+          (s: any) => s.tables.number === options.tableNumber
+        );
+      }
+
       // Fetch orders and items for each session
       const comandasWithTotals: Comanda[] = await Promise.all(
-        sessions.map(async (session: any) => {
+        filteredSessions.map(async (session: any) => {
           const { data: orders } = await supabase
             .from('orders')
-            .select('id')
-            .eq('client_session_id', session.id);
+            .select('id, notes, delivery_type, created_at')
+            .eq('client_session_id', session.id)
+            .order('created_at', { ascending: true });
 
           let total = 0;
-          let items: ComandaItem[] = [];
+          let allItems: ComandaItem[] = [];
+          let ordersWithItems: ComandaOrder[] = [];
 
           if (orders && orders.length > 0) {
-            const orderIds = orders.map(o => o.id);
-            
-            const { data: orderItems } = await supabase
-              .from('order_items')
-              .select('item_name, item_price, quantity')
-              .in('order_id', orderIds);
+            for (const order of orders) {
+              const { data: orderItems } = await supabase
+                .from('order_items')
+                .select('item_name, item_price, quantity')
+                .eq('order_id', order.id);
 
-            if (orderItems) {
-              items = orderItems;
-              total = orderItems.reduce(
+              const items = orderItems || [];
+              const orderTotal = items.reduce(
                 (sum, item) => sum + (item.item_price * item.quantity),
                 0
               );
+              total += orderTotal;
+              allItems = [...allItems, ...items];
+
+              ordersWithItems.push({
+                id: order.id,
+                notes: order.notes,
+                delivery_type: order.delivery_type,
+                created_at: order.created_at,
+                items,
+              });
             }
           }
 
@@ -96,7 +136,8 @@ export const useComandas = () => {
             paid_at: session.paid_at,
             created_at: session.created_at,
             total,
-            items,
+            items: allItems,
+            orders: ordersWithItems,
           };
         })
       );
@@ -107,7 +148,7 @@ export const useComandas = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [options?.tableNumber, options?.activeOnly]);
 
   useEffect(() => {
     fetchComandas();
