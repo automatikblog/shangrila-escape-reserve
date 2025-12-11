@@ -3,11 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MenuItem } from '@/hooks/useMenuItems';
-import { Plus, Trash2, Wine, Package, Beaker, Check } from 'lucide-react';
+import { Plus, Trash2, Wine, Package, Beaker, Check, ChevronsUpDown, Search } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface CustomIngredient {
   item_id: string;
@@ -36,6 +38,7 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
   const [selectedIngredient, setSelectedIngredient] = useState<string>('');
   const [quantityMl, setQuantityMl] = useState<string>('');
   const [quantityUnits, setQuantityUnits] = useState<string>('1');
+  const [comboboxOpen, setComboboxOpen] = useState(false);
 
   // Parse default suggestions when item changes
   React.useEffect(() => {
@@ -137,21 +140,58 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
           <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
             <Label className="text-sm font-medium">Adicionar Ingrediente</Label>
             
-            <Select value={selectedIngredient} onValueChange={setSelectedIngredient}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent>
-                {availableIngredients.map(i => (
-                  <SelectItem key={i.id} value={i.id}>
+            <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={comboboxOpen}
+                  className="w-full justify-between"
+                >
+                  {selectedIngredientItem ? (
                     <span className="flex items-center gap-2">
-                      {i.is_bottle ? <Wine className="h-3 w-3" /> : <Package className="h-3 w-3" />}
-                      {i.name}
+                      {selectedIngredientItem.is_bottle ? <Wine className="h-3 w-3" /> : <Package className="h-3 w-3" />}
+                      {selectedIngredientItem.name}
                     </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  ) : (
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <Search className="h-3 w-3" />
+                      Buscar ingrediente...
+                    </span>
+                  )}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[350px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Digite para buscar..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum ingrediente encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {availableIngredients.map(i => (
+                        <CommandItem
+                          key={i.id}
+                          value={i.name}
+                          onSelect={() => {
+                            setSelectedIngredient(i.id);
+                            setComboboxOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedIngredient === i.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {i.is_bottle ? <Wine className="h-3 w-3 mr-2 text-purple-500" /> : <Package className="h-3 w-3 mr-2 text-muted-foreground" />}
+                          {i.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
 
             {selectedIngredientItem && (
               <div className="flex gap-2">
