@@ -11,6 +11,7 @@ interface OrderItem {
   quantity: number;
   category: string;
   menu_item_id: string | null;
+  goes_to_kitchen?: boolean;
 }
 
 interface Order {

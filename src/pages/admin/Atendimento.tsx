@@ -6,6 +6,7 @@ import { useComandas, Comanda } from '@/hooks/useComandas';
 import { useFrequentItems } from '@/hooks/useFrequentItems';
 import { ComandaDetailsModal } from '@/components/admin/ComandaDetailsModal';
 import { CustomItemModal, CustomIngredient } from '@/components/admin/CustomItemModal';
+import { BaldaoQuantityModal } from '@/components/admin/BaldaoQuantityModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame, TrendingUp, Beaker } from 'lucide-react';
+import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame, TrendingUp, Beaker, Beer } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import {
@@ -69,6 +70,9 @@ const Atendimento: React.FC = () => {
   
   // Customizable item modal
   const [customizableItem, setCustomizableItem] = useState<MenuItem | null>(null);
+  
+  // Baldão quantity modal
+  const [baldaoItem, setBaldaoItem] = useState<MenuItem | null>(null);
   
   // Fetch all active comandas (we'll filter locally)
   const { 
@@ -249,11 +253,34 @@ const Atendimento: React.FC = () => {
     setCloseDialogOpen(true);
   };
 
-  const addToCart = (item: MenuItem, customIngredients?: CustomIngredient[]) => {
+  // Check if item is a baldão (bucket) item
+  const isBaldaoItem = (item: MenuItem) => {
+    return item.category === 'baldes' || item.name.toLowerCase().includes('balde');
+  };
+
+  const addToCart = (item: MenuItem, customIngredients?: CustomIngredient[], baldaoQuantity?: number) => {
     // If item is customizable and no custom ingredients provided, open modal
     if (item.is_customizable && !customIngredients) {
       setCustomizableItem(item);
       return;
+    }
+    
+    // If item is a baldão and no quantity specified, open quantity modal
+    if (isBaldaoItem(item) && baldaoQuantity === undefined) {
+      setBaldaoItem(item);
+      return;
+    }
+    
+    // Build item name with quantity info for baldão
+    let itemName = item.name;
+    if (baldaoQuantity !== undefined) {
+      // Replace the quantity in the name or append it
+      const match = item.name.match(/(\d+)\s*unidades?/i);
+      if (match) {
+        itemName = item.name.replace(/\d+\s*unidades?/i, `${baldaoQuantity} unidades`);
+      } else {
+        itemName = `${item.name} (${baldaoQuantity} unidades)`;
+      }
     }
     
     // For customizable items with custom ingredients, always add as new entry
@@ -267,6 +294,20 @@ const Atendimento: React.FC = () => {
         category: item.category,
         goes_to_kitchen: item.goes_to_kitchen,
         custom_ingredients: customIngredients
+      }]);
+      return;
+    }
+    
+    // For baldão items, always add as new entry (since quantity varies)
+    if (baldaoQuantity !== undefined) {
+      setCart([...cart, {
+        id: crypto.randomUUID(),
+        menuItemId: item.id,
+        name: itemName,
+        price: item.price,
+        quantity: 1,
+        category: item.category,
+        goes_to_kitchen: item.goes_to_kitchen
       }]);
       return;
     }
@@ -290,6 +331,11 @@ const Atendimento: React.FC = () => {
         goes_to_kitchen: item.goes_to_kitchen
       }]);
     }
+  };
+  
+  const handleBaldaoConfirm = (item: MenuItem, quantity: number) => {
+    addToCart(item, undefined, quantity);
+    setBaldaoItem(null);
   };
   
   const handleCustomItemConfirm = (ingredients: CustomIngredient[]) => {
@@ -843,8 +889,9 @@ const Atendimento: React.FC = () => {
                       </h3>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                         {items.map(item => {
-                          const cartItem = cart.find(c => c.menuItemId === item.id);
+                          const cartItem = cart.find(c => c.menuItemId === item.id && !c.custom_ingredients);
                           const isUnavailable = item.stock_quantity === 0;
+                          const isBaldao = isBaldaoItem(item);
                           
                           return (
                             <div 
@@ -859,6 +906,9 @@ const Atendimento: React.FC = () => {
                                   {item.is_customizable && (
                                     <Beaker className="h-3 w-3 text-blue-500 shrink-0" />
                                   )}
+                                  {isBaldao && (
+                                    <Beer className="h-3 w-3 text-amber-500 shrink-0" />
+                                  )}
                                 </div>
                                 <p className="text-sm text-primary font-semibold">
                                   R$ {item.price.toFixed(2)}
@@ -866,7 +916,7 @@ const Atendimento: React.FC = () => {
                               </div>
                               {isUnavailable ? (
                                 <Badge variant="secondary" className="text-xs shrink-0">Esgotado</Badge>
-                              ) : cartItem && !item.is_customizable ? (
+                              ) : cartItem && !item.is_customizable && !isBaldao ? (
                                 <div className="flex items-center gap-1 shrink-0">
                                   <Button
                                     size="icon"
@@ -891,13 +941,18 @@ const Atendimento: React.FC = () => {
                               ) : (
                                 <Button
                                   size="sm"
-                                  variant={item.is_customizable ? "outline" : "secondary"}
+                                  variant={item.is_customizable || isBaldao ? "outline" : "secondary"}
                                   className="shrink-0"
                                   onClick={() => addToCart(item)}
                                 >
                                   {item.is_customizable ? (
                                     <>
                                       <Beaker className="h-4 w-4 mr-1" />
+                                      Montar
+                                    </>
+                                  ) : isBaldao ? (
+                                    <>
+                                      <Beer className="h-4 w-4 mr-1" />
                                       Montar
                                     </>
                                   ) : (
@@ -1039,8 +1094,15 @@ const Atendimento: React.FC = () => {
         allItems={menuItems}
         onConfirm={handleCustomItemConfirm}
       />
+      
+      {/* Baldão Quantity Modal */}
+      <BaldaoQuantityModal
+        item={baldaoItem}
+        open={!!baldaoItem}
+        onOpenChange={(open) => !open && setBaldaoItem(null)}
+        onConfirm={handleBaldaoConfirm}
+      />
 
-      {/* Close Comanda Confirmation Dialog */}
       <AlertDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
