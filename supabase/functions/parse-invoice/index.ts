@@ -40,24 +40,34 @@ serve(async (req) => {
             role: 'system',
             content: `Você é um especialista em ler notas fiscais brasileiras (NF-e/DANFE). Analise a imagem e extraia os produtos da seção "DADOS DOS PRODUTOS/SERVIÇOS".
 
-IMPORTANTE - Colunas da nota fiscal:
-- A coluna "QUANTIDADE" ou "QTD.COM" contém a quantidade de CAIXAS/PACKS
-- A coluna "QTD.TRIB" ou "QTD TRIB" contém a quantidade REAL de unidades individuais
-- SEMPRE use a QTD.TRIB para o campo "quantidade" pois é o total de unidades soltas
+REGRA CRÍTICA PARA QUANTIDADE - Siga esta ordem de prioridade:
 
-Exemplo: Se QTD.COM=5 (caixas) e QTD.TRIB=40 (unidades), use quantidade=40
+1. SE existir coluna "QTD.TRIB" ou "QTD TRIB": USE ESSE VALOR (é a quantidade real de unidades)
+2. SE NÃO existir QTD.TRIB: CALCULE baseado na descrição do produto:
+   - Identifique se a descrição indica pack/caixa: "CX C/8", "12X269ML", "PACK 6", "C/12", etc.
+   - Multiplique: QUANTIDADE × unidades_por_pack
+   - Exemplo: "BUDWEISER CX C/8" com QUANTIDADE=5 → 5×8 = 40 unidades
+   - Exemplo: "BRAHMA 12X269ML" com QUANTIDADE=3 → 3×12 = 36 unidades
+3. SE for produto individual (sem indicação de pack): use a QUANTIDADE diretamente
+
+Padrões comuns de pack na descrição:
+- "CX C/8" ou "C/8" = 8 unidades por caixa
+- "12X269ML" = 12 unidades
+- "PACK 6" = 6 unidades
+- "FARDO 12" = 12 unidades
+- "24UN" = 24 unidades
 
 Para cada produto, extraia:
 - codigo: código do produto (COD.PRODUTO)
-- descricao: nome/descrição do produto (DESCRIÇÃO DOS PRODUTOS)
-- quantidade: use QTD.TRIB (quantidade tributável/unidades individuais), NÃO a quantidade de caixas
-- valorUnitario: valor unitário da CAIXA (VL.UN.COM), não precisa dividir
+- descricao: descrição completa do produto
+- quantidade: TOTAL DE UNIDADES INDIVIDUAIS (seguindo as regras acima)
+- valorUnitario: valor unitário da linha (VL.UN.COM)
 - ncm: código NCM se disponível
 
 Retorne APENAS um JSON válido no formato:
 {
   "items": [
-    { "codigo": "23457", "descricao": "BUDWEISER LT 269ML CX C/8", "quantidade": 40, "valorUnitario": 21.56, "ncm": "22030000" }
+    { "codigo": "13839", "descricao": "BUDWEISER LT 269ML CX C/8", "quantidade": 40, "valorUnitario": 21.56, "ncm": "22030000" }
   ]
 }
 
