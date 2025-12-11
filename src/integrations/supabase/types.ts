@@ -163,7 +163,9 @@ export type Database = {
           created_at: string
           delivery_type: string
           id: string
+          is_paid: boolean
           notes: string | null
+          paid_at: string | null
           status: Database["public"]["Enums"]["order_status"]
           table_id: string
           updated_at: string
@@ -173,7 +175,9 @@ export type Database = {
           created_at?: string
           delivery_type?: string
           id?: string
+          is_paid?: boolean
           notes?: string | null
+          paid_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           table_id: string
           updated_at?: string
@@ -183,7 +187,9 @@ export type Database = {
           created_at?: string
           delivery_type?: string
           id?: string
+          is_paid?: boolean
           notes?: string | null
+          paid_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           table_id?: string
           updated_at?: string
