@@ -71,7 +71,7 @@ const AdminDashboard: React.FC = () => {
   const { tables, refetch: refetchTables } = useTablesWithActivity();
   const { settings, updateSetting } = useSettings();
   const { products: staleProducts } = useStaleProducts(settings.no_sales_alert_days);
-  const { comandas, markAsPaid, markAsUnpaid, closeComanda, markOrderPaid, markOrderUnpaid, unpaidTotal, refetch: refetchComandas } = useComandas();
+  const { comandas, markAsPaid, markAsUnpaid, closeComanda, markOrderPaid, markOrderUnpaid, remainingTotal, refetch: refetchComandas } = useComandas();
   const [todayReservations, setTodayReservations] = useState(0);
   const [todayPeopleCount, setTodayPeopleCount] = useState(0);
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
@@ -183,8 +183,8 @@ const AdminDashboard: React.FC = () => {
   };
 
   const filteredComandas = comandas.filter(c => {
-    if (comandaFilter === 'unpaid') return c.unpaid_total > 0;
-    if (comandaFilter === 'paid') return c.unpaid_total === 0;
+    if (comandaFilter === 'unpaid') return c.remaining_total > 0;
+    if (comandaFilter === 'paid') return c.remaining_total === 0;
     return true;
   });
 
@@ -428,9 +428,9 @@ const AdminDashboard: React.FC = () => {
           <div className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-primary" />
             <CardTitle>Comandas de Hoje</CardTitle>
-            {unpaidTotal > 0 && (
+            {remainingTotal > 0 && (
               <Badge variant="destructive" className="ml-2">
-                A receber: R$ {unpaidTotal.toFixed(2).replace('.', ',')}
+                A receber: R$ {remainingTotal.toFixed(2).replace('.', ',')}
               </Badge>
             )}
           </div>
@@ -469,7 +469,7 @@ const AdminDashboard: React.FC = () => {
                 <div 
                   key={comanda.session_id}
                   className={`border rounded-lg overflow-hidden transition-all ${
-                    comanda.unpaid_total === 0 ? 'bg-green-500/5 border-green-500/30' : 'bg-background'
+                    comanda.remaining_total === 0 ? 'bg-green-500/5 border-green-500/30' : 'bg-background'
                   }`}
                 >
                   <div 
@@ -504,13 +504,13 @@ const AdminDashboard: React.FC = () => {
                         <p className="font-bold text-lg">
                           R$ {comanda.total.toFixed(2).replace('.', ',')}
                         </p>
-                        {comanda.unpaid_total === 0 ? (
+                        {comanda.remaining_total === 0 ? (
                           <Badge variant="outline" className="text-green-600 border-green-500/50">
                             <Check className="h-3 w-3 mr-1" /> Pago
                           </Badge>
-                        ) : comanda.paid_total > 0 ? (
+                        ) : (comanda.paid_total > 0 || comanda.partial_payments_total > 0) ? (
                           <span className="text-xs text-muted-foreground">
-                            Pago: R$ {comanda.paid_total.toFixed(2)} | A pagar: R$ {comanda.unpaid_total.toFixed(2)}
+                            Pago: R$ {(comanda.paid_total + comanda.partial_payments_total).toFixed(2)} | Falta: R$ {comanda.remaining_total.toFixed(2)}
                           </span>
                         ) : (
                           <Badge variant="destructive" className="text-xs">
