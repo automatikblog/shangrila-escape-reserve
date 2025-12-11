@@ -7,7 +7,7 @@ export interface MenuItem {
   isAvailable?: boolean;
   stockQuantity?: number | null;
   // Bottle/dose fields
-  productCode?: string | null;
+  productCode?: string[] | null; // Multiple supplier codes
   isBottle?: boolean;
   bottleMl?: number | null;
   doseMl?: number | null;
