@@ -632,67 +632,77 @@ const Atendimento: React.FC = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">2. Itens do Cardápio</CardTitle>
             
-            {/* Frequent Items - Today's Popular */}
-            {frequentItems.length > 0 && (
-              <div className="mt-3 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-900">
-                <p className="text-xs font-medium text-orange-600 dark:text-orange-400 mb-2 flex items-center gap-1">
+            {/* Items from Selected Comanda - Quick Add */}
+            {selectedComanda && selectedComanda.items.length > 0 && (
+              <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-900">
+                <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-1">
                   <TrendingUp className="h-3 w-3" />
-                  Populares Hoje
+                  Itens da Comanda ({selectedComanda.client_name})
                 </p>
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                  {frequentItems.map((freqItem) => {
-                    const menuItem = menuItems.find(item => item.id === freqItem.menu_item_id);
-                    const cartItem = cart.find(c => c.menuItemId === freqItem.menu_item_id);
-                    
-                    if (!menuItem) return null;
+                  {/* Aggregate items from selected comanda */}
+                  {Object.values(
+                    selectedComanda.items.reduce((acc, item) => {
+                      const key = item.item_name;
+                      if (!acc[key]) {
+                        acc[key] = { ...item, total_qty: 0 };
+                      }
+                      acc[key].total_qty += item.quantity;
+                      return acc;
+                    }, {} as Record<string, typeof selectedComanda.items[0] & { total_qty: number }>)
+                  ).slice(0, 6).map((item) => {
+                    const menuItem = menuItems.find(m => m.name === item.item_name);
+                    const cartItem = menuItem ? cart.find(c => c.menuItemId === menuItem.id) : null;
                     
                     return (
                       <div
-                        key={freqItem.menu_item_id}
+                        key={item.item_name}
                         className="flex items-center justify-between p-2 bg-background rounded-md border"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium truncate">{freqItem.item_name}</p>
+                          <p className="text-xs font-medium truncate">{item.item_name}</p>
                           <div className="flex items-center gap-2">
                             <p className="text-xs text-primary font-bold">
-                              R$ {freqItem.item_price.toFixed(2)}
+                              R$ {item.item_price.toFixed(2)}
                             </p>
                             <Badge variant="outline" className="text-[10px] h-4 px-1">
-                              {freqItem.order_count}x
+                              {item.total_qty}x pedido
                             </Badge>
                           </div>
                         </div>
-                        {cartItem ? (
-                          <div className="flex items-center gap-1 shrink-0">
+                        {menuItem && (
+                          cartItem ? (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-6 w-6"
+                                onClick={() => updateQuantity(cartItem.id, -1)}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-5 text-center text-xs font-medium">
+                                {cartItem.quantity}
+                              </span>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-6 w-6"
+                                onClick={() => updateQuantity(cartItem.id, 1)}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
                             <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-6 w-6"
-                              onClick={() => updateQuantity(cartItem.id, -1)}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="w-5 text-center text-xs font-medium">
-                              {cartItem.quantity}
-                            </span>
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-6 w-6"
-                              onClick={() => updateQuantity(cartItem.id, 1)}
+                              size="sm"
+                              variant="secondary"
+                              className="h-6 px-2 text-xs shrink-0"
+                              onClick={() => addToCart(menuItem)}
                             >
                               <Plus className="h-3 w-3" />
                             </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="h-6 px-2 text-xs shrink-0"
-                            onClick={() => addToCart(menuItem)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
+                          )
                         )}
                       </div>
                     );
