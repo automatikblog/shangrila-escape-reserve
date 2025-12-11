@@ -1,11 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
-import { useAdminTables } from '@/hooks/useAdminTables';
-import { Table2, ClipboardList, Clock, CalendarDays, Users, DollarSign, AlertTriangle } from 'lucide-react';
+import { useTablesWithActivity, getTableStatus, TableStatus } from '@/hooks/useTablesWithActivity';
+import { useStaleProducts } from '@/hooks/useStaleProducts';
+import { useSettings } from '@/hooks/useSettings';
+import { Table2, ClipboardList, Clock, CalendarDays, Users, DollarSign, AlertTriangle, PackageX, Settings, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { toast } from 'sonner';
 
 interface LowStockItem {
   id: string;
@@ -14,18 +27,54 @@ interface LowStockItem {
   category: string;
 }
 
+const statusConfig: Record<TableStatus, { bg: string; border: string; label: string; dot: string }> = {
+  active: { 
+    bg: 'bg-green-500/20', 
+    border: 'border-green-500/50', 
+    label: 'Consumindo',
+    dot: 'bg-green-500'
+  },
+  attention: { 
+    bg: 'bg-yellow-500/20', 
+    border: 'border-yellow-500/50', 
+    label: 'Atenção',
+    dot: 'bg-yellow-500'
+  },
+  free: { 
+    bg: 'bg-muted', 
+    border: 'border-border', 
+    label: 'Livre',
+    dot: 'bg-gray-400'
+  },
+  inactive: { 
+    bg: 'bg-red-500/10', 
+    border: 'border-red-500/30', 
+    label: 'Desativada',
+    dot: 'bg-red-500'
+  },
+};
+
 const AdminDashboard: React.FC = () => {
   const { orders } = useRealtimeOrders();
-  const { tables } = useAdminTables();
+  const { tables } = useTablesWithActivity();
+  const { settings, updateSetting } = useSettings();
+  const { products: staleProducts } = useStaleProducts(settings.no_sales_alert_days);
   const [todayReservations, setTodayReservations] = useState(0);
   const [todayPeopleCount, setTodayPeopleCount] = useState(0);
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tempInactivity, setTempInactivity] = useState(settings.table_inactivity_minutes);
+  const [tempStaleDays, setTempStaleDays] = useState(settings.no_sales_alert_days);
+
+  useEffect(() => {
+    setTempInactivity(settings.table_inactivity_minutes);
+    setTempStaleDays(settings.no_sales_alert_days);
+  }, [settings]);
 
   useEffect(() => {
     const fetchTodayData = async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
       
-      // Fetch reservations count and people count
       const { data: reservationsData } = await supabase
         .from('reservations')
         .select('num_people')
@@ -37,7 +86,6 @@ const AdminDashboard: React.FC = () => {
         setTodayPeopleCount(reservationsData.reduce((sum, r) => sum + r.num_people, 0));
       }
 
-      // Fetch low stock items (5 or less)
       const { data: lowStock } = await supabase
         .from('menu_items')
         .select('id, name, stock_quantity, category')
@@ -52,6 +100,18 @@ const AdminDashboard: React.FC = () => {
     fetchTodayData();
   }, []);
 
+  const handleSaveSettings = async () => {
+    const success1 = await updateSetting('table_inactivity_minutes', tempInactivity);
+    const success2 = await updateSetting('no_sales_alert_days', tempStaleDays);
+    
+    if (success1 && success2) {
+      toast.success('Configurações salvas!');
+      setSettingsOpen(false);
+    } else {
+      toast.error('Erro ao salvar configurações');
+    }
+  };
+
   const pendingOrders = orders.filter(o => o.status === 'pending').length;
   
   const todayOrders = orders.filter(o => {
@@ -60,11 +120,15 @@ const AdminDashboard: React.FC = () => {
     return orderDate.toDateString() === today.toDateString();
   });
 
-  // Calculate today's sales total
   const todaySalesTotal = todayOrders.reduce((total, order) => {
     const orderTotal = order.items?.reduce((sum, item) => sum + (item.item_price * item.quantity), 0) || 0;
     return total + orderTotal;
   }, 0);
+
+  // Tables requiring attention
+  const attentionTables = tables.filter(t => 
+    getTableStatus(t, settings.table_inactivity_minutes) === 'attention'
+  );
 
   const stats = [
     { 
@@ -99,11 +163,57 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">Visão geral do sistema de pedidos</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground">Visão geral do sistema de pedidos</p>
+        </div>
+        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="icon">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Configurações do Dashboard</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="inactivity">Tempo de inatividade da mesa (minutos)</Label>
+                <Input
+                  id="inactivity"
+                  type="number"
+                  min={1}
+                  value={tempInactivity}
+                  onChange={(e) => setTempInactivity(parseInt(e.target.value) || 40)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Mesas sem pedidos há mais de {tempInactivity} minutos ficam em alerta
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="staleDays">Dias sem venda para alerta de produto</Label>
+                <Input
+                  id="staleDays"
+                  type="number"
+                  min={1}
+                  value={tempStaleDays}
+                  onChange={(e) => setTempStaleDays(parseInt(e.target.value) || 15)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Produtos sem venda há mais de {tempStaleDays} dias aparecem no alerta
+                </p>
+              </div>
+              <Button onClick={handleSaveSettings} className="w-full">
+                Salvar Configurações
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
           <Card key={stat.title}>
@@ -122,12 +232,49 @@ const AdminDashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* Low Stock Alert */}
-      {lowStockItems.length > 0 && (
+      {/* Tables Needing Attention Alert */}
+      {attentionTables.length > 0 && (
         <Card className="border-yellow-500/50 bg-yellow-500/5">
           <CardHeader className="flex flex-row items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-yellow-500" />
-            <CardTitle className="text-yellow-600">Estoque Baixo</CardTitle>
+            <Clock className="h-5 w-5 text-yellow-500" />
+            <CardTitle className="text-yellow-600">
+              Mesas sem Consumo ({attentionTables.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {attentionTables.map((table) => (
+                <div 
+                  key={table.id}
+                  className="flex items-center justify-between p-3 bg-background rounded-lg border border-yellow-500/30"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center font-bold">
+                      {table.number}
+                    </div>
+                    <div>
+                      <p className="font-medium">{table.client_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {table.minutes_since_order !== null 
+                          ? `${table.minutes_since_order} min sem pedir`
+                          : 'Sem pedidos ainda'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Low Stock Alert */}
+      {lowStockItems.length > 0 && (
+        <Card className="border-orange-500/50 bg-orange-500/5">
+          <CardHeader className="flex flex-row items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-orange-500" />
+            <CardTitle className="text-orange-600">Estoque Baixo</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -150,7 +297,49 @@ const AdminDashboard: React.FC = () => {
         </Card>
       )}
 
+      {/* Stale Products Alert */}
+      {staleProducts.length > 0 && (
+        <Card className="border-purple-500/50 bg-purple-500/5">
+          <CardHeader className="flex flex-row items-center gap-2">
+            <PackageX className="h-5 w-5 text-purple-500" />
+            <CardTitle className="text-purple-600">
+              Produtos Encalhados ({staleProducts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              Produtos sem venda há mais de {settings.no_sales_alert_days} dias
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {staleProducts.slice(0, 9).map((product) => (
+                <div 
+                  key={product.id}
+                  className="flex items-center justify-between p-3 bg-background rounded-lg border"
+                >
+                  <div>
+                    <p className="font-medium">{product.name}</p>
+                    <p className="text-xs text-muted-foreground">{product.category}</p>
+                  </div>
+                  <Badge variant="outline" className="text-purple-600 border-purple-500/50">
+                    {product.days_since_sale >= 9999 
+                      ? 'Nunca vendeu' 
+                      : `${product.days_since_sale} dias`
+                    }
+                  </Badge>
+                </div>
+              ))}
+            </div>
+            {staleProducts.length > 9 && (
+              <p className="text-sm text-muted-foreground mt-3 text-center">
+                E mais {staleProducts.length - 9} produtos...
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Orders */}
         <Card>
           <CardHeader>
             <CardTitle>Pedidos Recentes</CardTitle>
@@ -192,9 +381,18 @@ const AdminDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
+        {/* Smart Tables Status */}
         <Card>
-          <CardHeader>
-            <CardTitle>Mesas</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Status das Mesas</CardTitle>
+            <div className="flex gap-2 text-xs">
+              {Object.entries(statusConfig).map(([key, config]) => (
+                <div key={key} className="flex items-center gap-1">
+                  <div className={`w-2 h-2 rounded-full ${config.dot}`} />
+                  <span className="text-muted-foreground">{config.label}</span>
+                </div>
+              ))}
+            </div>
           </CardHeader>
           <CardContent>
             {tables.length === 0 ? (
@@ -203,19 +401,36 @@ const AdminDashboard: React.FC = () => {
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-3">
-                {tables.map((table) => (
-                  <div 
-                    key={table.id}
-                    className={`p-3 rounded-lg text-center ${
-                      table.is_active 
-                        ? 'bg-green-500/20 border border-green-500/30' 
-                        : 'bg-muted'
-                    }`}
-                  >
-                    <p className="font-bold text-lg">{table.number}</p>
-                    <p className="text-xs text-muted-foreground truncate">{table.name}</p>
-                  </div>
-                ))}
+                {tables.map((table) => {
+                  const status = getTableStatus(table, settings.table_inactivity_minutes);
+                  const config = statusConfig[status];
+                  return (
+                    <div 
+                      key={table.id}
+                      className={`p-3 rounded-lg border ${config.bg} ${config.border}`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="font-bold text-lg">{table.number}</p>
+                        <div className={`w-2 h-2 rounded-full ${config.dot}`} />
+                      </div>
+                      {table.client_name ? (
+                        <>
+                          <p className="text-xs font-medium truncate flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {table.client_name}
+                          </p>
+                          {table.minutes_since_order !== null && (
+                            <p className="text-xs text-muted-foreground">
+                              {table.minutes_since_order} min
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-xs text-muted-foreground truncate">{table.name}</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
