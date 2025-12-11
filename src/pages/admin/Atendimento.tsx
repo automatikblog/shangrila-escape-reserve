@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye } from 'lucide-react';
+import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import {
@@ -626,6 +626,79 @@ const Atendimento: React.FC = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">2. Itens do Cardápio</CardTitle>
+            
+            {/* Quick Access Items */}
+            <div className="mt-3 p-3 bg-accent/20 rounded-lg">
+              <p className="text-xs font-medium text-muted-foreground mb-2">⚡ Acesso Rápido</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { name: 'Entrada do clube', price: 10, icon: Ticket },
+                  { name: 'Piscina', price: 20, icon: Waves },
+                  { name: 'Churrasqueira', price: 50, icon: Flame },
+                  { name: 'Café da manhã', price: 45, icon: Coffee },
+                ].map((quickItem) => {
+                  const menuItem = menuItems.find(item => 
+                    item.name.toLowerCase() === quickItem.name.toLowerCase()
+                  );
+                  const cartItem = cart.find(c => 
+                    menuItem && c.menuItemId === menuItem.id
+                  );
+                  const IconComponent = quickItem.icon;
+                  
+                  return (
+                    <div
+                      key={quickItem.name}
+                      className="flex items-center justify-between p-2 bg-background rounded-md border"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <IconComponent className="h-4 w-4 text-primary shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium truncate">{quickItem.name}</p>
+                          <p className="text-xs text-primary font-bold">
+                            R$ {menuItem?.price.toFixed(2) || quickItem.price.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                      {menuItem && (
+                        cartItem ? (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-6 w-6"
+                              onClick={() => updateQuantity(cartItem.id, -1)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-5 text-center text-xs font-medium">
+                              {cartItem.quantity}
+                            </span>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-6 w-6"
+                              onClick={() => updateQuantity(cartItem.id, 1)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-6 px-2 text-xs shrink-0"
+                            onClick={() => addToCart(menuItem)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        )
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
             <div className="relative mt-2">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
