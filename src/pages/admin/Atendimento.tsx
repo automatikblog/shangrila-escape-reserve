@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMenuItems, categoryLabels } from '@/hooks/useMenuItems';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { useComandas, Comanda } from '@/hooks/useComandas';
+import { ComandaDetailsModal } from '@/components/admin/ComandaDetailsModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, ChevronDown, ChevronUp, FileText } from 'lucide-react';
+import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import {
@@ -24,11 +25,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 
 interface CartItem {
   id: string;
@@ -61,22 +57,28 @@ const Atendimento: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Balcão comanda management
+  // Comanda management
   const [selectedComanda, setSelectedComanda] = useState<Comanda | null>(null);
   const [isNewComanda, setIsNewComanda] = useState(false);
-  const [expandedComanda, setExpandedComanda] = useState<string | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [comandaToClose, setComandaToClose] = useState<Comanda | null>(null);
+  const [detailsModalComanda, setDetailsModalComanda] = useState<Comanda | null>(null);
   
-  // Fetch balcão comandas (table 0)
+  // Fetch all active comandas (we'll filter locally)
   const { 
-    comandas: balcaoComandas, 
+    comandas: allComandas, 
     isLoading: loadingComandas,
     refetch: refetchComandas,
     markAsPaid,
     markAsUnpaid,
     closeComanda
-  } = useComandas({ tableNumber: 0 });
+  } = useComandas();
+
+  // Filter comandas for current table
+  const tableComandas = useMemo(() => {
+    if (!selectedTable) return [];
+    return allComandas.filter(c => c.table_id === selectedTable.id);
+  }, [allComandas, selectedTable]);
 
   useEffect(() => {
     fetchTables();
@@ -123,6 +125,14 @@ const Atendimento: React.FC = () => {
     }
   };
 
+  // Handle table selection
+  const handleSelectTable = (table: Table) => {
+    setSelectedTable(table);
+    setSelectedComanda(null);
+    setIsNewComanda(false);
+    setClientName('');
+  };
+
   // Handle selecting an existing comanda
   const handleSelectComanda = (comanda: Comanda) => {
     setSelectedComanda(comanda);
@@ -165,6 +175,9 @@ const Atendimento: React.FC = () => {
       if (selectedComanda?.session_id === comanda.session_id) {
         setSelectedComanda({ ...comanda, is_paid: true, paid_at: new Date().toISOString() });
       }
+      if (detailsModalComanda?.session_id === comanda.session_id) {
+        setDetailsModalComanda({ ...comanda, is_paid: true, paid_at: new Date().toISOString() });
+      }
     } else {
       toast.error('Erro ao marcar como paga');
     }
@@ -178,9 +191,18 @@ const Atendimento: React.FC = () => {
       if (selectedComanda?.session_id === comanda.session_id) {
         setSelectedComanda({ ...comanda, is_paid: false, paid_at: null });
       }
+      if (detailsModalComanda?.session_id === comanda.session_id) {
+        setDetailsModalComanda({ ...comanda, is_paid: false, paid_at: null });
+      }
     } else {
       toast.error('Erro ao marcar como não paga');
     }
+  };
+
+  // Handle close comanda from modal
+  const handleCloseFromModal = (comanda: Comanda) => {
+    setDetailsModalComanda(null);
+    confirmCloseComanda(comanda);
   };
 
   // Handle close comanda
@@ -265,8 +287,8 @@ const Atendimento: React.FC = () => {
       return;
     }
 
-    // In balcão mode, must either select existing comanda or create new
-    if (isBalcaoMode && !selectedComanda && !isNewComanda) {
+    // Must either select existing comanda or create new
+    if (tableComandas.length > 0 && !selectedComanda && !isNewComanda) {
       toast.error('Selecione uma comanda existente ou crie uma nova');
       return;
     }
@@ -363,6 +385,11 @@ const Atendimento: React.FC = () => {
     }, {} as Record<string, typeof filteredItems>);
   }, [filteredItems]);
 
+  // Check if a table has open comandas
+  const getTableComandaCount = (tableId: string) => {
+    return allComandas.filter(c => c.table_id === tableId).length;
+  };
+
   if (loadingTables || loadingMenu) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -403,11 +430,46 @@ const Atendimento: React.FC = () => {
               />
             </div>
 
-            {/* Balcão Comandas - shown when balcão mode is active */}
-            {isBalcaoMode && (
+            {/* Table Selection - hidden when balcão mode */}
+            {!isBalcaoMode && (
+              <div className="space-y-2">
+                <Label>Selecione a Mesa</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {tables.map(table => {
+                    const comandaCount = getTableComandaCount(table.id);
+                    return (
+                      <Button
+                        key={table.id}
+                        variant={selectedTable?.id === table.id ? 'default' : 'outline'}
+                        className="h-auto py-3 flex flex-col relative"
+                        onClick={() => handleSelectTable(table)}
+                      >
+                        {comandaCount > 0 && (
+                          <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
+                            {comandaCount}
+                          </span>
+                        )}
+                        <span className="text-lg font-bold">{table.number}</span>
+                        <span className="text-xs truncate w-full">{table.name}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+                {tables.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhuma mesa ativa
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Comandas Section - shown when table is selected or balcão mode */}
+            {selectedTable && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">Comandas Abertas no Balcão</Label>
+                  <Label className="text-sm font-medium">
+                    Comandas Abertas {isBalcaoMode ? 'no Balcão' : `na Mesa ${selectedTable.number}`}
+                  </Label>
                   <Button
                     size="sm"
                     variant={isNewComanda ? 'default' : 'outline'}
@@ -422,127 +484,61 @@ const Atendimento: React.FC = () => {
                   <div className="flex items-center justify-center py-4">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
-                ) : balcaoComandas.length === 0 ? (
+                ) : tableComandas.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg">
-                    Nenhuma comanda aberta no balcão
+                    Nenhuma comanda aberta
                   </p>
                 ) : (
-                  <ScrollArea className="h-[200px]">
+                  <ScrollArea className="h-[180px]">
                     <div className="space-y-2 pr-4">
-                      {balcaoComandas.map(comanda => (
-                        <Collapsible 
+                      {tableComandas.map(comanda => (
+                        <div
                           key={comanda.session_id}
-                          open={expandedComanda === comanda.session_id}
-                          onOpenChange={(open) => setExpandedComanda(open ? comanda.session_id : null)}
+                          className={`p-3 border rounded-lg transition-colors ${
+                            selectedComanda?.session_id === comanda.session_id 
+                              ? 'border-primary bg-primary/10' 
+                              : 'hover:bg-accent/30'
+                          }`}
                         >
-                          <div
-                            className={`p-3 border rounded-lg transition-colors ${
-                              selectedComanda?.session_id === comanda.session_id 
-                                ? 'border-primary bg-primary/10' 
-                                : 'hover:bg-accent/30 cursor-pointer'
-                            }`}
+                          <div 
+                            className="flex items-center justify-between cursor-pointer"
                             onClick={() => handleSelectComanda(comanda)}
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium">{comanda.client_name}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant={comanda.is_paid ? 'default' : 'destructive'} className="text-xs">
-                                  {comanda.is_paid ? 'Pago' : 'Não pago'}
-                                </Badge>
-                                <CollapsibleTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6">
-                                    {expandedComanda === comanda.session_id ? (
-                                      <ChevronUp className="h-4 w-4" />
-                                    ) : (
-                                      <ChevronDown className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                </CollapsibleTrigger>
-                              </div>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">{comanda.client_name}</span>
                             </div>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <DollarSign className="h-3 w-3" />
-                                R$ {comanda.total.toFixed(2)}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {formatTimeElapsed(comanda.created_at)}
-                              </span>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={comanda.is_paid ? 'default' : 'destructive'} className="text-xs">
+                                {comanda.is_paid ? 'Pago' : 'Não pago'}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDetailsModalComanda(comanda);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
-                          
-                          <CollapsibleContent>
-                            <div className="mt-2 p-3 border rounded-lg bg-muted/30 space-y-3">
-                              {/* Items list */}
-                              <div>
-                                <p className="text-xs font-medium text-muted-foreground mb-2">Itens consumidos:</p>
-                                <div className="space-y-1">
-                                  {comanda.items.length === 0 ? (
-                                    <p className="text-xs text-muted-foreground">Nenhum item ainda</p>
-                                  ) : (
-                                    comanda.items.map((item, idx) => (
-                                      <div key={idx} className="flex justify-between text-sm">
-                                        <span>{item.quantity}x {item.item_name}</span>
-                                        <span>R$ {(item.item_price * item.quantity).toFixed(2)}</span>
-                                      </div>
-                                    ))
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Orders with notes */}
-                              {comanda.orders.some(o => o.notes) && (
-                                <div>
-                                  <p className="text-xs font-medium text-muted-foreground mb-2">Observações:</p>
-                                  <div className="space-y-1">
-                                    {comanda.orders.filter(o => o.notes).map(order => (
-                                      <div key={order.id} className="flex items-start gap-2 text-sm">
-                                        <FileText className="h-3 w-3 mt-0.5 text-muted-foreground" />
-                                        <span>{order.notes}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Actions */}
-                              <div className="flex gap-2 pt-2 border-t">
-                                {comanda.is_paid ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={(e) => { e.stopPropagation(); handleMarkUnpaid(comanda); }}
-                                    className="flex-1"
-                                  >
-                                    <X className="h-4 w-4 mr-1" />
-                                    Desmarcar Pago
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    onClick={(e) => { e.stopPropagation(); handleMarkPaid(comanda); }}
-                                    className="flex-1"
-                                  >
-                                    <Check className="h-4 w-4 mr-1" />
-                                    Marcar Pago
-                                  </Button>
-                                )}
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={(e) => { e.stopPropagation(); confirmCloseComanda(comanda); }}
-                                >
-                                  Fechar
-                                </Button>
-                              </div>
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
+                          <div 
+                            className="flex items-center gap-4 mt-1 text-sm text-muted-foreground cursor-pointer"
+                            onClick={() => handleSelectComanda(comanda)}
+                          >
+                            <span className="flex items-center gap-1">
+                              <DollarSign className="h-3 w-3" />
+                              R$ {comanda.total.toFixed(2)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatTimeElapsed(comanda.created_at)}
+                            </span>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </ScrollArea>
@@ -567,31 +563,6 @@ const Atendimento: React.FC = () => {
                   <div className="p-3 border-2 border-primary rounded-lg bg-primary/5">
                     <p className="text-xs text-muted-foreground">Criando nova comanda</p>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Table Selection - hidden when balcão mode */}
-            {!isBalcaoMode && (
-              <div className="space-y-2">
-                <Label>Selecione a Mesa</Label>
-                <div className="grid grid-cols-4 gap-2">
-                  {tables.map(table => (
-                    <Button
-                      key={table.id}
-                      variant={selectedTable?.id === table.id ? 'default' : 'outline'}
-                      className="h-auto py-3 flex flex-col"
-                      onClick={() => setSelectedTable(table)}
-                    >
-                      <span className="text-lg font-bold">{table.number}</span>
-                      <span className="text-xs truncate w-full">{table.name}</span>
-                    </Button>
-                  ))}
-                </div>
-                {tables.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Nenhuma mesa ativa
-                  </p>
                 )}
               </div>
             )}
@@ -820,7 +791,7 @@ const Atendimento: React.FC = () => {
                     cart.length === 0 || 
                     !deliveryType || 
                     isSubmitting ||
-                    (isBalcaoMode && !selectedComanda && !isNewComanda)
+                    (tableComandas.length > 0 && !selectedComanda && !isNewComanda)
                   }
                   onClick={handleSubmitOrder}
                   className="w-full sm:w-auto"
@@ -837,6 +808,16 @@ const Atendimento: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Comanda Details Modal */}
+      <ComandaDetailsModal
+        comanda={detailsModalComanda}
+        open={!!detailsModalComanda}
+        onOpenChange={(open) => !open && setDetailsModalComanda(null)}
+        onMarkPaid={handleMarkPaid}
+        onMarkUnpaid={handleMarkUnpaid}
+        onClose={handleCloseFromModal}
+      />
 
       {/* Close Comanda Confirmation Dialog */}
       <AlertDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
