@@ -10,6 +10,14 @@ export interface MenuItem {
   is_available: boolean;
   stock_quantity: number | null;
   created_at: string;
+  // New bottle/dose fields
+  product_code: string | null;
+  is_bottle: boolean;
+  bottle_ml: number | null;
+  dose_ml: number | null;
+  bottles_in_stock: number | null;
+  current_bottle_ml: number | null;
+  cost_price: number | null;
 }
 
 export interface MenuItemInput {
@@ -19,6 +27,13 @@ export interface MenuItemInput {
   category: string;
   is_available?: boolean;
   stock_quantity?: number | null;
+  product_code?: string | null;
+  is_bottle?: boolean;
+  bottle_ml?: number | null;
+  dose_ml?: number | null;
+  bottles_in_stock?: number | null;
+  current_bottle_ml?: number | null;
+  cost_price?: number | null;
 }
 
 export const useMenuItems = () => {
@@ -103,21 +118,32 @@ export const useMenuItems = () => {
 
   const decrementStock = async (itemId: string, quantity: number) => {
     try {
-      const item = items.find(i => i.id === itemId);
-      if (!item || item.stock_quantity === null) return { error: null };
+      // Call the database function that handles both bottle and regular items
+      const { error } = await supabase.rpc('decrement_stock', {
+        p_menu_item_id: itemId,
+        p_quantity: quantity
+      });
 
-      const newStock = Math.max(0, item.stock_quantity - quantity);
-      const updates: Partial<MenuItemInput> = { stock_quantity: newStock };
+      if (error) throw error;
       
-      if (newStock === 0) {
-        updates.is_available = false;
-      }
-
-      return await updateItem(itemId, updates);
+      // Refresh items to get updated stock
+      await fetchItems();
+      return { error: null };
     } catch (err: any) {
       console.error('Error decrementing stock:', err);
       return { error: err.message };
     }
+  };
+
+  // Calculate available doses for a bottle item
+  const getAvailableDoses = (item: MenuItem): number | null => {
+    if (!item.is_bottle || !item.dose_ml || item.dose_ml <= 0) return null;
+    
+    const bottlesMl = (item.bottles_in_stock || 0) * (item.bottle_ml || 0);
+    const currentMl = item.current_bottle_ml || 0;
+    const totalMl = bottlesMl + currentMl;
+    
+    return Math.floor(totalMl / item.dose_ml);
   };
 
   const categories = [...new Set(items.map(item => item.category))];
@@ -131,7 +157,8 @@ export const useMenuItems = () => {
     createItem,
     updateItem,
     deleteItem,
-    decrementStock
+    decrementStock,
+    getAvailableDoses
   };
 };
 

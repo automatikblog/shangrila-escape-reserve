@@ -51,33 +51,54 @@ export type Database = {
       }
       menu_items: {
         Row: {
+          bottle_ml: number | null
+          bottles_in_stock: number | null
           category: string
+          cost_price: number | null
           created_at: string
+          current_bottle_ml: number | null
           description: string | null
+          dose_ml: number | null
           id: string
           is_available: boolean
+          is_bottle: boolean | null
           name: string
           price: number
+          product_code: string | null
           stock_quantity: number | null
         }
         Insert: {
+          bottle_ml?: number | null
+          bottles_in_stock?: number | null
           category: string
+          cost_price?: number | null
           created_at?: string
+          current_bottle_ml?: number | null
           description?: string | null
+          dose_ml?: number | null
           id?: string
           is_available?: boolean
+          is_bottle?: boolean | null
           name: string
           price: number
+          product_code?: string | null
           stock_quantity?: number | null
         }
         Update: {
+          bottle_ml?: number | null
+          bottles_in_stock?: number | null
           category?: string
+          cost_price?: number | null
           created_at?: string
+          current_bottle_ml?: number | null
           description?: string | null
+          dose_ml?: number | null
           id?: string
           is_available?: boolean
+          is_bottle?: boolean | null
           name?: string
           price?: number
+          product_code?: string | null
           stock_quantity?: number | null
         }
         Relationships: []

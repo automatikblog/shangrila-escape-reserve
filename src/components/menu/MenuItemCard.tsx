@@ -5,7 +5,6 @@ import { Plus, Minus } from 'lucide-react';
 import { MenuItem } from '@/lib/menuData';
 import { useCart } from '@/contexts/CartContext';
 
-
 interface MenuItemCardProps {
   item: MenuItem;
 }
@@ -18,6 +17,12 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
   const hasLimitedStock = item.stockQuantity !== null && item.stockQuantity !== undefined;
   const remainingStock = hasLimitedStock ? (item.stockQuantity! - quantity) : null;
   const canAdd = canAddMore(item);
+
+  // Check if this is a dose item (bottle-based)
+  const isDose = item.isBottle && item.doseMl;
+  
+  // Format display name with (dose) suffix for bottle items
+  const displayName = isDose ? `${item.name} (dose)` : item.name;
 
   const handleAdd = () => {
     addItem(item);
@@ -35,10 +40,13 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
         <div className="flex justify-between items-start gap-3">
           <div className="flex-1 min-w-0">
             <h3 className="font-medium text-foreground leading-tight text-sm">
-              {item.name}
+              {displayName}
             </h3>
             {item.description && (
               <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
+            )}
+            {isDose && item.doseMl && (
+              <p className="text-xs text-muted-foreground">{item.doseMl}ml</p>
             )}
             <p className="text-primary font-semibold text-sm mt-2">{item.price}</p>
           </div>

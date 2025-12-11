@@ -8,8 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, Wine, FileImage } from 'lucide-react';
+import { InvoiceImporter } from '@/components/admin/InvoiceImporter';
 
 // Dynamic category labels that can be extended at runtime
 const dynamicCategoryLabels: Record<string, string> = { ...categoryLabels };
@@ -19,11 +21,12 @@ const getCategoryLabel = (category: string): string => {
 };
 
 const MenuItemsPage: React.FC = () => {
-  const { items, categories, isLoading, createItem, updateItem, deleteItem } = useMenuItems();
+  const { items, categories, isLoading, createItem, updateItem, deleteItem, fetchItems, getAvailableDoses } = useMenuItems();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isImporterOpen, setIsImporterOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isNewCategory, setIsNewCategory] = useState(false);
@@ -36,12 +39,20 @@ const MenuItemsPage: React.FC = () => {
     description: '',
     category: '',
     is_available: true,
-    stock_quantity: null
+    stock_quantity: null,
+    product_code: null,
+    is_bottle: false,
+    bottle_ml: null,
+    dose_ml: null,
+    bottles_in_stock: 0,
+    current_bottle_ml: 0,
+    cost_price: null
   });
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.product_code && item.product_code.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
       return matchesSearch && matchesCategory;
     });
@@ -55,14 +66,12 @@ const MenuItemsPage: React.FC = () => {
       }
       groups[item.category].push(item);
     });
-    // Sort items alphabetically within each category
     Object.keys(groups).forEach(cat => {
       groups[cat].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
     });
     return groups;
   }, [filteredItems]);
 
-  // All available categories (from items + predefined labels)
   const allCategories = useMemo(() => {
     const fromItems = new Set(items.map(i => i.category));
     const fromLabels = new Set(Object.keys(categoryLabels));
@@ -83,7 +92,14 @@ const MenuItemsPage: React.FC = () => {
       description: '',
       category: categories[0] || '',
       is_available: true,
-      stock_quantity: null
+      stock_quantity: null,
+      product_code: null,
+      is_bottle: false,
+      bottle_ml: null,
+      dose_ml: null,
+      bottles_in_stock: 0,
+      current_bottle_ml: 0,
+      cost_price: null
     });
     setIsDialogOpen(true);
   };
@@ -99,7 +115,14 @@ const MenuItemsPage: React.FC = () => {
       description: item.description || '',
       category: item.category,
       is_available: item.is_available,
-      stock_quantity: item.stock_quantity
+      stock_quantity: item.stock_quantity,
+      product_code: item.product_code,
+      is_bottle: item.is_bottle,
+      bottle_ml: item.bottle_ml,
+      dose_ml: item.dose_ml,
+      bottles_in_stock: item.bottles_in_stock,
+      current_bottle_ml: item.current_bottle_ml,
+      cost_price: item.cost_price
     });
     setIsDialogOpen(true);
   };
@@ -117,12 +140,19 @@ const MenuItemsPage: React.FC = () => {
       return;
     }
 
-    // Auto-set is_available based on stock: 0 = unavailable, null or 1+ = available
-    const stockQty = formData.stock_quantity;
-    const isAvailable = stockQty === null || stockQty > 0;
+    // Determine availability based on stock type
+    let isAvailable = true;
+    if (formData.is_bottle) {
+      // For bottles, available if there's any ml available
+      const totalMl = ((formData.bottles_in_stock || 0) * (formData.bottle_ml || 0)) + (formData.current_bottle_ml || 0);
+      isAvailable = totalMl > 0 || formData.bottles_in_stock === null;
+    } else {
+      // For regular items, available if stock > 0 or no stock control
+      isAvailable = formData.stock_quantity === null || formData.stock_quantity > 0;
+    }
+
     const dataToSave = { ...formData, category: finalCategory, is_available: isAvailable };
     
-    // If creating new category, add to dynamic labels
     if (isNewCategory && newCategoryKey && newCategoryLabel) {
       dynamicCategoryLabels[finalCategory] = newCategoryLabel;
     }
@@ -159,11 +189,34 @@ const MenuItemsPage: React.FC = () => {
     }
   };
 
-  const getStockBadge = (item: MenuItem) => {
+  const getStockDisplay = (item: MenuItem) => {
+    if (item.is_bottle && item.dose_ml) {
+      const bottles = item.bottles_in_stock || 0;
+      const currentMl = item.current_bottle_ml || 0;
+      const doses = getAvailableDoses(item);
+      
+      if (bottles === 0 && currentMl === 0) {
+        return <Badge variant="destructive" className="text-xs">Esgotado</Badge>;
+      }
+      
+      const dosesPerBottle = item.bottle_ml ? Math.floor(item.bottle_ml / item.dose_ml) : 0;
+      
+      return (
+        <div className="flex flex-col items-end gap-1">
+          <Badge variant="secondary" className="text-xs">
+            {bottles} gf{bottles !== 1 ? 's' : ''} + {currentMl}ml
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            ≈{doses} doses ({dosesPerBottle}/gf)
+          </span>
+        </div>
+      );
+    }
+
     if (item.stock_quantity === null) {
       return <Badge variant="outline" className="text-xs">Sem controle</Badge>;
     }
-    if (item.stock_quantity === 0) {
+    if (item.stock_quantity <= 0) {
       return <Badge variant="destructive" className="text-xs">Esgotado</Badge>;
     }
     if (item.stock_quantity <= 5) {
@@ -187,10 +240,16 @@ const MenuItemsPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-foreground">Estoque</h1>
           <p className="text-muted-foreground">{items.length} itens cadastrados</p>
         </div>
-        <Button onClick={openNewItemDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Item
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsImporterOpen(true)}>
+            <FileImage className="h-4 w-4 mr-2" />
+            Importar Nota
+          </Button>
+          <Button onClick={openNewItemDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Item
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -200,7 +259,7 @@ const MenuItemsPage: React.FC = () => {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar item..."
+                placeholder="Buscar por nome ou código..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -235,7 +294,7 @@ const MenuItemsPage: React.FC = () => {
         Object.entries(groupedItems).map(([category, categoryItems]) => (
           <Card key={category}>
             <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
+              <CardTitle className="text-lg flex items-center gap-2">
                 <Package className="h-5 w-5 text-primary" />
                 {getCategoryLabel(category)}
                 <Badge variant="outline" className="ml-2">{categoryItems.length}</Badge>
@@ -247,9 +306,22 @@ const MenuItemsPage: React.FC = () => {
                   <div key={item.id} className="py-3 flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {item.product_code && (
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {item.product_code}
+                          </Badge>
+                        )}
+                        {item.is_bottle && (
+                          <Wine className="h-4 w-4 text-purple-500" />
+                        )}
                         <span className={`font-medium truncate ${!item.is_available ? 'text-muted-foreground line-through' : ''}`}>
                           {item.name}
                         </span>
+                        {item.is_bottle && item.bottle_ml && (
+                          <span className="text-xs text-muted-foreground">
+                            ({item.bottle_ml}ml)
+                          </span>
+                        )}
                         {!item.is_available && (
                           <Badge variant="outline" className="text-xs">Indisponível</Badge>
                         )}
@@ -257,11 +329,17 @@ const MenuItemsPage: React.FC = () => {
                       {item.description && (
                         <p className="text-sm text-muted-foreground truncate">{item.description}</p>
                       )}
+                      {item.is_bottle && item.dose_ml && (
+                        <p className="text-xs text-muted-foreground">
+                          Dose: {item.dose_ml}ml
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 shrink-0">
-                      {getStockBadge(item)}
+                      {getStockDisplay(item)}
                       <span className="font-medium text-primary">
                         R$ {item.price.toFixed(2).replace('.', ',')}
+                        {item.is_bottle && <span className="text-xs text-muted-foreground">/dose</span>}
                       </span>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
@@ -300,12 +378,22 @@ const MenuItemsPage: React.FC = () => {
 
       {/* Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingItem ? 'Editar Item' : 'Novo Item'}</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
+            <div>
+              <Label htmlFor="product_code">Código do Produto</Label>
+              <Input
+                id="product_code"
+                value={formData.product_code || ''}
+                onChange={e => setFormData(prev => ({ ...prev, product_code: e.target.value || null }))}
+                placeholder="Código interno ou NCM"
+              />
+            </div>
+
             <div>
               <Label htmlFor="name">Nome *</Label>
               <Input
@@ -317,7 +405,7 @@ const MenuItemsPage: React.FC = () => {
             </div>
 
             <div>
-              <Label htmlFor="price">Preço (R$) *</Label>
+              <Label htmlFor="price">Preço de Venda (R$) *</Label>
               <Input
                 id="price"
                 type="number"
@@ -326,6 +414,22 @@ const MenuItemsPage: React.FC = () => {
                 value={formData.price}
                 onChange={e => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
                 placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="cost_price">Preço de Custo (R$)</Label>
+              <Input
+                id="cost_price"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.cost_price ?? ''}
+                onChange={e => setFormData(prev => ({ 
+                  ...prev, 
+                  cost_price: e.target.value === '' ? null : parseFloat(e.target.value) 
+                }))}
+                placeholder="Opcional"
               />
             </div>
 
@@ -389,24 +493,112 @@ const MenuItemsPage: React.FC = () => {
               />
             </div>
 
-            <div>
-              <Label htmlFor="stock">Estoque (deixe vazio para sem controle)</Label>
-              <Input
-                id="stock"
-                type="number"
-                min="0"
-                value={formData.stock_quantity ?? ''}
-                onChange={e => setFormData(prev => ({ 
+            {/* Bottle toggle */}
+            <div className="flex items-center justify-between py-2 border-t border-b">
+              <div className="flex items-center gap-2">
+                <Wine className="h-4 w-4 text-purple-500" />
+                <Label htmlFor="is_bottle" className="cursor-pointer">Vendido por dose (garrafa)</Label>
+              </div>
+              <Switch
+                id="is_bottle"
+                checked={formData.is_bottle}
+                onCheckedChange={checked => setFormData(prev => ({ 
                   ...prev, 
-                  stock_quantity: e.target.value === '' ? null : parseInt(e.target.value) 
+                  is_bottle: checked,
+                  stock_quantity: checked ? null : prev.stock_quantity
                 }))}
-                placeholder="Sem controle de estoque"
               />
             </div>
 
-            <p className="text-xs text-muted-foreground mt-1">
-              Estoque 0 = indisponível automaticamente
-            </p>
+            {formData.is_bottle ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="bottle_ml">mL da Garrafa</Label>
+                    <Input
+                      id="bottle_ml"
+                      type="number"
+                      min="0"
+                      value={formData.bottle_ml ?? ''}
+                      onChange={e => setFormData(prev => ({ 
+                        ...prev, 
+                        bottle_ml: e.target.value === '' ? null : parseInt(e.target.value) 
+                      }))}
+                      placeholder="Ex: 700"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="dose_ml">mL da Dose</Label>
+                    <Input
+                      id="dose_ml"
+                      type="number"
+                      min="0"
+                      value={formData.dose_ml ?? ''}
+                      onChange={e => setFormData(prev => ({ 
+                        ...prev, 
+                        dose_ml: e.target.value === '' ? null : parseInt(e.target.value) 
+                      }))}
+                      placeholder="Ex: 50"
+                    />
+                  </div>
+                </div>
+                
+                {formData.bottle_ml && formData.dose_ml && (
+                  <p className="text-xs text-muted-foreground">
+                    = {Math.floor(formData.bottle_ml / formData.dose_ml)} doses por garrafa
+                  </p>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="bottles_in_stock">Garrafas Fechadas</Label>
+                    <Input
+                      id="bottles_in_stock"
+                      type="number"
+                      min="0"
+                      value={formData.bottles_in_stock ?? 0}
+                      onChange={e => setFormData(prev => ({ 
+                        ...prev, 
+                        bottles_in_stock: parseInt(e.target.value) || 0 
+                      }))}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="current_bottle_ml">mL na Garrafa Aberta</Label>
+                    <Input
+                      id="current_bottle_ml"
+                      type="number"
+                      min="0"
+                      max={formData.bottle_ml || undefined}
+                      value={formData.current_bottle_ml ?? 0}
+                      onChange={e => setFormData(prev => ({ 
+                        ...prev, 
+                        current_bottle_ml: parseInt(e.target.value) || 0 
+                      }))}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div>
+                <Label htmlFor="stock">Estoque (unidades)</Label>
+                <Input
+                  id="stock"
+                  type="number"
+                  value={formData.stock_quantity ?? ''}
+                  onChange={e => setFormData(prev => ({ 
+                    ...prev, 
+                    stock_quantity: e.target.value === '' ? null : parseInt(e.target.value) 
+                  }))}
+                  placeholder="Vazio = sem controle"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Deixe vazio para sem controle de estoque
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -420,6 +612,15 @@ const MenuItemsPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Invoice Importer */}
+      <InvoiceImporter
+        open={isImporterOpen}
+        onOpenChange={setIsImporterOpen}
+        existingItems={items}
+        categories={categories}
+        onImportComplete={fetchItems}
+      />
     </div>
   );
 };
