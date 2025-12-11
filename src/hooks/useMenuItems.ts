@@ -10,14 +10,18 @@ export interface MenuItem {
   is_available: boolean;
   stock_quantity: number | null;
   created_at: string;
-  // New bottle/dose fields
-  product_code: string[] | null; // Now supports multiple codes
+  // Bottle/dose fields
+  product_code: string[] | null;
   is_bottle: boolean;
   bottle_ml: number | null;
   dose_ml: number | null;
   bottles_in_stock: number | null;
   current_bottle_ml: number | null;
   cost_price: number | null;
+  // Kitchen & recipe fields
+  goes_to_kitchen: boolean;
+  is_customizable: boolean;
+  default_recipe_suggestion: unknown | null;
 }
 
 export interface MenuItemInput {
@@ -27,13 +31,17 @@ export interface MenuItemInput {
   category: string;
   is_available?: boolean;
   stock_quantity?: number | null;
-  product_code?: string[] | null; // Now supports multiple codes
+  product_code?: string[] | null;
   is_bottle?: boolean;
   bottle_ml?: number | null;
   dose_ml?: number | null;
   bottles_in_stock?: number | null;
   current_bottle_ml?: number | null;
   cost_price?: number | null;
+  // Kitchen & recipe fields
+  goes_to_kitchen?: boolean;
+  is_customizable?: boolean;
+  default_recipe_suggestion?: unknown | null;
 }
 
 export const useMenuItems = () => {

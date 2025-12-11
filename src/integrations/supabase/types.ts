@@ -55,6 +55,48 @@ export type Database = {
           },
         ]
       }
+      item_recipes: {
+        Row: {
+          created_at: string
+          id: string
+          ingredient_item_id: string
+          parent_item_id: string
+          quantity_ml: number | null
+          quantity_units: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ingredient_item_id: string
+          parent_item_id: string
+          quantity_ml?: number | null
+          quantity_units?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ingredient_item_id?: string
+          parent_item_id?: string
+          quantity_ml?: number | null
+          quantity_units?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_recipes_ingredient_item_id_fkey"
+            columns: ["ingredient_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_recipes_parent_item_id_fkey"
+            columns: ["parent_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_items: {
         Row: {
           bottle_ml: number | null
@@ -63,11 +105,14 @@ export type Database = {
           cost_price: number | null
           created_at: string
           current_bottle_ml: number | null
+          default_recipe_suggestion: Json | null
           description: string | null
           dose_ml: number | null
+          goes_to_kitchen: boolean
           id: string
           is_available: boolean
           is_bottle: boolean | null
+          is_customizable: boolean
           name: string
           price: number
           product_code: string[] | null
@@ -80,11 +125,14 @@ export type Database = {
           cost_price?: number | null
           created_at?: string
           current_bottle_ml?: number | null
+          default_recipe_suggestion?: Json | null
           description?: string | null
           dose_ml?: number | null
+          goes_to_kitchen?: boolean
           id?: string
           is_available?: boolean
           is_bottle?: boolean | null
+          is_customizable?: boolean
           name: string
           price: number
           product_code?: string[] | null
@@ -97,11 +145,14 @@ export type Database = {
           cost_price?: number | null
           created_at?: string
           current_bottle_ml?: number | null
+          default_recipe_suggestion?: Json | null
           description?: string | null
           dose_ml?: number | null
+          goes_to_kitchen?: boolean
           id?: string
           is_available?: boolean
           is_bottle?: boolean | null
+          is_customizable?: boolean
           name?: string
           price?: number
           product_code?: string[] | null
@@ -113,6 +164,7 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          custom_ingredients: Json | null
           id: string
           item_name: string
           item_price: number
@@ -123,6 +175,7 @@ export type Database = {
         Insert: {
           category: string
           created_at?: string
+          custom_ingredients?: Json | null
           id?: string
           item_name: string
           item_price: number
@@ -133,6 +186,7 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string
+          custom_ingredients?: Json | null
           id?: string
           item_name?: string
           item_price?: number

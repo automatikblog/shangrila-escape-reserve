@@ -15,6 +15,7 @@ interface OrderItem {
   item_price: number;
   quantity: number;
   category: string;
+  goes_to_kitchen?: boolean;
 }
 
 interface KitchenOrderCardProps {
@@ -83,7 +84,7 @@ export const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-2 mb-4">
-          {order.items?.map((item) => (
+          {order.items?.filter(item => item.goes_to_kitchen !== false).map((item) => (
             <div key={item.id} className="flex justify-between items-center">
               <span className="font-medium">
                 {item.quantity}x {item.item_name}
