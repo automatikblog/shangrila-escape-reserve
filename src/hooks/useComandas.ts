@@ -14,6 +14,7 @@ export interface ComandaOrder {
   created_at: string;
   is_paid: boolean;
   paid_at: string | null;
+  payment_method: string | null;
   items: ComandaItem[];
   order_total: number;
 }
@@ -22,6 +23,7 @@ export interface PartialPayment {
   id: string;
   amount: number;
   notes: string | null;
+  payment_method: string | null;
   created_at: string;
 }
 
@@ -34,6 +36,7 @@ export interface Comanda {
   is_paid: boolean;
   paid_at: string | null;
   created_at: string;
+  discount: number;
   total: number;
   paid_total: number;
   unpaid_total: number;
@@ -70,6 +73,7 @@ export const useComandas = (options?: UseComandaOptions) => {
           paid_at,
           created_at,
           is_active,
+          discount,
           tables!inner (
             number,
             name
@@ -108,14 +112,14 @@ export const useComandas = (options?: UseComandaOptions) => {
         filteredSessions.map(async (session: any) => {
           const { data: orders } = await supabase
             .from('orders')
-            .select('id, notes, delivery_type, created_at, is_paid, paid_at')
+            .select('id, notes, delivery_type, created_at, is_paid, paid_at, payment_method')
             .eq('client_session_id', session.id)
             .order('created_at', { ascending: true });
 
           // Fetch partial payments for this session
           const { data: partialPaymentsData } = await supabase
             .from('partial_payments')
-            .select('id, amount, notes, created_at')
+            .select('id, amount, notes, created_at, payment_method')
             .eq('client_session_id', session.id)
             .order('created_at', { ascending: true });
 
@@ -160,13 +164,15 @@ export const useComandas = (options?: UseComandaOptions) => {
                 created_at: order.created_at,
                 is_paid: order.is_paid,
                 paid_at: order.paid_at,
+                payment_method: order.payment_method,
                 items,
                 order_total: orderTotal,
               });
             }
           }
 
-          const remainingTotal = Math.max(0, total - paidTotal - partialPaymentsTotal);
+          const sessionDiscount = Number(session.discount) || 0;
+          const remainingTotal = Math.max(0, total - paidTotal - partialPaymentsTotal - sessionDiscount);
 
           return {
             session_id: session.id,
@@ -177,6 +183,7 @@ export const useComandas = (options?: UseComandaOptions) => {
             is_paid: session.is_paid,
             paid_at: session.paid_at,
             created_at: session.created_at,
+            discount: sessionDiscount,
             total,
             paid_total: paidTotal,
             unpaid_total: unpaidTotal,
@@ -311,13 +318,14 @@ export const useComandas = (options?: UseComandaOptions) => {
     }
   };
 
-  const markOrderPaid = async (orderId: string): Promise<boolean> => {
+  const markOrderPaid = async (orderId: string, paymentMethod?: string): Promise<boolean> => {
     try {
       const { error } = await supabase
         .from('orders')
         .update({ 
           is_paid: true, 
-          paid_at: new Date().toISOString() 
+          paid_at: new Date().toISOString(),
+          payment_method: paymentMethod || null,
         })
         .eq('id', orderId);
 
@@ -360,6 +368,7 @@ export const useComandas = (options?: UseComandaOptions) => {
   const addPartialPayment = async (
     sessionId: string,
     amount: number,
+    paymentMethod: string,
     notes?: string
   ): Promise<boolean> => {
     try {
@@ -369,10 +378,31 @@ export const useComandas = (options?: UseComandaOptions) => {
           client_session_id: sessionId,
           amount,
           notes: notes || null,
+          payment_method: paymentMethod,
         });
 
       if (error) {
         console.error('Error adding partial payment:', error);
+        return false;
+      }
+
+      await fetchComandas();
+      return true;
+    } catch (error) {
+      console.error('Error:', error);
+      return false;
+    }
+  };
+
+  const updateDiscount = async (sessionId: string, discount: number): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('client_sessions')
+        .update({ discount })
+        .eq('id', sessionId);
+
+      if (error) {
+        console.error('Error updating discount:', error);
         return false;
       }
 
@@ -398,6 +428,7 @@ export const useComandas = (options?: UseComandaOptions) => {
     markOrderPaid,
     markOrderUnpaid,
     addPartialPayment,
+    updateDiscount,
     unpaidTotal,
     paidTotal,
     remainingTotal,

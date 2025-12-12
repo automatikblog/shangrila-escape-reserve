@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Comanda, ComandaOrder } from '@/hooks/useComandas';
-import { Clock, DollarSign, FileText, User, MapPin, Store, Check, X, Plus, Banknote, Pencil, Calculator, Users } from 'lucide-react';
+import { Clock, DollarSign, FileText, User, MapPin, Store, Check, X, Plus, Banknote, Pencil, Calculator, Users, Percent, CreditCard } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -18,29 +19,38 @@ interface ComandaDetailsModalProps {
   comanda: Comanda | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onMarkPaid: (comanda: Comanda) => void;
-  onMarkUnpaid: (comanda: Comanda) => void;
   onClose: (comanda: Comanda) => void;
-  onMarkOrderPaid?: (orderId: string) => void;
+  onMarkOrderPaid?: (orderId: string, paymentMethod: string) => void;
   onMarkOrderUnpaid?: (orderId: string) => void;
-  onAddPartialPayment?: (sessionId: string, amount: number, notes?: string) => Promise<boolean>;
+  onAddPartialPayment?: (sessionId: string, amount: number, paymentMethod: string, notes?: string) => Promise<boolean>;
+  onUpdateDiscount?: (sessionId: string, discount: number) => Promise<boolean>;
 }
+
+const PAYMENT_METHODS = [
+  { value: 'pix', label: 'PIX' },
+  { value: 'dinheiro', label: 'Dinheiro' },
+  { value: 'debito', label: 'Débito' },
+  { value: 'credito', label: 'Crédito' },
+];
 
 export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   comanda,
   open,
   onOpenChange,
-  onMarkPaid,
-  onMarkUnpaid,
   onClose,
   onMarkOrderPaid,
   onMarkOrderUnpaid,
   onAddPartialPayment,
+  onUpdateDiscount,
 }) => {
   const [showPartialPaymentForm, setShowPartialPaymentForm] = useState(false);
   const [partialAmount, setPartialAmount] = useState('');
   const [partialNotes, setPartialNotes] = useState('');
+  const [partialPaymentMethod, setPartialPaymentMethod] = useState<string>('');
   const [isSubmittingPartial, setIsSubmittingPartial] = useState(false);
+  
+  // Order payment method state
+  const [orderPaymentMethods, setOrderPaymentMethods] = useState<Record<string, string>>({});
   
   // Edit notes state
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
@@ -49,6 +59,25 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   
   // Bill splitter state
   const [splitPeople, setSplitPeople] = useState<number>(2);
+  
+  // Discount state
+  const [discount, setDiscount] = useState<string>('0');
+  const [isSavingDiscount, setIsSavingDiscount] = useState(false);
+
+  // Initialize states when comanda changes
+  useEffect(() => {
+    if (comanda) {
+      setDiscount(comanda.discount?.toString() || '0');
+      // Initialize order payment methods from existing data
+      const methods: Record<string, string> = {};
+      comanda.orders.forEach(order => {
+        if (order.payment_method) {
+          methods[order.id] = order.payment_method;
+        }
+      });
+      setOrderPaymentMethods(methods);
+    }
+  }, [comanda]);
 
   if (!comanda) return null;
 
@@ -71,20 +100,25 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
     });
   };
 
-  const allOrdersPaid = comanda.orders.length > 0 && comanda.orders.every(o => o.is_paid);
-  const hasUnpaidOrders = comanda.orders.some(o => !o.is_paid);
-
   const handleAddPartialPayment = async () => {
     const amount = parseFloat(partialAmount.replace(',', '.'));
-    if (isNaN(amount) || amount <= 0) return;
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Digite um valor válido');
+      return;
+    }
+    if (!partialPaymentMethod) {
+      toast.error('Selecione o método de pagamento');
+      return;
+    }
 
     setIsSubmittingPartial(true);
-    const success = await onAddPartialPayment?.(comanda.session_id, amount, partialNotes || undefined);
+    const success = await onAddPartialPayment?.(comanda.session_id, amount, partialPaymentMethod, partialNotes || undefined);
     setIsSubmittingPartial(false);
 
     if (success) {
       setPartialAmount('');
       setPartialNotes('');
+      setPartialPaymentMethod('');
       setShowPartialPaymentForm(false);
     }
   };
@@ -120,8 +154,48 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
     setEditedNotes('');
   };
 
-  // Calculate split amount
-  const splitAmount = splitPeople > 0 ? comanda.remaining_total / splitPeople : 0;
+  const handleOrderPaymentMethodChange = (orderId: string, method: string) => {
+    setOrderPaymentMethods(prev => ({ ...prev, [orderId]: method }));
+  };
+
+  const handleMarkOrderPaid = async (orderId: string) => {
+    const method = orderPaymentMethods[orderId];
+    if (!method) {
+      toast.error('Selecione o método de pagamento');
+      return;
+    }
+    onMarkOrderPaid?.(orderId, method);
+  };
+
+  const handleSaveDiscount = async () => {
+    const discountValue = parseFloat(discount.replace(',', '.'));
+    if (isNaN(discountValue) || discountValue < 0) {
+      toast.error('Digite um valor de desconto válido');
+      return;
+    }
+    
+    setIsSavingDiscount(true);
+    const success = await onUpdateDiscount?.(comanda.session_id, discountValue);
+    setIsSavingDiscount(false);
+    
+    if (success) {
+      toast.success('Desconto aplicado');
+    }
+  };
+
+  // Calculate totals with discount
+  const discountValue = parseFloat(discount.replace(',', '.')) || 0;
+  const totalAfterDiscount = Math.max(0, comanda.total - discountValue);
+  const remainingAfterDiscount = Math.max(0, comanda.remaining_total - discountValue + (comanda.discount || 0));
+  
+  // Calculate split amount based on remaining after discount
+  const splitAmount = splitPeople > 0 ? remainingAfterDiscount / splitPeople : 0;
+
+  const getPaymentMethodLabel = (method: string | null) => {
+    if (!method) return null;
+    const found = PAYMENT_METHODS.find(pm => pm.value === method);
+    return found ? found.label : method;
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -181,29 +255,6 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
                         )}
                       </Badge>
                     </div>
-                    
-                    {/* Payment toggle per order */}
-                    {order.is_paid ? (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-xs text-green-600 hover:text-red-600"
-                        onClick={() => onMarkOrderUnpaid?.(order.id)}
-                      >
-                        <Check className="h-3 w-3 mr-1" />
-                        Pago
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        onClick={() => onMarkOrderPaid?.(order.id)}
-                      >
-                        <DollarSign className="h-3 w-3 mr-1" />
-                        Marcar Pago
-                      </Button>
-                    )}
                   </div>
                   
                   <div className="space-y-1">
@@ -259,10 +310,67 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
                     </div>
                   )}
                   
-                  <div className="flex justify-end">
+                  <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">
                       Subtotal: R$ {order.order_total.toFixed(2)}
                     </span>
+                  </div>
+
+                  {/* Payment section for each order */}
+                  <div className="flex items-center gap-2 pt-2 border-t">
+                    {order.is_paid ? (
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="default" className="bg-green-600">
+                            <Check className="h-3 w-3 mr-1" />
+                            Pago
+                          </Badge>
+                          {order.payment_method && (
+                            <Badge variant="outline" className="text-xs">
+                              <CreditCard className="h-3 w-3 mr-1" />
+                              {getPaymentMethodLabel(order.payment_method)}
+                            </Badge>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs text-muted-foreground hover:text-destructive"
+                          onClick={() => onMarkOrderUnpaid?.(order.id)}
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Desfazer
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Select
+                          value={orderPaymentMethods[order.id] || ''}
+                          onValueChange={(value) => handleOrderPaymentMethodChange(order.id, value)}
+                        >
+                          <SelectTrigger className="w-32 h-8 text-xs">
+                            <SelectValue placeholder="Pagamento" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PAYMENT_METHODS.map(pm => (
+                              <SelectItem key={pm.value} value={pm.value}>
+                                {pm.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-8 text-xs flex-1"
+                          onClick={() => handleMarkOrderPaid(order.id)}
+                          disabled={!orderPaymentMethods[order.id]}
+                        >
+                          <DollarSign className="h-3 w-3 mr-1" />
+                          Marcar Pago
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))
@@ -279,9 +387,14 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
                   </h4>
                   {comanda.partial_payments.map((pp) => (
                     <div key={pp.id} className="flex justify-between items-center text-sm p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-900">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Check className="h-3 w-3 text-blue-600" />
                         <span className="text-muted-foreground">{formatTime(pp.created_at)}</span>
+                        {pp.payment_method && (
+                          <Badge variant="outline" className="text-xs">
+                            {getPaymentMethodLabel(pp.payment_method)}
+                          </Badge>
+                        )}
                         {pp.notes && <span className="text-xs">({pp.notes})</span>}
                       </div>
                       <span className="font-medium text-blue-600">- R$ {Number(pp.amount).toFixed(2)}</span>
@@ -294,28 +407,41 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
             {/* Partial Payment Form */}
             {showPartialPaymentForm && (
               <div className="p-3 border rounded-lg bg-accent/20 space-y-3">
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Input
                     placeholder="Valor (ex: 40)"
                     value={partialAmount}
                     onChange={(e) => setPartialAmount(e.target.value)}
-                    className="flex-1"
                     type="number"
                     step="0.01"
                   />
-                  <Input
-                    placeholder="Quem pagou? (opcional)"
-                    value={partialNotes}
-                    onChange={(e) => setPartialNotes(e.target.value)}
-                    className="flex-1"
-                  />
+                  <Select
+                    value={partialPaymentMethod}
+                    onValueChange={setPartialPaymentMethod}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Método" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map(pm => (
+                        <SelectItem key={pm.value} value={pm.value}>
+                          {pm.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+                <Input
+                  placeholder="Quem pagou? (opcional)"
+                  value={partialNotes}
+                  onChange={(e) => setPartialNotes(e.target.value)}
+                />
                 <div className="flex gap-2">
                   <Button
                     size="sm"
                     variant="default"
                     onClick={handleAddPartialPayment}
-                    disabled={isSubmittingPartial || !partialAmount}
+                    disabled={isSubmittingPartial || !partialAmount || !partialPaymentMethod}
                     className="flex-1"
                   >
                     <Check className="h-3 w-3 mr-1" />
@@ -328,6 +454,7 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
                       setShowPartialPaymentForm(false);
                       setPartialAmount('');
                       setPartialNotes('');
+                      setPartialPaymentMethod('');
                     }}
                   >
                     <X className="h-3 w-3" />
@@ -335,6 +462,38 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Discount Section */}
+            <Separator />
+            <div className="p-3 border rounded-lg bg-accent/20 space-y-2">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <Percent className="h-4 w-4" />
+                Desconto na Comanda
+              </h4>
+              <div className="flex gap-2">
+                <div className="flex-1 flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">R$</span>
+                  <Input
+                    value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    className="flex-1"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleSaveDiscount}
+                  disabled={isSavingDiscount}
+                >
+                  <Check className="h-3 w-3 mr-1" />
+                  Aplicar
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -342,6 +501,23 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
 
         {/* Totals */}
         <div className="space-y-2 shrink-0 px-6">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Subtotal dos Pedidos</span>
+            <span className="font-medium">R$ {comanda.total.toFixed(2)}</span>
+          </div>
+          
+          {discountValue > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-orange-600 flex items-center gap-1">
+                <Percent className="h-4 w-4" />
+                Desconto
+              </span>
+              <span className="text-orange-600 font-medium">
+                - R$ {discountValue.toFixed(2)}
+              </span>
+            </div>
+          )}
+          
           {comanda.paid_total > 0 && (
             <div className="flex items-center justify-between text-sm">
               <span className="text-green-600 flex items-center gap-1">
@@ -364,7 +540,7 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
               </span>
             </div>
           )}
-          {comanda.remaining_total > 0 && (
+          {remainingAfterDiscount > 0 && (
             <>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-destructive flex items-center gap-1">
@@ -372,7 +548,7 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
                   Falta Pagar
                 </span>
                 <span className="text-destructive font-medium">
-                  R$ {comanda.remaining_total.toFixed(2)}
+                  R$ {remainingAfterDiscount.toFixed(2)}
                 </span>
               </div>
               
@@ -400,17 +576,17 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-primary" />
-              <span className="text-lg font-bold">Total</span>
+              <span className="text-lg font-bold">Total Final</span>
             </div>
             <span className="text-lg font-bold">
-              R$ {comanda.total.toFixed(2)}
+              R$ {totalAfterDiscount.toFixed(2)}
             </span>
           </div>
         </div>
 
         <div className="flex flex-col gap-2 shrink-0 px-6 pb-6">
           {/* Partial Payment Button */}
-          {!showPartialPaymentForm && comanda.remaining_total > 0 && onAddPartialPayment && (
+          {!showPartialPaymentForm && remainingAfterDiscount > 0 && onAddPartialPayment && (
             <Button
               variant="outline"
               onClick={() => setShowPartialPaymentForm(true)}
@@ -421,27 +597,6 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
             </Button>
           )}
           
-          <div className="flex gap-2">
-            {hasUnpaidOrders ? (
-              <Button
-                variant="default"
-                onClick={() => onMarkPaid(comanda)}
-                className="flex-1"
-              >
-                <Check className="h-4 w-4 mr-2" />
-                Pagar Tudo (R$ {comanda.remaining_total.toFixed(2)})
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                onClick={() => onMarkUnpaid(comanda)}
-                className="flex-1"
-              >
-                <X className="h-4 w-4 mr-2" />
-                Desmarcar Todos
-              </Button>
-            )}
-          </div>
           <div className="flex gap-2">
             <Button
               variant="secondary"

@@ -26,6 +26,7 @@ export const useHistoricalComandas = () => {
           paid_at,
           created_at,
           is_active,
+          discount,
           tables!inner (
             number,
             name
@@ -69,14 +70,14 @@ export const useHistoricalComandas = () => {
         sessions.map(async (session: any) => {
           const { data: orders } = await supabase
             .from('orders')
-            .select('id, notes, delivery_type, created_at, is_paid, paid_at')
+            .select('id, notes, delivery_type, created_at, is_paid, paid_at, payment_method')
             .eq('client_session_id', session.id)
             .order('created_at', { ascending: true });
 
           // Fetch partial payments for this session
           const { data: partialPaymentsData } = await supabase
             .from('partial_payments')
-            .select('id, amount, notes, created_at')
+            .select('id, amount, notes, created_at, payment_method')
             .eq('client_session_id', session.id)
             .order('created_at', { ascending: true });
 
@@ -121,13 +122,15 @@ export const useHistoricalComandas = () => {
                 created_at: order.created_at,
                 is_paid: order.is_paid,
                 paid_at: order.paid_at,
+                payment_method: order.payment_method,
                 items,
                 order_total: orderTotal,
               });
             }
           }
 
-          const remainingTotal = Math.max(0, total - paidTotal - partialPaymentsTotal);
+          const sessionDiscount = Number(session.discount) || 0;
+          const remainingTotal = Math.max(0, total - paidTotal - partialPaymentsTotal - sessionDiscount);
 
           return {
             session_id: session.id,
@@ -138,6 +141,7 @@ export const useHistoricalComandas = () => {
             is_paid: session.is_paid,
             paid_at: session.paid_at,
             created_at: session.created_at,
+            discount: sessionDiscount,
             total,
             paid_total: paidTotal,
             unpaid_total: unpaidTotal,

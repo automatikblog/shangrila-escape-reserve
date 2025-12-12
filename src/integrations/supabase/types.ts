@@ -19,6 +19,7 @@ export type Database = {
           client_name: string
           created_at: string
           device_fingerprint: string
+          discount: number | null
           id: string
           is_active: boolean
           is_paid: boolean
@@ -29,6 +30,7 @@ export type Database = {
           client_name: string
           created_at?: string
           device_fingerprint: string
+          discount?: number | null
           id?: string
           is_active?: boolean
           is_paid?: boolean
@@ -39,6 +41,7 @@ export type Database = {
           client_name?: string
           created_at?: string
           device_fingerprint?: string
+          discount?: number | null
           id?: string
           is_active?: boolean
           is_paid?: boolean
@@ -220,6 +223,7 @@ export type Database = {
           is_paid: boolean
           notes: string | null
           paid_at: string | null
+          payment_method: string | null
           status: Database["public"]["Enums"]["order_status"]
           table_id: string
           updated_at: string
@@ -232,6 +236,7 @@ export type Database = {
           is_paid?: boolean
           notes?: string | null
           paid_at?: string | null
+          payment_method?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           table_id: string
           updated_at?: string
@@ -244,6 +249,7 @@ export type Database = {
           is_paid?: boolean
           notes?: string | null
           paid_at?: string | null
+          payment_method?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           table_id?: string
           updated_at?: string
@@ -272,6 +278,7 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
+          payment_method: string | null
         }
         Insert: {
           amount: number
@@ -279,6 +286,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          payment_method?: string | null
         }
         Update: {
           amount?: number
@@ -286,6 +294,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          payment_method?: string | null
         }
         Relationships: []
       }

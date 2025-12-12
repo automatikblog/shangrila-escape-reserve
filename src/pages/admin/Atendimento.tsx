@@ -87,6 +87,7 @@ const Atendimento: React.FC = () => {
     markOrderPaid,
     markOrderUnpaid,
     addPartialPayment,
+    updateDiscount,
   } = useComandas();
 
   // Filter comandas for current table
@@ -1094,16 +1095,15 @@ const Atendimento: React.FC = () => {
         comanda={detailsModalComanda}
         open={!!detailsModalComanda}
         onOpenChange={(open) => !open && setDetailsModalComanda(null)}
-        onMarkPaid={handleMarkPaid}
-        onMarkUnpaid={handleMarkUnpaid}
         onClose={handleCloseFromModal}
-        onMarkOrderPaid={async (orderId) => {
-          await markOrderPaid(orderId);
+        onMarkOrderPaid={async (orderId, paymentMethod) => {
+          await markOrderPaid(orderId, paymentMethod);
         }}
         onMarkOrderUnpaid={async (orderId) => {
           await markOrderUnpaid(orderId);
         }}
         onAddPartialPayment={addPartialPayment}
+        onUpdateDiscount={updateDiscount}
       />
       
       {/* Custom Item Modal */}
