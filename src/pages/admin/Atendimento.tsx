@@ -7,6 +7,7 @@ import { useFrequentItems } from '@/hooks/useFrequentItems';
 import { ComandaDetailsModal } from '@/components/admin/ComandaDetailsModal';
 import { CustomItemModal, CustomIngredient } from '@/components/admin/CustomItemModal';
 import { BaldaoQuantityModal } from '@/components/admin/BaldaoQuantityModal';
+import { ComandaHistoryView } from '@/components/admin/ComandaHistoryView';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame, TrendingUp, Beaker, Beer } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame, TrendingUp, Beaker, Beer, History } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import {
@@ -503,10 +505,23 @@ const Atendimento: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Novo Pedido</h1>
-        <p className="text-muted-foreground">Crie pedidos para clientes sem celular</p>
-      </div>
+      <Tabs defaultValue="novo-pedido" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="novo-pedido" className="flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4" />
+            Novo Pedido
+          </TabsTrigger>
+          <TabsTrigger value="historico" className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            Histórico
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="novo-pedido" className="mt-6">
+          <div className="mb-4">
+            <h1 className="text-2xl font-bold">Novo Pedido</h1>
+            <p className="text-muted-foreground">Crie pedidos para clientes sem celular</p>
+          </div>
 
       {/* Top Row - Mesa/Cliente and Menu Items */}
       <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6">
@@ -1144,6 +1159,12 @@ const Atendimento: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        </TabsContent>
+
+        <TabsContent value="historico" className="mt-6">
+          <ComandaHistoryView />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
