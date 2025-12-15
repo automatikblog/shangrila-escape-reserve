@@ -59,11 +59,7 @@ export const useComandas = (options?: UseComandaOptions) => {
 
   const fetchComandas = useCallback(async () => {
     try {
-      // Get start of today in local timezone (Brazil)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      // Build query
+      // Build query - NO date filter, comandas only disappear when closed (is_active = false)
       let query = supabase
         .from('client_sessions')
         .select(`
@@ -80,7 +76,6 @@ export const useComandas = (options?: UseComandaOptions) => {
             name
           )
         `)
-        .gte('created_at', today.toISOString())
         .order('created_at', { ascending: false });
 
       // Filter by active only if requested
