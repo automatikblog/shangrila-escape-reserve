@@ -741,74 +741,87 @@ const Atendimento: React.FC = () => {
                   <TrendingUp className="h-3 w-3" />
                   Itens da Comanda ({selectedComanda.client_name})
                 </p>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                  {/* Aggregate items from selected comanda */}
-                  {Object.values(
-                    selectedComanda.items.reduce((acc, item) => {
-                      const key = item.item_name;
-                      if (!acc[key]) {
-                        acc[key] = { ...item, total_qty: 0 };
-                      }
-                      acc[key].total_qty += item.quantity;
-                      return acc;
-                    }, {} as Record<string, typeof selectedComanda.items[0] & { total_qty: number }>)
-                  ).slice(0, 6).map((item) => {
-                    const menuItem = menuItems.find(m => m.name === item.item_name);
-                    const cartItem = menuItem ? cart.find(c => c.menuItemId === menuItem.id) : null;
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                  {/* Aggregate items from selected comanda, ordered by most recent */}
+                  {(() => {
+                    // Get unique items with their latest created_at
+                    const itemsMap = new Map<string, typeof selectedComanda.items[0] & { total_qty: number; latest_at: string }>();
                     
-                    return (
-                      <div
-                        key={item.item_name}
-                        className="flex items-center justify-between p-2 bg-background rounded-md border"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium truncate">{item.item_name}</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-xs text-primary font-bold">
-                              R$ {item.item_price.toFixed(2)}
-                            </p>
-                            <Badge variant="outline" className="text-[10px] h-4 px-1">
-                              {item.total_qty}x pedido
-                            </Badge>
-                          </div>
-                        </div>
-                        {menuItem && (
-                          cartItem ? (
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => updateQuantity(cartItem.id, -1)}
-                              >
-                                <Minus className="h-3 w-3" />
-                              </Button>
-                              <span className="w-5 text-center text-xs font-medium">
-                                {cartItem.quantity}
-                              </span>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => updateQuantity(cartItem.id, 1)}
-                              >
-                                <Plus className="h-3 w-3" />
-                              </Button>
+                    for (const item of selectedComanda.items) {
+                      const existing = itemsMap.get(item.item_name);
+                      if (!existing) {
+                        itemsMap.set(item.item_name, { ...item, total_qty: item.quantity, latest_at: item.created_at });
+                      } else {
+                        existing.total_qty += item.quantity;
+                        // Keep the most recent timestamp
+                        if (item.created_at > existing.latest_at) {
+                          existing.latest_at = item.created_at;
+                        }
+                      }
+                    }
+                    
+                    // Sort by most recent first and take top 4
+                    return Array.from(itemsMap.values())
+                      .sort((a, b) => b.latest_at.localeCompare(a.latest_at))
+                      .slice(0, 4)
+                      .map((item) => {
+                        const menuItem = menuItems.find(m => m.name === item.item_name);
+                        const cartItem = menuItem ? cart.find(c => c.menuItemId === menuItem.id) : null;
+                        
+                        return (
+                          <div
+                            key={item.item_name}
+                            className="flex items-center justify-between p-2 bg-background rounded-md border"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium truncate">{item.item_name}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs text-primary font-bold">
+                                  R$ {item.item_price.toFixed(2)}
+                                </p>
+                                <Badge variant="outline" className="text-[10px] h-4 px-1">
+                                  {item.total_qty}x pedido
+                                </Badge>
+                              </div>
                             </div>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              className="h-6 px-2 text-xs shrink-0"
-                              onClick={() => addToCart(menuItem)}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          )
-                        )}
-                      </div>
-                    );
-                  })}
+                            {menuItem && (
+                              cartItem ? (
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-6 w-6"
+                                    onClick={() => updateQuantity(cartItem.id, -1)}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="w-5 text-center text-xs font-medium">
+                                    {cartItem.quantity}
+                                  </span>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-6 w-6"
+                                    onClick={() => updateQuantity(cartItem.id, 1)}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  className="h-6 px-2 text-xs shrink-0"
+                                  onClick={() => addToCart(menuItem)}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              )
+                            )}
+                          </div>
+                        );
+                      });
+                  })()}
                 </div>
               </div>
             )}

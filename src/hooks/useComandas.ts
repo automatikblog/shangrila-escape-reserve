@@ -5,6 +5,7 @@ export interface ComandaItem {
   item_name: string;
   item_price: number;
   quantity: number;
+  created_at: string;
 }
 
 export interface ComandaOrder {
@@ -139,7 +140,7 @@ export const useComandas = (options?: UseComandaOptions) => {
             for (const order of orders) {
               const { data: orderItems } = await supabase
                 .from('order_items')
-                .select('item_name, item_price, quantity')
+                .select('item_name, item_price, quantity, created_at')
                 .eq('order_id', order.id);
 
               const items = orderItems || [];
