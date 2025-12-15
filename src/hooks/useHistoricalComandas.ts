@@ -97,7 +97,7 @@ export const useHistoricalComandas = () => {
             for (const order of orders) {
               const { data: orderItems } = await supabase
                 .from('order_items')
-                .select('item_name, item_price, quantity')
+                .select('item_name, item_price, quantity, created_at')
                 .eq('order_id', order.id);
 
               const items = orderItems || [];
