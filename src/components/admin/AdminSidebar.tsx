@@ -22,6 +22,7 @@ const navItems = [
   { to: '/admin/reservas', icon: CalendarDays, label: 'Reservas' },
   { to: '/admin/mesas', icon: Table2, label: 'Mesas' },
   { to: '/admin/estoque', icon: UtensilsCrossed, label: 'Estoque' },
+  { to: '/admin/cardapio', icon: Menu, label: 'Cardápio' },
   { to: '/admin/atendimento', icon: ClipboardList, label: 'Atendimento' },
   { to: '/admin/cozinha', icon: ChefHat, label: 'Cozinha' },
 ];

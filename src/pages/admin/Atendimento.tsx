@@ -471,11 +471,12 @@ const Atendimento: React.FC = () => {
   const normalizeString = (str: string) => 
     str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-  // Filter and group menu items by category
+  // Filter and group menu items by category - only show sellable items
   const filteredItems = useMemo(() => {
-    if (!searchTerm.trim()) return menuItems;
+    const sellableItems = menuItems.filter(item => item.is_sellable);
+    if (!searchTerm.trim()) return sellableItems;
     const term = normalizeString(searchTerm);
-    return menuItems.filter(item => 
+    return sellableItems.filter(item => 
       normalizeString(item.name).includes(term) || 
       normalizeString(categoryLabels[item.category] || item.category).includes(term)
     );
