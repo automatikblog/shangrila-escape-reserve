@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { CartProvider, useCart } from '@/contexts/CartContext';
 import { useClientSession } from '@/hooks/useClientSession';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
-import { useMenuItems, categoryLabels } from '@/hooks/useMenuItems';
+import { useCardapioItems, categoryLabels } from '@/hooks/useCardapioItems';
 import { MenuItemCard } from '@/components/menu/MenuItemCard';
 import { CartDrawer } from '@/components/menu/CartDrawer';
 import { ClientNameModal } from '@/components/menu/ClientNameModal';
@@ -41,7 +41,7 @@ const TableMenuContent: React.FC = () => {
   
   const { session, isLoading: sessionLoading, needsName, createSession } = useClientSession(tableId);
   const { createOrder, orders } = useRealtimeOrders();
-  const { items: menuItems, isLoading: menuLoading } = useMenuItems();
+  const { items: menuItems, isLoading: menuLoading } = useCardapioItems();
   const { items, totalItems, clearCart, notes, deliveryType } = useCart();
   const { toast } = useToast();
 
@@ -54,9 +54,9 @@ const TableMenuContent: React.FC = () => {
     );
   }, [session, orders]);
 
-  // Group available menu items by category
+  // Group available menu items by category (already filtered by is_sellable and is_available from hook)
   const menuSections = useMemo(() => {
-    const availableItems = menuItems.filter(item => item.is_available);
+    const availableItems = menuItems;
     const grouped: Record<string, typeof availableItems> = {};
     
     availableItems.forEach(item => {

@@ -116,6 +116,7 @@ export type Database = {
           is_available: boolean
           is_bottle: boolean | null
           is_customizable: boolean
+          is_sellable: boolean
           name: string
           price: number
           product_code: string[] | null
@@ -136,6 +137,7 @@ export type Database = {
           is_available?: boolean
           is_bottle?: boolean | null
           is_customizable?: boolean
+          is_sellable?: boolean
           name: string
           price: number
           product_code?: string[] | null
@@ -156,6 +158,7 @@ export type Database = {
           is_available?: boolean
           is_bottle?: boolean | null
           is_customizable?: boolean
+          is_sellable?: boolean
           name?: string
           price?: number
           product_code?: string[] | null

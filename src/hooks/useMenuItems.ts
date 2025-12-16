@@ -22,6 +22,8 @@ export interface MenuItem {
   goes_to_kitchen: boolean;
   is_customizable: boolean;
   default_recipe_suggestion: unknown | null;
+  // Sellable flag - true = appears on menu for ordering, false = inventory only
+  is_sellable: boolean;
 }
 
 export interface MenuItemInput {
@@ -42,6 +44,8 @@ export interface MenuItemInput {
   goes_to_kitchen?: boolean;
   is_customizable?: boolean;
   default_recipe_suggestion?: unknown | null;
+  // Sellable flag
+  is_sellable?: boolean;
 }
 
 export const useMenuItems = () => {
