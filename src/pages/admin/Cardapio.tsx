@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, Wine, ChefHat, Beaker, ShoppingBag, FlaskConical } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, Wine, ChefHat, ShoppingBag, FlaskConical } from 'lucide-react';
 import { RecipeManagerModal } from '@/components/admin/RecipeManagerModal';
 
 const dynamicCategoryLabels: Record<string, string> = { ...categoryLabels };
@@ -44,7 +44,9 @@ const CardapioPage: React.FC = () => {
     stock_quantity: null,
     is_sellable: true,
     goes_to_kitchen: true,
-    is_customizable: false
+    is_bottle: false,
+    bottle_ml: null,
+    dose_ml: null
   });
 
   const filteredItems = useMemo(() => {
@@ -89,7 +91,9 @@ const CardapioPage: React.FC = () => {
       stock_quantity: null,
       is_sellable: true,
       goes_to_kitchen: true,
-      is_customizable: false
+      is_bottle: false,
+      bottle_ml: null,
+      dose_ml: null
     });
     setIsDialogOpen(true);
   };
@@ -108,7 +112,9 @@ const CardapioPage: React.FC = () => {
       stock_quantity: item.stock_quantity,
       is_sellable: true,
       goes_to_kitchen: item.goes_to_kitchen,
-      is_customizable: item.is_customizable
+      is_bottle: item.is_bottle,
+      bottle_ml: item.bottle_ml,
+      dose_ml: item.dose_ml
     });
     setIsDialogOpen(true);
   };
@@ -258,11 +264,6 @@ const CardapioPage: React.FC = () => {
                         {item.goes_to_kitchen && (
                           <span title="Vai para cozinha">
                             <ChefHat className="h-4 w-4 text-orange-500" />
-                          </span>
-                        )}
-                        {item.is_customizable && (
-                          <span title="Item customizável">
-                            <Beaker className="h-4 w-4 text-blue-500" />
                           </span>
                         )}
                         <span className={`font-medium truncate ${!item.is_available ? 'text-muted-foreground line-through' : ''}`}>
@@ -421,17 +422,56 @@ const CardapioPage: React.FC = () => {
               />
             </div>
 
+            {/* Bottle/dose toggle */}
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-2">
-                <Beaker className="h-4 w-4 text-blue-500" />
-                <Label htmlFor="is_customizable" className="cursor-pointer">Item customizável</Label>
+                <Wine className="h-4 w-4 text-purple-500" />
+                <Label htmlFor="is_bottle" className="cursor-pointer">Vendido por dose</Label>
               </div>
               <Switch
-                id="is_customizable"
-                checked={formData.is_customizable ?? false}
-                onCheckedChange={checked => setFormData(prev => ({ ...prev, is_customizable: checked }))}
+                id="is_bottle"
+                checked={formData.is_bottle ?? false}
+                onCheckedChange={checked => setFormData(prev => ({ ...prev, is_bottle: checked }))}
               />
             </div>
+
+            {formData.is_bottle && (
+              <div className="grid grid-cols-2 gap-4 pl-6">
+                <div>
+                  <Label htmlFor="bottle_ml">mL da Garrafa</Label>
+                  <Input
+                    id="bottle_ml"
+                    type="number"
+                    min="0"
+                    value={formData.bottle_ml ?? ''}
+                    onChange={e => setFormData(prev => ({ 
+                      ...prev, 
+                      bottle_ml: e.target.value === '' ? null : parseInt(e.target.value) 
+                    }))}
+                    placeholder="Ex: 700"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="dose_ml">mL da Dose</Label>
+                  <Input
+                    id="dose_ml"
+                    type="number"
+                    min="0"
+                    value={formData.dose_ml ?? ''}
+                    onChange={e => setFormData(prev => ({ 
+                      ...prev, 
+                      dose_ml: e.target.value === '' ? null : parseInt(e.target.value) 
+                    }))}
+                    placeholder="Ex: 50"
+                  />
+                </div>
+                {formData.bottle_ml && formData.dose_ml && (
+                  <p className="text-xs text-muted-foreground col-span-2">
+                    = {Math.floor(formData.bottle_ml / formData.dose_ml)} doses por garrafa
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Recipe Manager inside edit dialog */}
             {editingItem && (
@@ -449,7 +489,7 @@ const CardapioPage: React.FC = () => {
                   Gerenciar Receita
                 </Button>
                 <p className="text-xs text-muted-foreground mt-1 text-center">
-                  Vincule ingredientes do estoque a este produto
+                  Vincule ingredientes do estoque para debitar automaticamente
                 </p>
               </div>
             )}

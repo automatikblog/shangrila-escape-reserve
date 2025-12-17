@@ -13,7 +13,7 @@ import { Plus, Search, Edit, Trash2, Loader2, AlertCircle, Wine, FileImage } fro
 import { InvoiceImporter } from '@/components/admin/InvoiceImporter';
 
 const MenuItemsPage: React.FC = () => {
-  const { items, categories, isLoading, createItem, updateItem, deleteItem, fetchItems, getAvailableDoses } = useMenuItems();
+  const { items, categories, isLoading, createItem, updateItem, deleteItem, fetchItems } = useMenuItems();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -29,12 +29,13 @@ const MenuItemsPage: React.FC = () => {
     is_available: true,
     stock_quantity: null,
     product_code: null,
+    cost_price: null,
+    // Bottle stock tracking
     is_bottle: false,
     bottle_ml: null,
-    dose_ml: null,
     bottles_in_stock: 0,
     current_bottle_ml: 0,
-    cost_price: null,
+    // Cardápio-only fields (defaults for estoque)
     goes_to_kitchen: false,
     is_customizable: false,
     is_sellable: false
@@ -61,12 +62,11 @@ const MenuItemsPage: React.FC = () => {
       is_available: true,
       stock_quantity: null,
       product_code: null,
+      cost_price: null,
       is_bottle: false,
       bottle_ml: null,
-      dose_ml: null,
       bottles_in_stock: 0,
       current_bottle_ml: 0,
-      cost_price: null,
       goes_to_kitchen: false,
       is_customizable: false,
       is_sellable: false
@@ -84,12 +84,11 @@ const MenuItemsPage: React.FC = () => {
       is_available: item.is_available,
       stock_quantity: item.stock_quantity,
       product_code: item.product_code,
+      cost_price: item.cost_price,
       is_bottle: item.is_bottle,
       bottle_ml: item.bottle_ml,
-      dose_ml: item.dose_ml,
       bottles_in_stock: item.bottles_in_stock,
       current_bottle_ml: item.current_bottle_ml,
-      cost_price: item.cost_price,
       goes_to_kitchen: item.goes_to_kitchen,
       is_customizable: item.is_customizable,
       is_sellable: item.is_sellable
@@ -153,26 +152,18 @@ const MenuItemsPage: React.FC = () => {
   };
 
   const getStockDisplay = (item: MenuItem) => {
-    if (item.is_bottle && item.dose_ml) {
+    if (item.is_bottle) {
       const bottles = item.bottles_in_stock || 0;
       const currentMl = item.current_bottle_ml || 0;
-      const doses = getAvailableDoses(item);
       
       if (bottles === 0 && currentMl === 0) {
         return <Badge variant="destructive" className="text-xs">Esgotado</Badge>;
       }
       
-      const dosesPerBottle = item.bottle_ml ? Math.floor(item.bottle_ml / item.dose_ml) : 0;
-      
       return (
-        <div className="flex flex-col items-end gap-1">
-          <Badge variant="secondary" className="text-xs">
-            {bottles} gf{bottles !== 1 ? 's' : ''} + {currentMl}ml
-          </Badge>
-          <span className="text-xs text-muted-foreground">
-            ≈{doses} doses ({dosesPerBottle}/gf)
-          </span>
-        </div>
+        <Badge variant="secondary" className="text-xs">
+          {bottles} gf{bottles !== 1 ? 's' : ''} + {currentMl}ml
+        </Badge>
       );
     }
 
@@ -253,7 +244,7 @@ const MenuItemsPage: React.FC = () => {
                         </Badge>
                       )}
                       {item.is_bottle && (
-                        <span title="Vendido por dose">
+                        <span title="Estoque em garrafas (ml)">
                           <Wine className="h-4 w-4 text-purple-500" />
                         </span>
                       )}
@@ -262,7 +253,7 @@ const MenuItemsPage: React.FC = () => {
                       </span>
                       {item.is_bottle && item.bottle_ml && (
                         <span className="text-xs text-muted-foreground">
-                          ({item.bottle_ml}ml)
+                          ({item.bottle_ml}ml/gf)
                         </span>
                       )}
                       {!item.is_available && (
@@ -271,11 +262,6 @@ const MenuItemsPage: React.FC = () => {
                     </div>
                     {item.description && (
                       <p className="text-sm text-muted-foreground truncate">{item.description}</p>
-                    )}
-                    {item.is_bottle && item.dose_ml && (
-                      <p className="text-xs text-muted-foreground">
-                        Dose: {item.dose_ml}ml
-                      </p>
                     )}
                   </div>
                   <div className="flex items-center gap-4 shrink-0">
@@ -380,11 +366,11 @@ const MenuItemsPage: React.FC = () => {
               />
             </div>
 
-            {/* Bottle toggle */}
+            {/* Bottle stock toggle */}
             <div className="flex items-center justify-between py-2 border-t">
               <div className="flex items-center gap-2">
                 <Wine className="h-4 w-4 text-purple-500" />
-                <Label htmlFor="is_bottle" className="cursor-pointer">Vendido por dose (garrafa)</Label>
+                <Label htmlFor="is_bottle" className="cursor-pointer">Estoque em garrafas (ml)</Label>
               </div>
               <Switch
                 id="is_bottle"
@@ -399,42 +385,20 @@ const MenuItemsPage: React.FC = () => {
 
             {formData.is_bottle ? (
               <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="bottle_ml">mL da Garrafa</Label>
-                    <Input
-                      id="bottle_ml"
-                      type="number"
-                      min="0"
-                      value={formData.bottle_ml ?? ''}
-                      onChange={e => setFormData(prev => ({ 
-                        ...prev, 
-                        bottle_ml: e.target.value === '' ? null : parseInt(e.target.value) 
-                      }))}
-                      placeholder="Ex: 700"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="dose_ml">mL da Dose</Label>
-                    <Input
-                      id="dose_ml"
-                      type="number"
-                      min="0"
-                      value={formData.dose_ml ?? ''}
-                      onChange={e => setFormData(prev => ({ 
-                        ...prev, 
-                        dose_ml: e.target.value === '' ? null : parseInt(e.target.value) 
-                      }))}
-                      placeholder="Ex: 50"
-                    />
-                  </div>
+                <div>
+                  <Label htmlFor="bottle_ml">mL por Garrafa</Label>
+                  <Input
+                    id="bottle_ml"
+                    type="number"
+                    min="0"
+                    value={formData.bottle_ml ?? ''}
+                    onChange={e => setFormData(prev => ({ 
+                      ...prev, 
+                      bottle_ml: e.target.value === '' ? null : parseInt(e.target.value) 
+                    }))}
+                    placeholder="Ex: 700"
+                  />
                 </div>
-                
-                {formData.bottle_ml && formData.dose_ml && (
-                  <p className="text-xs text-muted-foreground">
-                    = {Math.floor(formData.bottle_ml / formData.dose_ml)} doses por garrafa
-                  </p>
-                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
