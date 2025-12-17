@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, Wine, ChefHat, FlaskConical, Beaker, ShoppingBag } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, Wine, ChefHat, Beaker, ShoppingBag, FlaskConical } from 'lucide-react';
 import { RecipeManagerModal } from '@/components/admin/RecipeManagerModal';
 
 const dynamicCategoryLabels: Record<string, string> = { ...categoryLabels };
@@ -20,9 +20,9 @@ const getCategoryLabel = (category: string): string => {
 };
 
 const CardapioPage: React.FC = () => {
-  const { items: allItems, categories, isLoading, createItem, updateItem, deleteItem, getAvailableDoses } = useMenuItems();
+  const { items: allItems, categories, isLoading, createItem, updateItem, deleteItem } = useMenuItems();
   
-  // Filter only sellable items
+  // Filter only sellable items for display
   const items = useMemo(() => allItems.filter(item => item.is_sellable), [allItems]);
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -142,17 +142,17 @@ const CardapioPage: React.FC = () => {
     if (editingItem) {
       const { error } = await updateItem(editingItem.id, dataToSave);
       if (error) {
-        toast.error('Erro ao atualizar item');
+        toast.error('Erro ao atualizar produto');
       } else {
-        toast.success('Item atualizado com sucesso');
+        toast.success('Produto atualizado com sucesso');
         setIsDialogOpen(false);
       }
     } else {
       const { error } = await createItem(dataToSave);
       if (error) {
-        toast.error('Erro ao criar item');
+        toast.error('Erro ao criar produto');
       } else {
-        toast.success('Item criado com sucesso');
+        toast.success('Produto criado com sucesso');
         setIsDialogOpen(false);
       }
     }
@@ -163,31 +163,10 @@ const CardapioPage: React.FC = () => {
   const handleDelete = async (item: MenuItem) => {
     const { error } = await deleteItem(item.id);
     if (error) {
-      toast.error('Erro ao excluir item');
+      toast.error('Erro ao excluir produto');
     } else {
-      toast.success('Item excluído com sucesso');
+      toast.success('Produto excluído com sucesso');
     }
-  };
-
-  const getStockDisplay = (item: MenuItem) => {
-    if (item.is_bottle && item.dose_ml) {
-      const doses = getAvailableDoses(item);
-      if (doses === 0) {
-        return <Badge variant="destructive" className="text-xs">Esgotado</Badge>;
-      }
-      return <Badge variant="secondary" className="text-xs">≈{doses} doses</Badge>;
-    }
-
-    if (item.stock_quantity === null) {
-      return <Badge variant="outline" className="text-xs">Sem controle</Badge>;
-    }
-    if (item.stock_quantity <= 0) {
-      return <Badge variant="destructive" className="text-xs">Esgotado</Badge>;
-    }
-    if (item.stock_quantity <= 5) {
-      return <Badge className="bg-yellow-500 text-xs">{item.stock_quantity} un</Badge>;
-    }
-    return <Badge variant="secondary" className="text-xs">{item.stock_quantity} un</Badge>;
   };
 
   if (isLoading) {
@@ -251,7 +230,7 @@ const CardapioPage: React.FC = () => {
             <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">Nenhum produto encontrado</p>
             <p className="text-sm text-muted-foreground mt-2">
-              Adicione produtos vendáveis ou marque itens do Estoque como vendáveis
+              Adicione produtos vendáveis clicando em "Novo Produto"
             </p>
           </CardContent>
         </Card>
@@ -298,20 +277,11 @@ const CardapioPage: React.FC = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-4 shrink-0">
-                      {getStockDisplay(item)}
                       <span className="font-medium text-primary">
                         R$ {item.price.toFixed(2).replace('.', ',')}
                         {item.is_bottle && <span className="text-xs text-muted-foreground">/dose</span>}
                       </span>
                       <div className="flex gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => setRecipeModalItem(item)}
-                          title="Gerenciar receita"
-                        >
-                          <FlaskConical className="h-4 w-4 text-primary" />
-                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -365,7 +335,7 @@ const CardapioPage: React.FC = () => {
             </div>
 
             <div>
-              <Label htmlFor="price">Preço *</Label>
+              <Label htmlFor="price">Preço de Venda (R$) *</Label>
               <Input
                 id="price"
                 type="number"
@@ -439,8 +409,11 @@ const CardapioPage: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="goes_to_kitchen">Vai para cozinha</Label>
+            <div className="flex items-center justify-between py-2 border-t">
+              <div className="flex items-center gap-2">
+                <ChefHat className="h-4 w-4 text-orange-500" />
+                <Label htmlFor="goes_to_kitchen" className="cursor-pointer">Vai para cozinha</Label>
+              </div>
               <Switch
                 id="goes_to_kitchen"
                 checked={formData.goes_to_kitchen ?? true}
@@ -448,14 +421,38 @@ const CardapioPage: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="is_customizable">Item customizável</Label>
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-2">
+                <Beaker className="h-4 w-4 text-blue-500" />
+                <Label htmlFor="is_customizable" className="cursor-pointer">Item customizável</Label>
+              </div>
               <Switch
                 id="is_customizable"
                 checked={formData.is_customizable ?? false}
                 onCheckedChange={checked => setFormData(prev => ({ ...prev, is_customizable: checked }))}
               />
             </div>
+
+            {/* Recipe Manager inside edit dialog */}
+            {editingItem && (
+              <div className="pt-2 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setIsDialogOpen(false);
+                    setRecipeModalItem(editingItem);
+                  }}
+                >
+                  <FlaskConical className="h-4 w-4 mr-2 text-primary" />
+                  Gerenciar Receita
+                </Button>
+                <p className="text-xs text-muted-foreground mt-1 text-center">
+                  Vincule ingredientes do estoque a este produto
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter>

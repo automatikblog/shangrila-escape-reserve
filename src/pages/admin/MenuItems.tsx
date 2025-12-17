@@ -1,45 +1,31 @@
 import React, { useState, useMemo } from 'react';
-import { useMenuItems, MenuItem, MenuItemInput, categoryLabels } from '@/hooks/useMenuItems';
+import { useMenuItems, MenuItem, MenuItemInput } from '@/hooks/useMenuItems';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, Wine, FileImage, ChefHat, FlaskConical, Beaker, ShoppingBag } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Loader2, AlertCircle, Wine, FileImage } from 'lucide-react';
 import { InvoiceImporter } from '@/components/admin/InvoiceImporter';
-import { RecipeManagerModal } from '@/components/admin/RecipeManagerModal';
-
-// Dynamic category labels that can be extended at runtime
-const dynamicCategoryLabels: Record<string, string> = { ...categoryLabels };
-
-const getCategoryLabel = (category: string): string => {
-  return dynamicCategoryLabels[category] || categoryLabels[category] || category;
-};
 
 const MenuItemsPage: React.FC = () => {
   const { items, categories, isLoading, createItem, updateItem, deleteItem, fetchItems, getAvailableDoses } = useMenuItems();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isImporterOpen, setIsImporterOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isNewCategory, setIsNewCategory] = useState(false);
-  const [newCategoryKey, setNewCategoryKey] = useState('');
-  const [newCategoryLabel, setNewCategoryLabel] = useState('');
-  const [recipeModalItem, setRecipeModalItem] = useState<MenuItem | null>(null);
 
   const [formData, setFormData] = useState<MenuItemInput>({
     name: '',
     price: 0,
     description: '',
-    category: '',
+    category: 'estoque',
     is_available: true,
     stock_quantity: null,
     product_code: null,
@@ -49,53 +35,29 @@ const MenuItemsPage: React.FC = () => {
     bottles_in_stock: 0,
     current_bottle_ml: 0,
     cost_price: null,
-    goes_to_kitchen: true,
+    goes_to_kitchen: false,
     is_customizable: false,
-    is_sellable: true
+    is_sellable: false
   });
 
-  const filteredItems = useMemo(() => {
-    return items.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.product_code && item.product_code.some(code => code.toLowerCase().includes(searchTerm.toLowerCase())));
-      const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
-      return matchesSearch && matchesCategory;
-    });
-  }, [items, searchTerm, categoryFilter]);
-
-  const groupedItems = useMemo(() => {
-    const groups: Record<string, MenuItem[]> = {};
-    filteredItems.forEach(item => {
-      if (!groups[item.category]) {
-        groups[item.category] = [];
-      }
-      groups[item.category].push(item);
-    });
-    Object.keys(groups).forEach(cat => {
-      groups[cat].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-    });
-    return groups;
-  }, [filteredItems]);
-
-  const allCategories = useMemo(() => {
-    const fromItems = new Set(items.map(i => i.category));
-    const fromLabels = new Set(Object.keys(categoryLabels));
-    const fromDynamic = new Set(Object.keys(dynamicCategoryLabels));
-    return [...new Set([...fromItems, ...fromLabels, ...fromDynamic])].sort((a, b) => 
-      getCategoryLabel(a).localeCompare(getCategoryLabel(b), 'pt-BR')
-    );
-  }, [items]);
+  // Filter and sort items A-Z
+  const sortedItems = useMemo(() => {
+    return items
+      .filter(item => {
+        const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (item.product_code && item.product_code.some(code => code.toLowerCase().includes(searchTerm.toLowerCase())));
+        return matchesSearch;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }, [items, searchTerm]);
 
   const openNewItemDialog = () => {
     setEditingItem(null);
-    setIsNewCategory(false);
-    setNewCategoryKey('');
-    setNewCategoryLabel('');
     setFormData({
       name: '',
       price: 0,
       description: '',
-      category: categories[0] || '',
+      category: 'estoque',
       is_available: true,
       stock_quantity: null,
       product_code: null,
@@ -105,18 +67,15 @@ const MenuItemsPage: React.FC = () => {
       bottles_in_stock: 0,
       current_bottle_ml: 0,
       cost_price: null,
-      goes_to_kitchen: true,
+      goes_to_kitchen: false,
       is_customizable: false,
-      is_sellable: true
+      is_sellable: false
     });
     setIsDialogOpen(true);
   };
 
   const openEditDialog = (item: MenuItem) => {
     setEditingItem(item);
-    setIsNewCategory(false);
-    setNewCategoryKey('');
-    setNewCategoryLabel('');
     setFormData({
       name: item.name,
       price: item.price,
@@ -139,34 +98,27 @@ const MenuItemsPage: React.FC = () => {
   };
 
   const handleSave = async () => {
-    const finalCategory = isNewCategory ? newCategoryKey.toLowerCase().replace(/\s+/g, '-') : formData.category;
-    
-    if (!formData.name || !finalCategory || formData.price <= 0) {
-      toast.error('Preencha todos os campos obrigatórios');
-      return;
-    }
-    
-    if (isNewCategory && !newCategoryLabel) {
-      toast.error('Informe o nome da nova categoria');
+    if (!formData.name) {
+      toast.error('Informe o nome do item');
       return;
     }
 
     // Determine availability based on stock type
     let isAvailable = true;
     if (formData.is_bottle) {
-      // For bottles, available if there's any ml available
       const totalMl = ((formData.bottles_in_stock || 0) * (formData.bottle_ml || 0)) + (formData.current_bottle_ml || 0);
       isAvailable = totalMl > 0 || formData.bottles_in_stock === null;
     } else {
-      // For regular items, available if stock > 0 or no stock control
       isAvailable = formData.stock_quantity === null || formData.stock_quantity > 0;
     }
 
-    const dataToSave = { ...formData, category: finalCategory, is_available: isAvailable };
-    
-    if (isNewCategory && newCategoryKey && newCategoryLabel) {
-      dynamicCategoryLabels[finalCategory] = newCategoryLabel;
-    }
+    const dataToSave = { 
+      ...formData, 
+      is_available: isAvailable,
+      // New items in Estoque are not sellable by default
+      is_sellable: editingItem ? formData.is_sellable : false,
+      goes_to_kitchen: editingItem ? formData.goes_to_kitchen : false
+    };
 
     setIsSaving(true);
 
@@ -263,38 +215,23 @@ const MenuItemsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Search */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome ou código..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-full sm:w-64">
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as categorias</SelectItem>
-                {categories.map(cat => (
-                  <SelectItem key={cat} value={cat}>
-                    {getCategoryLabel(cat)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou código..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Items List */}
-      {Object.keys(groupedItems).length === 0 ? (
+      {/* Items List - Single list A-Z */}
+      {sortedItems.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -302,115 +239,84 @@ const MenuItemsPage: React.FC = () => {
           </CardContent>
         </Card>
       ) : (
-        Object.entries(groupedItems).map(([category, categoryItems]) => (
-          <Card key={category}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Package className="h-5 w-5 text-primary" />
-                {getCategoryLabel(category)}
-                <Badge variant="outline" className="ml-2">{categoryItems.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="divide-y divide-border">
-                {categoryItems.map(item => (
-                  <div key={item.id} className="py-3 flex items-center justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {item.product_code && item.product_code.length > 0 && (
-                          <Badge variant="outline" className="font-mono text-xs" title={item.product_code.join(', ')}>
-                            {item.product_code[0]}
-                            {item.product_code.length > 1 && ` +${item.product_code.length - 1}`}
-                          </Badge>
-                        )}
-                        {item.is_sellable && (
-                          <span title="Vendável no cardápio">
-                            <ShoppingBag className="h-4 w-4 text-green-500" />
-                          </span>
-                        )}
-                        {item.is_bottle && (
-                          <span title="Vendido por dose">
-                            <Wine className="h-4 w-4 text-purple-500" />
-                          </span>
-                        )}
-                        {item.goes_to_kitchen && (
-                          <span title="Vai para cozinha">
-                            <ChefHat className="h-4 w-4 text-orange-500" />
-                          </span>
-                        )}
-                        {item.is_customizable && (
-                          <span title="Item customizável">
-                            <Beaker className="h-4 w-4 text-blue-500" />
-                          </span>
-                        )}
-                        <span className={`font-medium truncate ${!item.is_available ? 'text-muted-foreground line-through' : ''}`}>
-                          {item.name}
-                        </span>
-                        {item.is_bottle && item.bottle_ml && (
-                          <span className="text-xs text-muted-foreground">
-                            ({item.bottle_ml}ml)
-                          </span>
-                        )}
-                        {!item.is_available && (
-                          <Badge variant="outline" className="text-xs">Indisponível</Badge>
-                        )}
-                      </div>
-                      {item.description && (
-                        <p className="text-sm text-muted-foreground truncate">{item.description}</p>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="divide-y divide-border">
+              {sortedItems.map(item => (
+                <div key={item.id} className="py-3 flex items-center justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {item.product_code && item.product_code.length > 0 && (
+                        <Badge variant="outline" className="font-mono text-xs" title={item.product_code.join(', ')}>
+                          {item.product_code[0]}
+                          {item.product_code.length > 1 && ` +${item.product_code.length - 1}`}
+                        </Badge>
                       )}
-                      {item.is_bottle && item.dose_ml && (
-                        <p className="text-xs text-muted-foreground">
-                          Dose: {item.dose_ml}ml
-                        </p>
+                      {item.is_bottle && (
+                        <span title="Vendido por dose">
+                          <Wine className="h-4 w-4 text-purple-500" />
+                        </span>
+                      )}
+                      <span className={`font-medium truncate ${!item.is_available ? 'text-muted-foreground line-through' : ''}`}>
+                        {item.name}
+                      </span>
+                      {item.is_bottle && item.bottle_ml && (
+                        <span className="text-xs text-muted-foreground">
+                          ({item.bottle_ml}ml)
+                        </span>
+                      )}
+                      {!item.is_available && (
+                        <Badge variant="outline" className="text-xs">Indisponível</Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 shrink-0">
-                      {getStockDisplay(item)}
-                      <span className="font-medium text-primary">
-                        R$ {item.price.toFixed(2).replace('.', ',')}
-                        {item.is_bottle && <span className="text-xs text-muted-foreground">/dose</span>}
+                    {item.description && (
+                      <p className="text-sm text-muted-foreground truncate">{item.description}</p>
+                    )}
+                    {item.is_bottle && item.dose_ml && (
+                      <p className="text-xs text-muted-foreground">
+                        Dose: {item.dose_ml}ml
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 shrink-0">
+                    {getStockDisplay(item)}
+                    {item.cost_price && (
+                      <span className="text-sm text-muted-foreground">
+                        Custo: R$ {item.cost_price.toFixed(2).replace('.', ',')}
                       </span>
-                      <div className="flex gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => setRecipeModalItem(item)}
-                          title="Gerenciar receita"
-                        >
-                          <FlaskConical className="h-4 w-4 text-primary" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir item</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Tem certeza que deseja excluir "{item.name}"? Esta ação não pode ser desfeita.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(item)}>
-                                Excluir
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+                    )}
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir item</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir "{item.name}"? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(item)}>
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Add/Edit Dialog */}
@@ -449,19 +355,6 @@ const MenuItemsPage: React.FC = () => {
             </div>
 
             <div>
-              <Label htmlFor="price">Preço de Venda (R$) *</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.price}
-                onChange={e => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
-                placeholder="0.00"
-              />
-            </div>
-
-            <div>
               <Label htmlFor="cost_price">Preço de Custo (R$)</Label>
               <Input
                 id="cost_price"
@@ -478,56 +371,6 @@ const MenuItemsPage: React.FC = () => {
             </div>
 
             <div>
-              <Label htmlFor="category">Categoria *</Label>
-              {!isNewCategory ? (
-                <div className="space-y-2">
-                  <Select 
-                    value={formData.category} 
-                    onValueChange={val => {
-                      if (val === '__new__') {
-                        setIsNewCategory(true);
-                        setFormData(prev => ({ ...prev, category: '' }));
-                      } else {
-                        setFormData(prev => ({ ...prev, category: val }));
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__new__" className="text-primary font-medium border-b border-border mb-1 pb-2">
-                        + Criar nova categoria
-                      </SelectItem>
-                      {allCategories.map(key => (
-                        <SelectItem key={key} value={key}>{getCategoryLabel(key)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Input
-                    placeholder="Nome da categoria (ex: Sobremesas)"
-                    value={newCategoryLabel}
-                    onChange={e => {
-                      setNewCategoryLabel(e.target.value);
-                      setNewCategoryKey(e.target.value.toLowerCase().replace(/\s+/g, '-'));
-                    }}
-                  />
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setIsNewCategory(false)}
-                  >
-                    Cancelar nova categoria
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <div>
               <Label htmlFor="description">Descrição</Label>
               <Input
                 id="description"
@@ -537,46 +380,8 @@ const MenuItemsPage: React.FC = () => {
               />
             </div>
 
-            {/* Sellable toggle */}
-            <div className="flex items-center justify-between py-2 border-t">
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="h-4 w-4 text-green-500" />
-                <Label htmlFor="is_sellable" className="cursor-pointer">Vendável no Cardápio</Label>
-              </div>
-              <Switch
-                id="is_sellable"
-                checked={formData.is_sellable ?? true}
-                onCheckedChange={checked => setFormData(prev => ({ ...prev, is_sellable: checked }))}
-              />
-            </div>
-
-            {/* Kitchen & Customizable toggles */}
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-2">
-                <ChefHat className="h-4 w-4 text-orange-500" />
-                <Label htmlFor="goes_to_kitchen" className="cursor-pointer">Vai para Cozinha</Label>
-              </div>
-              <Switch
-                id="goes_to_kitchen"
-                checked={formData.goes_to_kitchen}
-                onCheckedChange={checked => setFormData(prev => ({ ...prev, goes_to_kitchen: checked }))}
-              />
-            </div>
-
-            <div className="flex items-center justify-between py-2 border-b">
-              <div className="flex items-center gap-2">
-                <Beaker className="h-4 w-4 text-blue-500" />
-                <Label htmlFor="is_customizable" className="cursor-pointer">Item Customizável (Copão)</Label>
-              </div>
-              <Switch
-                id="is_customizable"
-                checked={formData.is_customizable}
-                onCheckedChange={checked => setFormData(prev => ({ ...prev, is_customizable: checked }))}
-              />
-            </div>
-
             {/* Bottle toggle */}
-            <div className="flex items-center justify-between py-2 border-b">
+            <div className="flex items-center justify-between py-2 border-t">
               <div className="flex items-center gap-2">
                 <Wine className="h-4 w-4 text-purple-500" />
                 <Label htmlFor="is_bottle" className="cursor-pointer">Vendido por dose (garrafa)</Label>
@@ -702,14 +507,6 @@ const MenuItemsPage: React.FC = () => {
         existingItems={items}
         categories={categories}
         onImportComplete={fetchItems}
-      />
-
-      {/* Recipe Manager Modal */}
-      <RecipeManagerModal
-        open={!!recipeModalItem}
-        onOpenChange={(open) => !open && setRecipeModalItem(null)}
-        item={recipeModalItem}
-        allItems={items}
       />
     </div>
   );
