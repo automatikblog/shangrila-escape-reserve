@@ -206,7 +206,7 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
           editedTotalUnits: String(totalUnits),
           isPack: packInfo.isPack,
           newItemName: cleanName,
-          newItemCategory: 'cervejas' // Default category for new items
+          newItemCategory: 'estoque' // Default category for new ingredient items
         };
       });
 
@@ -283,12 +283,14 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
           .from('menu_items')
           .insert({
             name: item.newItemName,
-            category: item.newItemCategory || 'outros',
-            price: 0, // Owner needs to set price
+            category: item.newItemCategory || 'estoque',
+            price: 0, // Owner needs to set price in Cardápio
             stock_quantity: quantityToAdd,
             cost_price: unitCost,
             product_code: [item.codigo],
-            is_available: true
+            is_available: true,
+            is_sellable: false, // Ingredients are not sellable by default
+            goes_to_kitchen: false
           });
         created++;
       }
