@@ -4,7 +4,7 @@ import { useMenuItems, categoryLabels, MenuItem } from '@/hooks/useMenuItems';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { useComandas, Comanda } from '@/hooks/useComandas';
 import { useFrequentItems } from '@/hooks/useFrequentItems';
-import { useTablesWithActivity, getTableStatus, TableStatus } from '@/hooks/useTablesWithActivity';
+import { useTablesWithActivity } from '@/hooks/useTablesWithActivity';
 import { useSettings } from '@/hooks/useSettings';
 import { ComandaDetailsModal } from '@/components/admin/ComandaDetailsModal';
 import { CustomItemModal, CustomIngredient } from '@/components/admin/CustomItemModal';
@@ -21,6 +21,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame, TrendingUp, Beaker, Beer, History, PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,6 +78,7 @@ const Atendimento: React.FC = () => {
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [comandaToClose, setComandaToClose] = useState<Comanda | null>(null);
   const [detailsModalComanda, setDetailsModalComanda] = useState<Comanda | null>(null);
+  const [newComandaDialogOpen, setNewComandaDialogOpen] = useState(false);
   
   // Customizable item modal
   const [customizableItem, setCustomizableItem] = useState<MenuItem | null>(null);
@@ -117,64 +125,8 @@ const Atendimento: React.FC = () => {
     return allComandas.filter(c => c.table_id === balcaoTable.id);
   }, [allComandas, balcaoTable]);
 
-  // Create new balcão comanda
-  const handleCreateBalcaoComanda = () => {
-    if (balcaoTable) {
-      setSelectedTable(balcaoTable);
-      setIsBalcaoMode(true);
-      setDeliveryType('balcao');
-      setSelectedComanda(null);
-      setClientName('');
-    }
-  };
-
-  // Handle selecting a balcão comanda card
-  const handleSelectBalcaoComanda = (comanda: Comanda) => {
-    if (balcaoTable) {
-      setSelectedTable(balcaoTable);
-      setIsBalcaoMode(true);
-      setDeliveryType('balcao');
-      setSelectedComanda(comanda);
-      setClientName(comanda.client_name);
-    }
-  };
-
-  // Handle table selection
-  const handleSelectTable = (tableId: string) => {
-    const tableData = tablesWithActivity.find(t => t.id === tableId);
-    if (tableData) {
-      setSelectedTable({ id: tableData.id, number: tableData.number, name: tableData.name });
-      setIsBalcaoMode(false);
-      setSelectedComanda(null);
-      setClientName('');
-    }
-  };
-
-  // Get table status color classes
-  const getTableColorClasses = (tableId: string): string => {
-    const tableData = tablesWithActivity.find(t => t.id === tableId);
-    if (!tableData) return 'bg-muted text-muted-foreground border-border';
-    
-    const comandaCount = getTableComandaCount(tableId);
-    const status = getTableStatus(tableData, settings.table_inactivity_minutes);
-    
-    // Check if any comanda on this table needs attention
-    const tableComandasList = allComandas.filter(c => c.table_id === tableId);
-    const hasAttentionComanda = tableComandasList.some(comanda => {
-      if (comanda.orders.length === 0) return true; // No orders yet
-      const lastOrderTime = Math.max(...comanda.orders.map(o => new Date(o.created_at).getTime()));
-      const minutesSinceOrder = (Date.now() - lastOrderTime) / (1000 * 60);
-      return minutesSinceOrder >= settings.table_inactivity_minutes;
-    });
-    
-    if (status === 'inactive') return 'bg-destructive/20 text-destructive border-destructive/50';
-    if (comandaCount === 0) return 'bg-muted text-muted-foreground border-border'; // Gray - no comandas
-    if (hasAttentionComanda) return 'bg-yellow-100 text-yellow-800 border-yellow-400 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-600'; // Yellow - needs attention
-    return 'bg-green-100 text-green-800 border-green-400 dark:bg-green-900/30 dark:text-green-400 dark:border-green-600'; // Green - active
-  };
-
-  // Check if balcão comanda needs attention
-  const getBalcaoComandaColor = (comanda: Comanda): string => {
+  // Get comanda color based on activity status
+  const getComandaColor = (comanda: Comanda): string => {
     if (comanda.orders.length === 0) {
       return 'bg-yellow-100 border-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-600';
     }
@@ -186,8 +138,35 @@ const Atendimento: React.FC = () => {
     return 'bg-green-100 border-green-400 dark:bg-green-900/30 dark:border-green-600';
   };
 
+  // Get table name/number for a comanda
+  const getComandaTableLabel = (comanda: Comanda): string => {
+    if (balcaoTable && comanda.table_id === balcaoTable.id) {
+      return 'Balcão';
+    }
+    const table = tablesWithActivity.find(t => t.id === comanda.table_id);
+    return table ? `Mesa ${table.number}` : 'Mesa';
+  };
+
+  // Handle creating new comanda with table selection
+  const handleCreateNewComanda = (tableId: string) => {
+    const tableData = tablesWithActivity.find(t => t.id === tableId);
+    if (tableData) {
+      setSelectedTable({ id: tableData.id, number: tableData.number, name: tableData.name });
+      setIsBalcaoMode(tableData.number === 0);
+      setDeliveryType(tableData.number === 0 ? 'balcao' : 'balcao');
+      setSelectedComanda(null);
+      setClientName('');
+      setNewComandaDialogOpen(false);
+    }
+  };
+
   // Handle selecting an existing comanda
   const handleSelectComanda = (comanda: Comanda) => {
+    const tableData = tablesWithActivity.find(t => t.id === comanda.table_id);
+    if (tableData) {
+      setSelectedTable({ id: tableData.id, number: tableData.number, name: tableData.name });
+      setIsBalcaoMode(tableData.number === 0);
+    }
     setSelectedComanda(comanda);
     setClientName(comanda.client_name);
   };
@@ -563,242 +542,168 @@ const Atendimento: React.FC = () => {
             <CardTitle className="text-lg">1. Mesa e Cliente</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Balcão Section - Comandas as cards + New button */}
-            <div className="space-y-2">
+            {/* Nova Comanda Button + All Comandas List */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-2">
-                  <Coffee className="h-4 w-4 text-primary" />
-                  Balcão (Sem Mesa)
-                </Label>
+                <Label className="text-base font-medium">Comandas Abertas</Label>
                 <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCreateBalcaoComanda}
-                  disabled={!balcaoTable}
-                  className="flex items-center gap-1"
+                  onClick={() => setNewComandaDialogOpen(true)}
+                  className="flex items-center gap-2"
                 >
                   <PlusCircle className="h-4 w-4" />
                   Nova Comanda
                 </Button>
               </div>
               
-              {balcaoComandas.length > 0 && (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {balcaoComandas.map(comanda => (
-                    <button
-                      key={comanda.session_id}
-                      onClick={() => handleSelectBalcaoComanda(comanda)}
-                      className={`p-2 rounded-lg border-2 text-left transition-all ${getBalcaoComandaColor(comanda)} ${
-                        selectedComanda?.session_id === comanda.session_id 
-                          ? 'ring-2 ring-primary ring-offset-2' 
-                          : 'hover:scale-105'
-                      }`}
-                    >
-                      <p className="font-medium text-sm truncate">{comanda.client_name}</p>
-                      <p className="text-xs opacity-75">R$ {comanda.total.toFixed(2)}</p>
-                    </button>
-                  ))}
+              {/* All Comandas List */}
+              {loadingComandas ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-              )}
-            </div>
-
-            {/* Tables Section with colors */}
-            <div className="space-y-2">
-              <Label>Selecione a Mesa</Label>
-              <div className="grid grid-cols-4 gap-2">
-                {tables.map(table => {
-                  const comandaCount = getTableComandaCount(table.id);
-                  const colorClasses = getTableColorClasses(table.id);
-                  const isSelected = selectedTable?.id === table.id && !isBalcaoMode;
-                  
-                  return (
-                    <button
-                      key={table.id}
-                      onClick={() => handleSelectTable(table.id)}
-                      className={`h-auto py-3 px-2 flex flex-col items-center relative rounded-lg border-2 transition-all ${colorClasses} ${
-                        isSelected 
-                          ? 'ring-2 ring-primary ring-offset-2' 
-                          : 'hover:scale-105'
-                      }`}
-                    >
-                      {comandaCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center font-bold">
-                          {comandaCount}
-                        </span>
-                      )}
-                      <span className="text-lg font-bold">{table.number}</span>
-                      <span className="text-xs truncate w-full text-center">{table.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {tables.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Nenhuma mesa ativa
-                </p>
+              ) : allComandas.length === 0 ? (
+                <div className="text-center py-8 border rounded-lg bg-muted/30">
+                  <Coffee className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-muted-foreground">Nenhuma comanda aberta</p>
+                  <p className="text-xs text-muted-foreground mt-1">Clique em "Nova Comanda" para começar</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[280px]">
+                  <div className="space-y-2 pr-4">
+                    {allComandas.map(comanda => (
+                      <div
+                        key={comanda.session_id}
+                        className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${getComandaColor(comanda)} ${
+                          selectedComanda?.session_id === comanda.session_id 
+                            ? 'ring-2 ring-primary ring-offset-2' 
+                            : 'hover:scale-[1.01]'
+                        }`}
+                        onClick={() => handleSelectComanda(comanda)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 opacity-60" />
+                            <span className="font-semibold">{comanda.client_name}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {getComandaTableLabel(comanda)}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={comanda.unpaid_total === 0 ? 'default' : 'destructive'} className="text-xs">
+                              {comanda.unpaid_total === 0 ? 'Pago' : `R$ ${comanda.remaining_total.toFixed(2)}`}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDetailsModalComanda(comanda);
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 mt-1 text-sm opacity-75">
+                          <span className="flex items-center gap-1">
+                            <DollarSign className="h-3 w-3" />
+                            R$ {comanda.total.toFixed(2)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {formatTimeElapsed(comanda.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               )}
               
               {/* Legend */}
-              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground pt-2">
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded bg-muted border"></span> Livre
-                </span>
-                <span className="flex items-center gap-1">
+              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground pt-1">
+                <span className="flex items-center gap-1.5">
                   <span className="w-3 h-3 rounded bg-green-200 border border-green-400 dark:bg-green-900/50"></span> Ativa
                 </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded bg-yellow-200 border border-yellow-400 dark:bg-yellow-900/50"></span> Atenção
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded bg-destructive/30 border border-destructive/50"></span> Desativada
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-yellow-200 border border-yellow-400 dark:bg-yellow-900/50"></span> Precisa atenção
                 </span>
               </div>
             </div>
 
-            {/* Comandas Section - shown when table is selected (not balcão) */}
-            {selectedTable && !isBalcaoMode && (
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">
-                  Comandas Abertas na Mesa {selectedTable.number}
-                </Label>
-
-                {loadingComandas ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            {/* Selected Comanda Indicator */}
+            {selectedComanda && (
+              <div className="p-3 border-2 border-primary rounded-lg bg-primary/5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Adicionando à comanda de:</p>
+                    <p className="font-semibold">{selectedComanda.client_name} • {getComandaTableLabel(selectedComanda)}</p>
                   </div>
-                ) : tableComandas.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg">
-                    Nenhuma comanda aberta
-                  </p>
-                ) : (
-                  <ScrollArea className="h-[180px]">
-                    <div className="space-y-2 pr-4">
-                      {tableComandas.map(comanda => (
-                        <div
-                          key={comanda.session_id}
-                          className={`p-3 border rounded-lg transition-colors ${
-                            selectedComanda?.session_id === comanda.session_id 
-                              ? 'border-primary bg-primary/10' 
-                              : 'hover:bg-accent/30'
-                          }`}
-                        >
-                          <div 
-                            className="flex items-center justify-between cursor-pointer"
-                            onClick={() => handleSelectComanda(comanda)}
-                          >
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">{comanda.client_name}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant={comanda.unpaid_total === 0 ? 'default' : 'destructive'} className="text-xs">
-                                {comanda.unpaid_total === 0 ? 'Pago' : `R$ ${comanda.unpaid_total.toFixed(2)}`}
-                              </Badge>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setDetailsModalComanda(comanda);
-                                }}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                          <div 
-                            className="flex items-center gap-4 mt-1 text-sm text-muted-foreground cursor-pointer"
-                            onClick={() => handleSelectComanda(comanda)}
-                          >
-                            <span className="flex items-center gap-1">
-                              <DollarSign className="h-3 w-3" />
-                              R$ {comanda.total.toFixed(2)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {formatTimeElapsed(comanda.created_at)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                )}
-
-                {/* Selected comanda indicator */}
-                {selectedComanda && (
-                  <div className="p-3 border-2 border-primary rounded-lg bg-primary/5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Adicionando à comanda de:</p>
-                        <p className="font-semibold">{selectedComanda.client_name}</p>
-                      </div>
-                      <Button size="sm" variant="ghost" onClick={handleDeselectComanda}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                  <Button size="sm" variant="ghost" onClick={handleDeselectComanda}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
 
-            {/* Client Name */}
-            <div className="space-y-2">
-              <Label htmlFor="clientName">Nome do Cliente</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="clientName"
-                  placeholder={selectedComanda ? selectedComanda.client_name : "Digite o nome para nova comanda..."}
-                  value={clientName}
-                  onChange={(e) => handleClientNameChange(e.target.value)}
-                  className="pl-10"
-                />
+            {/* Client Name - only show when creating new comanda */}
+            {selectedTable && !selectedComanda && (
+              <div className="space-y-2">
+                <Label htmlFor="clientName">Nome do Cliente</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="clientName"
+                    placeholder="Digite o nome do cliente..."
+                    value={clientName}
+                    onChange={(e) => handleClientNameChange(e.target.value)}
+                    className="pl-10"
+                    autoFocus
+                  />
+                </div>
               </div>
-              {selectedComanda && (
-                <p className="text-xs text-muted-foreground">
-                  Adicionando à comanda existente. Digite outro nome para criar nova.
-                </p>
-              )}
-            </div>
+            )}
 
             {/* Delivery Type */}
-            <div className="space-y-2">
-              <Label>Tipo de Entrega</Label>
-              <RadioGroup
-                value={deliveryType || ''}
-                onValueChange={(value) => setDeliveryType(value as 'mesa' | 'balcao')}
-                className="flex gap-4"
-              >
-                <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent/50 cursor-pointer flex-1">
-                  <RadioGroupItem value="mesa" id="mesa" />
-                  <Label htmlFor="mesa" className="flex items-center gap-2 cursor-pointer flex-1">
-                    <MapPin className="h-4 w-4" />
-                    Na mesa
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent/50 cursor-pointer flex-1">
-                  <RadioGroupItem value="balcao" id="balcao" />
-                  <Label htmlFor="balcao" className="flex items-center gap-2 cursor-pointer flex-1">
-                    <Store className="h-4 w-4" />
-                    No balcão
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
+            {selectedTable && (
+              <div className="space-y-2">
+                <Label>Tipo de Entrega</Label>
+                <RadioGroup
+                  value={deliveryType || ''}
+                  onValueChange={(value) => setDeliveryType(value as 'mesa' | 'balcao')}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent/50 cursor-pointer flex-1">
+                    <RadioGroupItem value="mesa" id="mesa" />
+                    <Label htmlFor="mesa" className="flex items-center gap-2 cursor-pointer flex-1">
+                      <MapPin className="h-4 w-4" />
+                      Na mesa
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent/50 cursor-pointer flex-1">
+                    <RadioGroupItem value="balcao" id="balcao" />
+                    <Label htmlFor="balcao" className="flex items-center gap-2 cursor-pointer flex-1">
+                      <Store className="h-4 w-4" />
+                      No balcão
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            )}
 
             {/* Notes */}
-            <div className="space-y-2">
-              <Label htmlFor="notes">Observações (opcional)</Label>
-              <Textarea
-                id="notes"
-                placeholder="Sem cebola, bem passado..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={2}
-              />
-            </div>
+            {selectedTable && (
+              <div className="space-y-2">
+                <Label htmlFor="notes">Observações (opcional)</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Sem cebola, bem passado..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1208,6 +1113,50 @@ const Atendimento: React.FC = () => {
         onOpenChange={(open) => !open && setBaldaoItem(null)}
         onConfirm={handleBaldaoConfirm}
       />
+
+      {/* New Comanda Dialog - Choose Table */}
+      <Dialog open={newComandaDialogOpen} onOpenChange={setNewComandaDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nova Comanda</DialogTitle>
+            <DialogDescription>
+              Escolha onde será a comanda
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Balcão option */}
+            {balcaoTable && (
+              <Button
+                variant="outline"
+                className="w-full h-auto py-4 flex flex-col items-center gap-1"
+                onClick={() => handleCreateNewComanda(balcaoTable.id)}
+              >
+                <Coffee className="h-6 w-6 text-primary" />
+                <span className="font-semibold">Sem Mesa (Balcão)</span>
+                <span className="text-xs text-muted-foreground">Cliente avulso</span>
+              </Button>
+            )}
+            
+            {/* Tables grid */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Ou escolha uma mesa:</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {tables.map(table => (
+                  <Button
+                    key={table.id}
+                    variant="outline"
+                    className="h-auto py-3 flex flex-col"
+                    onClick={() => handleCreateNewComanda(table.id)}
+                  >
+                    <span className="text-lg font-bold">{table.number}</span>
+                    <span className="text-xs truncate w-full text-center">{table.name}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
         <AlertDialogContent>
