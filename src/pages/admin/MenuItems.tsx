@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Loader2, AlertCircle, Wine, FileImage } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Loader2, AlertCircle, Wine, FileImage, ShoppingBag } from 'lucide-react';
 import { InvoiceImporter } from '@/components/admin/InvoiceImporter';
 
 const MenuItemsPage: React.FC = () => {
@@ -113,10 +113,7 @@ const MenuItemsPage: React.FC = () => {
 
     const dataToSave = { 
       ...formData, 
-      is_available: isAvailable,
-      // New items in Estoque are not sellable by default
-      is_sellable: editingItem ? formData.is_sellable : false,
-      goes_to_kitchen: editingItem ? formData.goes_to_kitchen : false
+      is_available: isAvailable
     };
 
     setIsSaving(true);
@@ -237,6 +234,9 @@ const MenuItemsPage: React.FC = () => {
                 <div key={item.id} className="py-3 flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
+                      {item.is_sellable && (
+                        <Badge className="bg-green-500/80 text-xs">Vendável</Badge>
+                      )}
                       {item.product_code && item.product_code.length > 0 && (
                         <Badge variant="outline" className="font-mono text-xs" title={item.product_code.join(', ')}>
                           {item.product_code[0]}
@@ -450,6 +450,22 @@ const MenuItemsPage: React.FC = () => {
                 </p>
               </div>
             )}
+
+            {/* Sellable toggle */}
+            <div className="flex items-center justify-between py-2 border-t">
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="h-4 w-4 text-green-500" />
+                <div>
+                  <Label htmlFor="is_sellable" className="cursor-pointer">Vendável no Cardápio</Label>
+                  <p className="text-xs text-muted-foreground">Marque para itens vendidos diretamente</p>
+                </div>
+              </div>
+              <Switch
+                id="is_sellable"
+                checked={formData.is_sellable ?? false}
+                onCheckedChange={checked => setFormData(prev => ({ ...prev, is_sellable: checked }))}
+              />
+            </div>
           </div>
 
           <DialogFooter>
