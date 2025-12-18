@@ -4,6 +4,8 @@ import { useMenuItems, categoryLabels, MenuItem } from '@/hooks/useMenuItems';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { useComandas, Comanda } from '@/hooks/useComandas';
 import { useFrequentItems } from '@/hooks/useFrequentItems';
+import { useTablesWithActivity, getTableStatus, TableStatus } from '@/hooks/useTablesWithActivity';
+import { useSettings } from '@/hooks/useSettings';
 import { ComandaDetailsModal } from '@/components/admin/ComandaDetailsModal';
 import { CustomItemModal, CustomIngredient } from '@/components/admin/CustomItemModal';
 import { BaldaoQuantityModal } from '@/components/admin/BaldaoQuantityModal';
@@ -17,8 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame, TrendingUp, Beaker, Beer, History } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
+import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame, TrendingUp, Beaker, Beer, History, PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -52,9 +53,10 @@ const Atendimento: React.FC = () => {
   const { items: menuItems, isLoading: loadingMenu } = useMenuItems();
   const { createOrder } = useRealtimeOrders();
   const { items: frequentItems, isLoading: loadingFrequent } = useFrequentItems(6);
-  const [tables, setTables] = useState<Table[]>([]);
+  const { tables: tablesWithActivity, isLoading: loadingTables } = useTablesWithActivity();
+  const { settings } = useSettings();
+  
   const [balcaoTable, setBalcaoTable] = useState<Table | null>(null);
-  const [loadingTables, setLoadingTables] = useState(true);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [isBalcaoMode, setIsBalcaoMode] = useState(false);
   const [clientName, setClientName] = useState('');
@@ -90,70 +92,98 @@ const Atendimento: React.FC = () => {
     updateDiscount,
   } = useComandas();
 
+  // Filter tables: separate balcão (number 0) from regular tables
+  const tables = useMemo(() => {
+    return tablesWithActivity.filter(t => t.number !== 0);
+  }, [tablesWithActivity]);
+
+  // Get balcão table
+  useEffect(() => {
+    const balcao = tablesWithActivity.find(t => t.number === 0);
+    if (balcao) {
+      setBalcaoTable({ id: balcao.id, number: balcao.number, name: balcao.name });
+    }
+  }, [tablesWithActivity]);
+
   // Filter comandas for current table
   const tableComandas = useMemo(() => {
     if (!selectedTable) return [];
     return allComandas.filter(c => c.table_id === selectedTable.id);
   }, [allComandas, selectedTable]);
 
-  useEffect(() => {
-    fetchTables();
-  }, []);
+  // Get balcão comandas (comandas without physical table)
+  const balcaoComandas = useMemo(() => {
+    if (!balcaoTable) return [];
+    return allComandas.filter(c => c.table_id === balcaoTable.id);
+  }, [allComandas, balcaoTable]);
 
-  // Keep modal synced with comandas data
-  useEffect(() => {
-    if (detailsModalComanda) {
-      const updated = allComandas.find(c => c.session_id === detailsModalComanda.session_id);
-      if (updated && JSON.stringify(updated) !== JSON.stringify(detailsModalComanda)) {
-        setDetailsModalComanda(updated);
-      }
-    }
-  }, [allComandas, detailsModalComanda]);
-
-  const fetchTables = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('tables')
-        .select('id, number, name')
-        .eq('is_active', true)
-        .order('number');
-
-      if (error) throw error;
-      
-      // Separate balcão table (number 0) from regular tables
-      const balcao = data?.find(t => t.number === 0) || null;
-      const regularTables = data?.filter(t => t.number !== 0) || [];
-      
-      setBalcaoTable(balcao);
-      setTables(regularTables);
-    } catch (err) {
-      console.error('Error fetching tables:', err);
-      toast.error('Erro ao carregar mesas');
-    } finally {
-      setLoadingTables(false);
-    }
-  };
-
-  // Handle balcão mode toggle
-  const handleBalcaoModeChange = (enabled: boolean) => {
-    setIsBalcaoMode(enabled);
-    if (enabled && balcaoTable) {
+  // Create new balcão comanda
+  const handleCreateBalcaoComanda = () => {
+    if (balcaoTable) {
       setSelectedTable(balcaoTable);
-      setDeliveryType('balcao');
-      setSelectedComanda(null);
-    } else {
-      setSelectedTable(null);
+      setIsBalcaoMode(true);
       setDeliveryType('balcao');
       setSelectedComanda(null);
       setClientName('');
     }
   };
 
+  // Handle selecting a balcão comanda card
+  const handleSelectBalcaoComanda = (comanda: Comanda) => {
+    if (balcaoTable) {
+      setSelectedTable(balcaoTable);
+      setIsBalcaoMode(true);
+      setDeliveryType('balcao');
+      setSelectedComanda(comanda);
+      setClientName(comanda.client_name);
+    }
+  };
+
   // Handle table selection
-  const handleSelectTable = (table: Table) => {
-    setSelectedTable(table);
-    setSelectedComanda(null);
-    setClientName('');
+  const handleSelectTable = (tableId: string) => {
+    const tableData = tablesWithActivity.find(t => t.id === tableId);
+    if (tableData) {
+      setSelectedTable({ id: tableData.id, number: tableData.number, name: tableData.name });
+      setIsBalcaoMode(false);
+      setSelectedComanda(null);
+      setClientName('');
+    }
+  };
+
+  // Get table status color classes
+  const getTableColorClasses = (tableId: string): string => {
+    const tableData = tablesWithActivity.find(t => t.id === tableId);
+    if (!tableData) return 'bg-muted text-muted-foreground border-border';
+    
+    const comandaCount = getTableComandaCount(tableId);
+    const status = getTableStatus(tableData, settings.table_inactivity_minutes);
+    
+    // Check if any comanda on this table needs attention
+    const tableComandasList = allComandas.filter(c => c.table_id === tableId);
+    const hasAttentionComanda = tableComandasList.some(comanda => {
+      if (comanda.orders.length === 0) return true; // No orders yet
+      const lastOrderTime = Math.max(...comanda.orders.map(o => new Date(o.created_at).getTime()));
+      const minutesSinceOrder = (Date.now() - lastOrderTime) / (1000 * 60);
+      return minutesSinceOrder >= settings.table_inactivity_minutes;
+    });
+    
+    if (status === 'inactive') return 'bg-destructive/20 text-destructive border-destructive/50';
+    if (comandaCount === 0) return 'bg-muted text-muted-foreground border-border'; // Gray - no comandas
+    if (hasAttentionComanda) return 'bg-yellow-100 text-yellow-800 border-yellow-400 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-600'; // Yellow - needs attention
+    return 'bg-green-100 text-green-800 border-green-400 dark:bg-green-900/30 dark:text-green-400 dark:border-green-600'; // Green - active
+  };
+
+  // Check if balcão comanda needs attention
+  const getBalcaoComandaColor = (comanda: Comanda): string => {
+    if (comanda.orders.length === 0) {
+      return 'bg-yellow-100 border-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-600';
+    }
+    const lastOrderTime = Math.max(...comanda.orders.map(o => new Date(o.created_at).getTime()));
+    const minutesSinceOrder = (Date.now() - lastOrderTime) / (1000 * 60);
+    if (minutesSinceOrder >= settings.table_inactivity_minutes) {
+      return 'bg-yellow-100 border-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-600';
+    }
+    return 'bg-green-100 border-green-400 dark:bg-green-900/30 dark:border-green-600';
   };
 
   // Handle selecting an existing comanda
@@ -533,61 +563,103 @@ const Atendimento: React.FC = () => {
             <CardTitle className="text-lg">1. Mesa e Cliente</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Balcão Mode Toggle */}
-            <div className="flex items-center justify-between p-3 border rounded-lg bg-accent/30">
-              <div className="flex items-center gap-2">
-                <Coffee className="h-5 w-5 text-primary" />
-                <div>
-                  <Label htmlFor="balcao-mode" className="font-medium">Sem Mesa (Balcão)</Label>
-                  <p className="text-xs text-muted-foreground">Cliente avulso, sem mesa física</p>
-                </div>
+            {/* Balcão Section - Comandas as cards + New button */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <Coffee className="h-4 w-4 text-primary" />
+                  Balcão (Sem Mesa)
+                </Label>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCreateBalcaoComanda}
+                  disabled={!balcaoTable}
+                  className="flex items-center gap-1"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Nova Comanda
+                </Button>
               </div>
-              <Switch
-                id="balcao-mode"
-                checked={isBalcaoMode}
-                onCheckedChange={handleBalcaoModeChange}
-                disabled={!balcaoTable}
-              />
+              
+              {balcaoComandas.length > 0 && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {balcaoComandas.map(comanda => (
+                    <button
+                      key={comanda.session_id}
+                      onClick={() => handleSelectBalcaoComanda(comanda)}
+                      className={`p-2 rounded-lg border-2 text-left transition-all ${getBalcaoComandaColor(comanda)} ${
+                        selectedComanda?.session_id === comanda.session_id 
+                          ? 'ring-2 ring-primary ring-offset-2' 
+                          : 'hover:scale-105'
+                      }`}
+                    >
+                      <p className="font-medium text-sm truncate">{comanda.client_name}</p>
+                      <p className="text-xs opacity-75">R$ {comanda.total.toFixed(2)}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Table Selection - hidden when balcão mode */}
-            {!isBalcaoMode && (
-              <div className="space-y-2">
-                <Label>Selecione a Mesa</Label>
-                <div className="grid grid-cols-4 gap-2">
-                  {tables.map(table => {
-                    const comandaCount = getTableComandaCount(table.id);
-                    return (
-                      <Button
-                        key={table.id}
-                        variant={selectedTable?.id === table.id ? 'default' : 'outline'}
-                        className="h-auto py-3 flex flex-col relative"
-                        onClick={() => handleSelectTable(table)}
-                      >
-                        {comandaCount > 0 && (
-                          <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
-                            {comandaCount}
-                          </span>
-                        )}
-                        <span className="text-lg font-bold">{table.number}</span>
-                        <span className="text-xs truncate w-full">{table.name}</span>
-                      </Button>
-                    );
-                  })}
-                </div>
-                {tables.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Nenhuma mesa ativa
-                  </p>
-                )}
+            {/* Tables Section with colors */}
+            <div className="space-y-2">
+              <Label>Selecione a Mesa</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {tables.map(table => {
+                  const comandaCount = getTableComandaCount(table.id);
+                  const colorClasses = getTableColorClasses(table.id);
+                  const isSelected = selectedTable?.id === table.id && !isBalcaoMode;
+                  
+                  return (
+                    <button
+                      key={table.id}
+                      onClick={() => handleSelectTable(table.id)}
+                      className={`h-auto py-3 px-2 flex flex-col items-center relative rounded-lg border-2 transition-all ${colorClasses} ${
+                        isSelected 
+                          ? 'ring-2 ring-primary ring-offset-2' 
+                          : 'hover:scale-105'
+                      }`}
+                    >
+                      {comandaCount > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center font-bold">
+                          {comandaCount}
+                        </span>
+                      )}
+                      <span className="text-lg font-bold">{table.number}</span>
+                      <span className="text-xs truncate w-full text-center">{table.name}</span>
+                    </button>
+                  );
+                })}
               </div>
-            )}
+              {tables.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhuma mesa ativa
+                </p>
+              )}
+              
+              {/* Legend */}
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground pt-2">
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded bg-muted border"></span> Livre
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded bg-green-200 border border-green-400 dark:bg-green-900/50"></span> Ativa
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded bg-yellow-200 border border-yellow-400 dark:bg-yellow-900/50"></span> Atenção
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded bg-destructive/30 border border-destructive/50"></span> Desativada
+                </span>
+              </div>
+            </div>
 
-            {/* Comandas Section - shown when table is selected or balcão mode */}
-            {selectedTable && (
+            {/* Comandas Section - shown when table is selected (not balcão) */}
+            {selectedTable && !isBalcaoMode && (
               <div className="space-y-3">
                 <Label className="text-sm font-medium">
-                  Comandas Abertas {isBalcaoMode ? 'no Balcão' : `na Mesa ${selectedTable.number}`}
+                  Comandas Abertas na Mesa {selectedTable.number}
                 </Label>
 
                 {loadingComandas ? (
