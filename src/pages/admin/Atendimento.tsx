@@ -674,7 +674,7 @@ const Atendimento: React.FC = () => {
             <TrendingUp className="h-3 w-3" />
             Itens da Comanda ({selectedComanda.client_name})
           </p>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
             {(() => {
               const itemsMap = new Map<string, typeof selectedComanda.items[0] & { total_qty: number; latest_at: string }>();
               
@@ -758,7 +758,7 @@ const Atendimento: React.FC = () => {
       {/* Quick Access Items */}
       <div className="p-3 bg-accent/20 rounded-lg">
         <p className="text-xs font-medium text-muted-foreground mb-2">⚡ Acesso Rápido</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           {[
             { name: 'Entrada do clube', price: 10, icon: Ticket },
             { name: 'Piscina', price: 20, icon: Waves },
