@@ -224,41 +224,42 @@ export const ComandaHistoryView: React.FC = () => {
                 >
                   <Card>
                     <CollapsibleTrigger asChild>
-                      <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-semibold">{comanda.client_name}</span>
-                              </div>
-                              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                {comanda.table_number === 0 ? (
-                                  <span className="flex items-center gap-1">
-                                    <Store className="h-3 w-3" />
-                                    Balcão
-                                  </span>
-                                ) : (
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="h-3 w-3" />
-                                    Mesa {comanda.table_number}
-                                  </span>
-                                )}
+                      <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3 px-3 sm:px-6">
+                        <div className="flex items-start justify-between gap-2">
+                          {/* Left side - Client info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="font-semibold truncate">{comanda.client_name}</span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-muted-foreground">
+                              {comanda.table_number === 0 ? (
                                 <span className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {formatDate(comanda.created_at)}
+                                  <Store className="h-3 w-3" />
+                                  Balcão
                                 </span>
+                              ) : (
                                 <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {formatTime(comanda.created_at)}
+                                  <MapPin className="h-3 w-3" />
+                                  Mesa {comanda.table_number}
                                 </span>
-                              </div>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {formatDate(comanda.created_at)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatTime(comanda.created_at)}
+                              </span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
+                          
+                          {/* Right side - Price and status */}
+                          <div className="flex items-center gap-2 shrink-0">
                             <div className="text-right">
-                              <div className="font-bold">R$ {comanda.total.toFixed(2)}</div>
-                              <Badge className={paymentStatus.className}>
+                              <div className="font-bold text-sm sm:text-base">R$ {comanda.total.toFixed(2)}</div>
+                              <Badge className={`${paymentStatus.className} text-xs`}>
                                 {paymentStatus.label}
                               </Badge>
                             </div>
@@ -273,20 +274,20 @@ export const ComandaHistoryView: React.FC = () => {
                     </CollapsibleTrigger>
 
                     <CollapsibleContent>
-                      <CardContent className="pt-0 space-y-4">
+                      <CardContent className="pt-0 space-y-4 px-3 sm:px-6">
                         {/* Payment summary */}
-                        <div className="grid grid-cols-3 gap-2 text-sm bg-muted/50 rounded-lg p-3">
-                          <div>
+                        <div className="grid grid-cols-3 gap-1 sm:gap-2 text-xs sm:text-sm bg-muted/50 rounded-lg p-2 sm:p-3">
+                          <div className="text-center sm:text-left">
                             <div className="text-muted-foreground">Total</div>
                             <div className="font-semibold">R$ {comanda.total.toFixed(2)}</div>
                           </div>
-                          <div>
+                          <div className="text-center sm:text-left">
                             <div className="text-muted-foreground">Pago</div>
                             <div className="font-semibold text-green-600">
                               R$ {(comanda.paid_total + comanda.partial_payments_total).toFixed(2)}
                             </div>
                           </div>
-                          <div>
+                          <div className="text-center sm:text-left">
                             <div className="text-muted-foreground">Restante</div>
                             <div className="font-semibold text-orange-600">
                               R$ {comanda.remaining_total.toFixed(2)}
@@ -300,34 +301,35 @@ export const ComandaHistoryView: React.FC = () => {
                           {comanda.orders.map((order, idx) => (
                             <div
                               key={order.id}
-                              className="border rounded-lg p-3 space-y-2"
+                              className="border rounded-lg p-2 sm:p-3 space-y-2"
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 text-sm">
+                              {/* Order header - stacked on mobile */}
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                                   <span className="font-medium">Pedido #{idx + 1}</span>
                                   <span className="text-muted-foreground">
                                     {formatTime(order.created_at)}
                                   </span>
                                   {order.delivery_type === 'mesa' ? (
-                                    <Badge variant="outline" className="text-xs">
-                                      <MapPin className="h-3 w-3 mr-1" />
+                                    <Badge variant="outline" className="text-xs px-1.5 py-0">
+                                      <MapPin className="h-3 w-3 mr-0.5" />
                                       Mesa
                                     </Badge>
                                   ) : (
-                                    <Badge variant="outline" className="text-xs">
-                                      <Store className="h-3 w-3 mr-1" />
+                                    <Badge variant="outline" className="text-xs px-1.5 py-0">
+                                      <Store className="h-3 w-3 mr-0.5" />
                                       Balcão
                                     </Badge>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold">
+                                <div className="flex items-center justify-between sm:justify-end gap-2">
+                                  <span className="font-semibold text-sm">
                                     R$ {order.order_total.toFixed(2)}
                                   </span>
                                   {order.is_paid ? (
-                                    <Badge className="bg-green-600 text-xs">Pago</Badge>
+                                    <Badge className="bg-green-600 text-xs px-1.5 py-0">Pago</Badge>
                                   ) : (
-                                    <Badge variant="destructive" className="text-xs">Pendente</Badge>
+                                    <Badge variant="destructive" className="text-xs px-1.5 py-0">Pendente</Badge>
                                   )}
                                 </div>
                               </div>
@@ -337,19 +339,19 @@ export const ComandaHistoryView: React.FC = () => {
                                 {order.items.map((item, itemIdx) => (
                                   <div
                                     key={itemIdx}
-                                    className="flex justify-between text-sm text-muted-foreground"
+                                    className="flex justify-between text-xs sm:text-sm text-muted-foreground gap-2"
                                   >
-                                    <span>
+                                    <span className="truncate">
                                       {item.quantity}x {item.item_name}
                                     </span>
-                                    <span>R$ {(item.item_price * item.quantity).toFixed(2)}</span>
+                                    <span className="shrink-0">R$ {(item.item_price * item.quantity).toFixed(2)}</span>
                                   </div>
                                 ))}
                               </div>
 
                               {/* Notes */}
                               {order.notes && (
-                                <div className="text-sm bg-muted/50 p-2 rounded">
+                                <div className="text-xs sm:text-sm bg-muted/50 p-2 rounded">
                                   <span className="text-muted-foreground">Obs: </span>
                                   {order.notes}
                                 </div>
@@ -365,17 +367,17 @@ export const ComandaHistoryView: React.FC = () => {
                             {comanda.partial_payments.map((payment) => (
                               <div
                                 key={payment.id}
-                                className="flex justify-between text-sm bg-green-50 dark:bg-green-950 p-2 rounded"
+                                className="flex justify-between items-start gap-2 text-xs sm:text-sm bg-green-50 dark:bg-green-950 p-2 rounded"
                               >
-                                <div>
+                                <div className="flex-1 min-w-0">
                                   <span className="text-muted-foreground">
                                     {formatTime(payment.created_at)}
                                   </span>
                                   {payment.notes && (
-                                    <span className="ml-2">{payment.notes}</span>
+                                    <span className="ml-2 truncate">{payment.notes}</span>
                                   )}
                                 </div>
-                                <span className="font-semibold text-green-600">
+                                <span className="font-semibold text-green-600 shrink-0">
                                   R$ {Number(payment.amount).toFixed(2)}
                                 </span>
                               </div>
