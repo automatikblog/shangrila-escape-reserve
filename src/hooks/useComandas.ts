@@ -392,6 +392,9 @@ export const useComandas = (options?: UseComandaOptions) => {
 
   const updateDiscount = async (sessionId: string, discount: number): Promise<boolean> => {
     try {
+      // Find the comanda to check if remaining will be 0 after discount
+      const comanda = comandas.find(c => c.session_id === sessionId);
+      
       const { error } = await supabase
         .from('client_sessions')
         .update({ discount })
@@ -400,6 +403,20 @@ export const useComandas = (options?: UseComandaOptions) => {
       if (error) {
         console.error('Error updating discount:', error);
         return false;
+      }
+
+      // If discount zeroes out the remaining total, mark as paid
+      if (comanda) {
+        const newRemaining = Math.max(0, comanda.total - comanda.paid_total - comanda.partial_payments_total - discount);
+        if (newRemaining === 0 && !comanda.is_paid) {
+          await supabase
+            .from('client_sessions')
+            .update({ 
+              is_paid: true, 
+              paid_at: new Date().toISOString() 
+            })
+            .eq('id', sessionId);
+        }
       }
 
       await fetchComandas();
