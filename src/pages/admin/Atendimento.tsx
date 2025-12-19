@@ -84,6 +84,7 @@ const Atendimento: React.FC = () => {
   const [comandaToClose, setComandaToClose] = useState<Comanda | null>(null);
   const [detailsModalComanda, setDetailsModalComanda] = useState<Comanda | null>(null);
   const [newComandaDialogOpen, setNewComandaDialogOpen] = useState(false);
+  const [newComandaClientName, setNewComandaClientName] = useState('');
   
   // Customizable item modal
   const [customizableItem, setCustomizableItem] = useState<MenuItem | null>(null);
@@ -154,14 +155,19 @@ const Atendimento: React.FC = () => {
 
   // Handle creating new comanda with table selection
   const handleCreateNewComanda = (tableId: string) => {
+    if (!newComandaClientName.trim()) {
+      toast.error('Digite o nome do cliente');
+      return;
+    }
     const tableData = tablesWithActivity.find(t => t.id === tableId);
     if (tableData) {
       setSelectedTable({ id: tableData.id, number: tableData.number, name: tableData.name });
       setIsBalcaoMode(tableData.number === 0);
       setDeliveryType(tableData.number === 0 ? 'balcao' : 'balcao');
       setSelectedComanda(null);
-      setClientName('');
+      setClientName(newComandaClientName.trim());
       setNewComandaDialogOpen(false);
+      setNewComandaClientName('');
       setCurrentStep('items');
     }
   };
@@ -653,21 +659,11 @@ const Atendimento: React.FC = () => {
         )}
       </div>
 
-      {/* Client Name Input for new comanda */}
-      {!selectedComanda && (
-        <div className="p-4 border rounded-lg bg-accent/30 space-y-3">
-          <Label htmlFor="clientName" className="font-medium">Nome do Cliente</Label>
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="clientName"
-              placeholder="Digite o nome do cliente..."
-              value={clientName}
-              onChange={(e) => handleClientNameChange(e.target.value)}
-              className="pl-10"
-              autoFocus
-            />
-          </div>
+      {/* Client Name Display for new comanda */}
+      {!selectedComanda && clientName && (
+        <div className="p-3 border rounded-lg bg-accent/30 flex items-center gap-2">
+          <User className="h-4 w-4 text-muted-foreground" />
+          <span className="font-medium">{clientName}</span>
         </div>
       )}
 
@@ -1149,20 +1145,40 @@ const Atendimento: React.FC = () => {
       />
 
       {/* New Comanda Dialog */}
-      <Dialog open={newComandaDialogOpen} onOpenChange={setNewComandaDialogOpen}>
+      <Dialog open={newComandaDialogOpen} onOpenChange={(open) => {
+        setNewComandaDialogOpen(open);
+        if (!open) setNewComandaClientName('');
+      }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Nova Comanda</DialogTitle>
             <DialogDescription>
-              Escolha onde será a comanda
+              Informe o cliente e escolha o local
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Client Name Input */}
+            <div className="space-y-2">
+              <Label htmlFor="newComandaClientName" className="font-medium">Nome do Cliente</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="newComandaClientName"
+                  placeholder="Digite o nome do cliente..."
+                  value={newComandaClientName}
+                  onChange={(e) => setNewComandaClientName(e.target.value)}
+                  className="pl-10"
+                  autoFocus
+                />
+              </div>
+            </div>
+
             {balcaoTable && (
               <Button
                 variant="outline"
                 className="w-full h-auto py-4 flex flex-col items-center gap-1"
                 onClick={() => handleCreateNewComanda(balcaoTable.id)}
+                disabled={!newComandaClientName.trim()}
               >
                 <Coffee className="h-6 w-6 text-primary" />
                 <span className="font-semibold">Sem Mesa (Balcão)</span>
@@ -1179,6 +1195,7 @@ const Atendimento: React.FC = () => {
                     variant="outline"
                     className="h-auto py-3 flex flex-col"
                     onClick={() => handleCreateNewComanda(table.id)}
+                    disabled={!newComandaClientName.trim()}
                   >
                     <span className="text-lg font-bold">{table.number}</span>
                     <span className="text-xs truncate w-full text-center">{table.name}</span>
