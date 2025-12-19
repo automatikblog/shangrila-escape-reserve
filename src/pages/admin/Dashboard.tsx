@@ -506,10 +506,10 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
           
-          <div className="flex gap-6 pt-2">
-            <div className="bg-background p-4 rounded-lg border flex-1">
-              <p className="text-sm text-muted-foreground mb-1">Faturamento Total</p>
-              <p className="text-3xl font-bold text-primary">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+            <div className="bg-background p-3 sm:p-4 rounded-lg border col-span-2 sm:col-span-1">
+              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Faturamento Total</p>
+              <p className="text-2xl sm:text-3xl font-bold text-primary">
                 {loadingRevenue ? (
                   <span className="text-muted-foreground">Carregando...</span>
                 ) : periodRevenue !== null ? (
@@ -519,16 +519,16 @@ const AdminDashboard: React.FC = () => {
                 )}
               </p>
             </div>
-            <div className="bg-background p-4 rounded-lg border">
-              <p className="text-sm text-muted-foreground mb-1">Clientes</p>
-              <p className="text-3xl font-bold">
+            <div className="bg-background p-3 sm:p-4 rounded-lg border">
+              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Clientes</p>
+              <p className="text-2xl sm:text-3xl font-bold">
                 {loadingRevenue ? '-' : periodClientCount}
               </p>
             </div>
             {periodClientCount > 0 && periodRevenue !== null && (
-              <div className="bg-background p-4 rounded-lg border">
-                <p className="text-sm text-muted-foreground mb-1">Ticket Médio</p>
-                <p className="text-3xl font-bold">
+              <div className="bg-background p-3 sm:p-4 rounded-lg border">
+                <p className="text-xs sm:text-sm text-muted-foreground mb-1">Ticket Médio</p>
+                <p className="text-2xl sm:text-3xl font-bold">
                   R$ {(periodRevenue / periodClientCount).toFixed(2).replace('.', ',')}
                 </p>
               </div>
@@ -645,20 +645,21 @@ const AdminDashboard: React.FC = () => {
 
       {/* Comandas Section */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-primary" />
-            <CardTitle>Comandas de Hoje</CardTitle>
+        <CardHeader className="space-y-3 pb-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Receipt className="h-5 w-5 text-primary shrink-0" />
+            <CardTitle className="text-base sm:text-lg">Comandas de Hoje</CardTitle>
             {remainingTotal > 0 && (
-              <Badge variant="destructive" className="ml-2">
+              <Badge variant="destructive" className="text-xs">
                 A receber: R$ {remainingTotal.toFixed(2).replace('.', ',')}
               </Badge>
             )}
           </div>
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             <Button
               variant={comandaFilter === 'all' ? 'default' : 'outline'}
               size="sm"
+              className="text-xs h-7 px-2"
               onClick={() => setComandaFilter('all')}
             >
               Todas
@@ -666,6 +667,7 @@ const AdminDashboard: React.FC = () => {
             <Button
               variant={comandaFilter === 'unpaid' ? 'default' : 'outline'}
               size="sm"
+              className="text-xs h-7 px-2"
               onClick={() => setComandaFilter('unpaid')}
             >
               Não Pagas
@@ -673,6 +675,7 @@ const AdminDashboard: React.FC = () => {
             <Button
               variant={comandaFilter === 'paid' ? 'default' : 'outline'}
               size="sm"
+              className="text-xs h-7 px-2"
               onClick={() => setComandaFilter('paid')}
             >
               Pagas
@@ -867,9 +870,9 @@ const AdminDashboard: React.FC = () => {
 
         {/* Smart Tables Status */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Status das Mesas</CardTitle>
-            <div className="flex gap-2 text-xs">
+          <CardHeader className="space-y-2 pb-3">
+            <CardTitle className="text-base sm:text-lg">Status das Mesas</CardTitle>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
               {Object.entries(statusConfig).map(([key, config]) => (
                 <div key={key} className="flex items-center gap-1">
                   <div className={`w-2 h-2 rounded-full ${config.dot}`} />
@@ -884,26 +887,26 @@ const AdminDashboard: React.FC = () => {
                 Nenhuma mesa cadastrada
               </p>
             ) : (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {tables.map((table) => {
                   const status = getTableStatus(table, settings.table_inactivity_minutes);
                   const config = statusConfig[status];
                   return (
                     <div 
                       key={table.id}
-                      className={`p-3 rounded-lg border ${config.bg} ${config.border} relative group`}
+                      className={`p-2 sm:p-3 rounded-lg border ${config.bg} ${config.border} relative group min-w-0`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <p className="font-bold text-lg">{table.number}</p>
+                        <p className="font-bold text-base sm:text-lg">{table.number}</p>
                         {table.session_id && table.client_name ? (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="h-5 w-5 sm:h-6 sm:w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                               >
-                                <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                                <X className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hover:text-destructive" />
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -931,18 +934,18 @@ const AdminDashboard: React.FC = () => {
                       </div>
                       {table.client_name ? (
                         <>
-                          <p className="text-xs font-medium truncate flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {table.client_name}
+                          <p className="text-[10px] sm:text-xs font-medium truncate flex items-center gap-1" title={table.client_name}>
+                            <User className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{table.client_name}</span>
                           </p>
                           {table.minutes_since_order !== null && (
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground">
                               {table.minutes_since_order} min
                             </p>
                           )}
                         </>
                       ) : (
-                        <p className="text-xs text-muted-foreground truncate">{table.name}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate" title={table.name}>{table.name}</p>
                       )}
                     </div>
                   );
