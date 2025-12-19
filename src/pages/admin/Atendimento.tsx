@@ -1200,6 +1200,28 @@ const Atendimento: React.FC = () => {
           <ComandaHistoryView />
         </TabsContent>
       </Tabs>
+
+      {/* Floating Send Order Button */}
+      {cart.length > 0 && (
+        <Button
+          onClick={handleSubmitOrder}
+          disabled={isSubmitting}
+          className="fixed bottom-6 right-6 z-50 h-14 px-6 shadow-xl animate-pulse hover:animate-none bg-primary hover:bg-primary/90 text-primary-foreground rounded-full gap-3"
+          size="lg"
+        >
+          {isSubmitting ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <>
+              <ShoppingCart className="h-5 w-5" />
+              <span className="font-bold">{cartItemsCount}</span>
+              <span className="mx-1">•</span>
+              <span className="font-bold">R$ {cartTotal.toFixed(2)}</span>
+              <Send className="h-5 w-5 ml-1" />
+            </>
+          )}
+        </Button>
+      )}
     </div>
   );
 };
