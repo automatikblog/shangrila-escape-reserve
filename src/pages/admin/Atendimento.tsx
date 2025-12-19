@@ -587,19 +587,19 @@ const Atendimento: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={comanda.unpaid_total === 0 ? 'default' : 'destructive'} className="text-xs">
-                      {comanda.unpaid_total === 0 ? 'Pago' : `R$ ${comanda.remaining_total.toFixed(2)}`}
+                    <Badge variant={comanda.remaining_total === 0 ? 'default' : 'destructive'} className="text-xs">
+                      {comanda.remaining_total === 0 ? 'Pago' : `R$ ${comanda.remaining_total.toFixed(2)}`}
                     </Badge>
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
+                      variant="secondary"
+                      size="sm"
+                      className="h-9 w-9 p-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         setDetailsModalComanda(comanda);
                       }}
                     >
-                      <Eye className="h-4 w-4" />
+                      <Eye className="h-5 w-5" />
                     </Button>
                   </div>
                 </div>
