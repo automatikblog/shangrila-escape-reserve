@@ -454,6 +454,16 @@ export const useComandas = (options?: UseComandaOptions) => {
 
   const deleteItem = async (itemId: string): Promise<boolean> => {
     try {
+      // First, get the order_id for this item
+      const { data: itemData } = await supabase
+        .from('order_items')
+        .select('order_id')
+        .eq('id', itemId)
+        .single();
+
+      const orderId = itemData?.order_id;
+
+      // Delete the item
       const { error } = await supabase
         .from('order_items')
         .delete()
@@ -462,6 +472,22 @@ export const useComandas = (options?: UseComandaOptions) => {
       if (error) {
         console.error('Error deleting item:', error);
         return false;
+      }
+
+      // Check if the order has any remaining items
+      if (orderId) {
+        const { data: remainingItems } = await supabase
+          .from('order_items')
+          .select('id')
+          .eq('order_id', orderId);
+
+        // If no items left, delete the order too
+        if (!remainingItems || remainingItems.length === 0) {
+          await supabase
+            .from('orders')
+            .delete()
+            .eq('id', orderId);
+        }
       }
 
       await fetchComandas();
