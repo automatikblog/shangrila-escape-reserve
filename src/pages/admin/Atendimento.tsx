@@ -108,6 +108,16 @@ const Atendimento: React.FC = () => {
     deleteItem,
   } = useComandas();
 
+  // Sync detailsModalComanda with updated data from allComandas
+  useEffect(() => {
+    if (detailsModalComanda) {
+      const updatedComanda = allComandas.find(c => c.session_id === detailsModalComanda.session_id);
+      if (updatedComanda) {
+        setDetailsModalComanda(updatedComanda);
+      }
+    }
+  }, [allComandas, detailsModalComanda?.session_id]);
+
   // Filter tables: separate balcão (number 0) from regular tables
   const tables = useMemo(() => {
     return tablesWithActivity.filter(t => t.number !== 0);
