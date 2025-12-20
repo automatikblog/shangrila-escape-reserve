@@ -54,6 +54,11 @@ export const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
   // Calculate order total
   const orderTotal = order.items?.reduce((sum, item) => sum + (item.item_price * item.quantity), 0) || 0;
 
+  // Para mesas (number > 0): TODOS os itens vão para cozinha
+  // Para balcão (number === 0): aplica regra goes_to_kitchen
+  const isBalcao = order.table?.number === 0;
+  const kitchenItems = order.items?.filter(item => !isBalcao || item.goes_to_kitchen !== false) || [];
+
   const deliveryLabel = order.delivery_type === 'balcao' ? 'Retirar no balcão' : 'Entregar na mesa';
   const DeliveryIcon = order.delivery_type === 'balcao' ? Store : MapPin;
 
@@ -84,7 +89,7 @@ export const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-2 mb-4">
-          {order.items?.filter(item => item.goes_to_kitchen !== false).map((item) => (
+          {kitchenItems.map((item) => (
             <div key={item.id} className="flex justify-between items-center">
               <span className="font-medium">
                 {item.quantity}x {item.item_name}

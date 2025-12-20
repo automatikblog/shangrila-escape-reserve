@@ -22,8 +22,13 @@ const Kitchen: React.FC = () => {
   }
 
   // Filter out orders that have no kitchen items
+  // Para mesas (number > 0): TODOS os itens vão para cozinha
+  // Para balcão (number === 0): aplica regra goes_to_kitchen
   const ordersWithKitchenItems = orders.filter(order => {
-    const kitchenItems = order.items?.filter(item => item.goes_to_kitchen !== false) || [];
+    const isBalcao = order.table?.number === 0;
+    const kitchenItems = order.items?.filter(item => 
+      !isBalcao || item.goes_to_kitchen !== false
+    ) || [];
     return kitchenItems.length > 0;
   });
 
