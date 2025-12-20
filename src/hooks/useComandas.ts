@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface ComandaItem {
+  id: string;
   item_name: string;
   item_price: number;
   quantity: number;
@@ -135,7 +136,7 @@ export const useComandas = (options?: UseComandaOptions) => {
             for (const order of orders) {
               const { data: orderItems } = await supabase
                 .from('order_items')
-                .select('item_name, item_price, quantity, created_at')
+                .select('id, item_name, item_price, quantity, created_at')
                 .eq('order_id', order.id);
 
               const items = orderItems || [];
@@ -427,6 +428,50 @@ export const useComandas = (options?: UseComandaOptions) => {
     }
   };
 
+  const updateItemQuantity = async (itemId: string, newQuantity: number): Promise<boolean> => {
+    try {
+      if (newQuantity <= 0) {
+        return deleteItem(itemId);
+      }
+      
+      const { error } = await supabase
+        .from('order_items')
+        .update({ quantity: newQuantity })
+        .eq('id', itemId);
+
+      if (error) {
+        console.error('Error updating item quantity:', error);
+        return false;
+      }
+
+      await fetchComandas();
+      return true;
+    } catch (error) {
+      console.error('Error:', error);
+      return false;
+    }
+  };
+
+  const deleteItem = async (itemId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('order_items')
+        .delete()
+        .eq('id', itemId);
+
+      if (error) {
+        console.error('Error deleting item:', error);
+        return false;
+      }
+
+      await fetchComandas();
+      return true;
+    } catch (error) {
+      console.error('Error:', error);
+      return false;
+    }
+  };
+
   const unpaidTotal = comandas.reduce((sum, c) => sum + c.unpaid_total, 0);
   const paidTotal = comandas.reduce((sum, c) => sum + c.paid_total, 0);
   const remainingTotal = comandas.reduce((sum, c) => sum + c.remaining_total, 0);
@@ -442,6 +487,8 @@ export const useComandas = (options?: UseComandaOptions) => {
     markOrderUnpaid,
     addPartialPayment,
     updateDiscount,
+    updateItemQuantity,
+    deleteItem,
     unpaidTotal,
     paidTotal,
     remainingTotal,

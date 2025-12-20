@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Comanda, ComandaOrder } from '@/hooks/useComandas';
-import { Clock, DollarSign, FileText, User, MapPin, Store, Check, X, Plus, Banknote, Pencil, Calculator, Users, Percent, CreditCard } from 'lucide-react';
+import { Clock, DollarSign, FileText, User, MapPin, Store, Check, X, Plus, Banknote, Pencil, Calculator, Users, Percent, CreditCard, Minus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -24,6 +24,8 @@ interface ComandaDetailsModalProps {
   onMarkOrderUnpaid?: (orderId: string) => void;
   onAddPartialPayment?: (sessionId: string, amount: number, paymentMethod: string, notes?: string) => Promise<boolean>;
   onUpdateDiscount?: (sessionId: string, discount: number) => Promise<boolean>;
+  onUpdateItemQuantity?: (itemId: string, newQuantity: number) => Promise<boolean>;
+  onDeleteItem?: (itemId: string) => Promise<boolean>;
 }
 
 const PAYMENT_METHODS = [
@@ -42,6 +44,8 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   onMarkOrderUnpaid,
   onAddPartialPayment,
   onUpdateDiscount,
+  onUpdateItemQuantity,
+  onDeleteItem,
 }) => {
   const [showPartialPaymentForm, setShowPartialPaymentForm] = useState(false);
   const [partialAmount, setPartialAmount] = useState('');
@@ -63,6 +67,10 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   // Discount state
   const [discount, setDiscount] = useState<string>('0');
   const [isSavingDiscount, setIsSavingDiscount] = useState(false);
+  
+  // Edit item state
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [isUpdatingItem, setIsUpdatingItem] = useState(false);
 
   // Initialize states when comanda changes
   useEffect(() => {
@@ -183,6 +191,28 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
     }
   };
 
+  const handleUpdateItemQuantity = async (itemId: string, newQuantity: number) => {
+    setIsUpdatingItem(true);
+    const success = await onUpdateItemQuantity?.(itemId, newQuantity);
+    setIsUpdatingItem(false);
+    if (success) {
+      if (newQuantity <= 0) {
+        toast.success('Item removido');
+      }
+      setEditingItemId(null);
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    setIsUpdatingItem(true);
+    const success = await onDeleteItem?.(itemId);
+    setIsUpdatingItem(false);
+    if (success) {
+      toast.success('Item removido');
+      setEditingItemId(null);
+    }
+  };
+
   // Calculate totals with discount
   const discountValue = parseFloat(discount.replace(',', '.')) || 0;
   const totalAfterDiscount = Math.max(0, comanda.total - discountValue);
@@ -258,12 +288,66 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
                   </div>
                   
                   <div className="space-y-1">
-                    {order.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between text-sm">
-                        <span>{item.quantity}x {item.item_name}</span>
-                        <span className="text-muted-foreground">
-                          R$ {(item.item_price * item.quantity).toFixed(2)}
-                        </span>
+                    {order.items.map((item) => (
+                      <div key={item.id} className="group">
+                        {editingItemId === item.id ? (
+                          <div className="flex items-center gap-2 p-1 bg-muted/50 rounded">
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 w-7 p-0"
+                                onClick={() => handleUpdateItemQuantity(item.id, item.quantity - 1)}
+                                disabled={isUpdatingItem}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 w-7 p-0"
+                                onClick={() => handleUpdateItemQuantity(item.id, item.quantity + 1)}
+                                disabled={isUpdatingItem}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <span className="flex-1 text-sm truncate">{item.item_name}</span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteItem(item.id)}
+                              disabled={isUpdatingItem}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0"
+                              onClick={() => setEditingItemId(null)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div 
+                            className="flex justify-between text-sm py-0.5 px-1 -mx-1 rounded cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => !order.is_paid && onUpdateItemQuantity && setEditingItemId(item.id)}
+                          >
+                            <span className="flex items-center gap-1">
+                              {item.quantity}x {item.item_name}
+                              {!order.is_paid && onUpdateItemQuantity && (
+                                <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                              )}
+                            </span>
+                            <span className="text-muted-foreground">
+                              R$ {(item.item_price * item.quantity).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

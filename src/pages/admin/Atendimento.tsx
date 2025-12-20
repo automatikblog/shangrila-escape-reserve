@@ -104,6 +104,8 @@ const Atendimento: React.FC = () => {
     markOrderUnpaid,
     addPartialPayment,
     updateDiscount,
+    updateItemQuantity,
+    deleteItem,
   } = useComandas();
 
   // Filter tables: separate balcão (number 0) from regular tables
@@ -1127,6 +1129,8 @@ const Atendimento: React.FC = () => {
         }}
         onAddPartialPayment={addPartialPayment}
         onUpdateDiscount={updateDiscount}
+        onUpdateItemQuantity={updateItemQuantity}
+        onDeleteItem={deleteItem}
       />
       
       <CustomItemModal
