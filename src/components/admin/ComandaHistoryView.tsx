@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useHistoricalComandas } from '@/hooks/useHistoricalComandas';
-import { Comanda } from '@/hooks/useComandas';
+import { useHistoricalComandas, HistoricalComanda } from '@/hooks/useHistoricalComandas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,20 +7,34 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Calendar, Search, ChevronDown, ChevronUp, User, MapPin, Clock, DollarSign, Store, Loader2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Calendar, Search, ChevronDown, ChevronUp, User, MapPin, Clock, Store, Loader2, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const ComandaHistoryView: React.FC = () => {
-  const { comandas, isLoading, fetchComandas } = useHistoricalComandas();
+  const { comandas, isLoading, fetchComandas, reactivateComanda } = useHistoricalComandas();
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [clientName, setClientName] = useState('');
   const [expandedComandas, setExpandedComandas] = useState<Set<string>>(new Set());
+  const [reactivateDialog, setReactivateDialog] = useState<{ open: boolean; sessionId: string; clientName: string }>({
+    open: false,
+    sessionId: '',
+    clientName: '',
+  });
 
   // Load today's data on mount
   useEffect(() => {
-    const today = new Date();
     handleQuickFilter('today');
   }, []);
 
@@ -83,7 +96,7 @@ export const ComandaHistoryView: React.FC = () => {
     return format(new Date(dateStr), "HH:mm", { locale: ptBR });
   };
 
-  const getPaymentStatus = (comanda: Comanda) => {
+  const getPaymentStatus = (comanda: HistoricalComanda) => {
     if (comanda.remaining_total === 0 && comanda.total > 0) {
       return { label: 'Paga', variant: 'default' as const, className: 'bg-green-600' };
     }
@@ -93,11 +106,34 @@ export const ComandaHistoryView: React.FC = () => {
     return { label: 'Pendente', variant: 'destructive' as const, className: '' };
   };
 
+  const handleReactivate = async () => {
+    if (reactivateDialog.sessionId) {
+      await reactivateComanda(reactivateDialog.sessionId, reactivateDialog.clientName);
+    }
+    setReactivateDialog({ open: false, sessionId: '', clientName: '' });
+  };
+
   const totalRevenue = comandas.reduce((sum, c) => sum + c.total, 0);
   const totalPaid = comandas.reduce((sum, c) => sum + c.paid_total + c.partial_payments_total, 0);
 
   return (
     <div className="space-y-4">
+      {/* Reactivate confirmation dialog */}
+      <AlertDialog open={reactivateDialog.open} onOpenChange={(open) => !open && setReactivateDialog({ open: false, sessionId: '', clientName: '' })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reabrir comanda?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A comanda de <strong>{reactivateDialog.clientName}</strong> será reativada e voltará para a lista de comandas ativas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReactivate}>Reabrir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Filters */}
       <Card>
         <CardHeader className="pb-3">
@@ -255,7 +291,7 @@ export const ComandaHistoryView: React.FC = () => {
                             </div>
                           </div>
                           
-                          {/* Right side - Price and status */}
+                          {/* Right side - Price, status and reopen button */}
                           <div className="flex items-center gap-2 shrink-0">
                             <div className="text-right">
                               <div className="font-bold text-sm sm:text-base">R$ {comanda.total.toFixed(2)}</div>
@@ -263,6 +299,24 @@ export const ComandaHistoryView: React.FC = () => {
                                 {paymentStatus.label}
                               </Badge>
                             </div>
+                            {!comanda.is_active && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setReactivateDialog({
+                                    open: true,
+                                    sessionId: comanda.session_id,
+                                    clientName: comanda.client_name,
+                                  });
+                                }}
+                              >
+                                <RotateCcw className="h-4 w-4 mr-1" />
+                                <span className="hidden sm:inline">Reabrir</span>
+                              </Button>
+                            )}
                             {isExpanded ? (
                               <ChevronUp className="h-5 w-5 text-muted-foreground" />
                             ) : (
