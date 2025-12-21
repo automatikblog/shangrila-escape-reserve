@@ -88,6 +88,18 @@ export const useComandas = (options?: UseComandaOptions) => {
   const [comandas, setComandas] = useState<Comanda[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
+  const comandasRef = useRef<Comanda[]>([]);
+  
+  // Keep ref in sync with state for use in async callbacks
+  comandasRef.current = comandas;
+  
+  // Safe setState that only updates if mounted
+  const safeSetComandas = useCallback((updater: Comanda[] | ((prev: Comanda[]) => Comanda[])) => {
+    if (isMountedRef.current) {
+      setComandas(updater);
+    }
+  }, []);
 
   // FASE 2: Optimized fetchComandas with batch queries (3-4 queries instead of N+1)
   const fetchComandas = useCallback(async () => {
@@ -123,7 +135,7 @@ export const useComandas = (options?: UseComandaOptions) => {
       }
 
       if (!sessions || sessions.length === 0) {
-        setComandas([]);
+        safeSetComandas([]);
         return;
       }
 
@@ -136,7 +148,7 @@ export const useComandas = (options?: UseComandaOptions) => {
       }
 
       if (filteredSessions.length === 0) {
-        setComandas([]);
+        safeSetComandas([]);
         return;
       }
 
@@ -262,13 +274,15 @@ export const useComandas = (options?: UseComandaOptions) => {
         };
       });
 
-      setComandas(comandasWithTotals);
+      safeSetComandas(comandasWithTotals);
     } catch (error) {
       console.error('Error:', error);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, [options?.tableNumber, options?.activeOnly]);
+  }, [options?.tableNumber, options?.activeOnly, safeSetComandas]);
 
   // FASE 3: Debounced fetch for realtime updates
   const debouncedFetch = useCallback(() => {
@@ -309,6 +323,7 @@ export const useComandas = (options?: UseComandaOptions) => {
       .subscribe();
 
     return () => {
+      isMountedRef.current = false;
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
@@ -318,9 +333,9 @@ export const useComandas = (options?: UseComandaOptions) => {
 
   // FASE 1: Optimistic update functions
 
-  const markAsPaid = async (sessionId: string): Promise<boolean> => {
+  const markAsPaid = useCallback(async (sessionId: string): Promise<boolean> => {
     // Optimistic update
-    setComandas(prev => prev.map(c => 
+    safeSetComandas(prev => prev.map(c => 
       c.session_id === sessionId 
         ? { ...c, is_paid: true, paid_at: new Date().toISOString() }
         : c
@@ -339,10 +354,10 @@ export const useComandas = (options?: UseComandaOptions) => {
       return false;
     }
     return true;
-  };
+  }, [safeSetComandas, fetchComandas]);
 
-  const markAsUnpaid = async (sessionId: string): Promise<boolean> => {
-    setComandas(prev => prev.map(c => 
+  const markAsUnpaid = useCallback(async (sessionId: string): Promise<boolean> => {
+    safeSetComandas(prev => prev.map(c => 
       c.session_id === sessionId 
         ? { ...c, is_paid: false, paid_at: null }
         : c
@@ -360,11 +375,11 @@ export const useComandas = (options?: UseComandaOptions) => {
       return false;
     }
     return true;
-  };
+  }, [safeSetComandas, fetchComandas]);
 
-  const closeComanda = async (sessionId: string): Promise<boolean> => {
+  const closeComanda = useCallback(async (sessionId: string): Promise<boolean> => {
     // Optimistic: remove from list
-    setComandas(prev => prev.filter(c => c.session_id !== sessionId));
+    safeSetComandas(prev => prev.filter(c => c.session_id !== sessionId));
 
     const { error } = await supabase
       .from('client_sessions')
@@ -378,13 +393,13 @@ export const useComandas = (options?: UseComandaOptions) => {
       return false;
     }
     return true;
-  };
+  }, [safeSetComandas, fetchComandas]);
 
-  const markOrderPaid = async (orderId: string, paymentMethod?: string): Promise<boolean> => {
+  const markOrderPaid = useCallback(async (orderId: string, paymentMethod?: string): Promise<boolean> => {
     const now = new Date().toISOString();
     
     // Optimistic update
-    setComandas(prev => prev.map(comanda => {
+    safeSetComandas(prev => prev.map(comanda => {
       const hasOrder = comanda.orders.some(o => o.id === orderId);
       if (!hasOrder) return comanda;
 
@@ -410,11 +425,11 @@ export const useComandas = (options?: UseComandaOptions) => {
       return false;
     }
     return true;
-  };
+  }, [safeSetComandas, fetchComandas]);
 
-  const markOrderUnpaid = async (orderId: string): Promise<boolean> => {
+  const markOrderUnpaid = useCallback(async (orderId: string): Promise<boolean> => {
     // Optimistic update
-    setComandas(prev => prev.map(comanda => {
+    safeSetComandas(prev => prev.map(comanda => {
       const hasOrder = comanda.orders.some(o => o.id === orderId);
       if (!hasOrder) return comanda;
 
@@ -439,9 +454,9 @@ export const useComandas = (options?: UseComandaOptions) => {
       return false;
     }
     return true;
-  };
+  }, [safeSetComandas, fetchComandas]);
 
-  const addPartialPayment = async (
+  const addPartialPayment = useCallback(async (
     sessionId: string,
     amount: number,
     paymentMethod: string,
@@ -457,7 +472,7 @@ export const useComandas = (options?: UseComandaOptions) => {
     };
 
     // Optimistic update
-    setComandas(prev => prev.map(comanda => {
+    safeSetComandas(prev => prev.map(comanda => {
       if (comanda.session_id !== sessionId) return comanda;
       
       const updatedPayments = [...comanda.partial_payments, newPayment];
@@ -483,11 +498,11 @@ export const useComandas = (options?: UseComandaOptions) => {
     // Fetch to get real ID
     debouncedFetch();
     return true;
-  };
+  }, [safeSetComandas, fetchComandas, debouncedFetch]);
 
-  const updateDiscount = async (sessionId: string, discount: number): Promise<boolean> => {
+  const updateDiscount = useCallback(async (sessionId: string, discount: number): Promise<boolean> => {
     // Optimistic update
-    setComandas(prev => prev.map(comanda => {
+    safeSetComandas(prev => prev.map(comanda => {
       if (comanda.session_id !== sessionId) return comanda;
       return recalculateComandaTotals({ ...comanda, discount });
     }));
@@ -504,8 +519,8 @@ export const useComandas = (options?: UseComandaOptions) => {
       return false;
     }
 
-    // Check if we should mark as paid
-    const comanda = comandas.find(c => c.session_id === sessionId);
+    // Check if we should mark as paid using ref to avoid stale closure
+    const comanda = comandasRef.current.find(c => c.session_id === sessionId);
     if (comanda) {
       const newRemaining = Math.max(0, comanda.total - comanda.paid_total - comanda.partial_payments_total - discount);
       if (newRemaining === 0 && !comanda.is_paid) {
@@ -517,55 +532,14 @@ export const useComandas = (options?: UseComandaOptions) => {
     }
 
     return true;
-  };
+  }, [safeSetComandas, fetchComandas]);
 
-  const updateItemQuantity = async (itemId: string, newQuantity: number): Promise<boolean> => {
-    if (newQuantity <= 0) {
-      return deleteItem(itemId);
-    }
-
-    // Optimistic update
-    setComandas(prev => prev.map(comanda => {
-      let found = false;
-      const updatedOrders = comanda.orders.map(order => {
-        const updatedItems = order.items.map(item => {
-          if (item.id === itemId) {
-            found = true;
-            return { ...item, quantity: newQuantity };
-          }
-          return item;
-        });
-        if (found) {
-          const orderTotal = updatedItems.reduce((sum, item) => sum + (item.item_price * item.quantity), 0);
-          return { ...order, items: updatedItems, order_total: orderTotal };
-        }
-        return order;
-      });
-
-      if (!found) return comanda;
-      return recalculateComandaTotals({ ...comanda, orders: updatedOrders });
-    }));
-
-    const { error } = await supabase
-      .from('order_items')
-      .update({ quantity: newQuantity })
-      .eq('id', itemId);
-
-    if (error) {
-      console.error('Error updating item quantity:', error);
-      toast.error('Erro ao salvar. Recarregando...');
-      fetchComandas();
-      return false;
-    }
-    return true;
-  };
-
-  const deleteItem = async (itemId: string): Promise<boolean> => {
-    // Find the item and order info before optimistic update
+  const deleteItem = useCallback(async (itemId: string): Promise<boolean> => {
+    // Find the item and order info before optimistic update using ref
     let targetOrderId: string | null = null;
     let orderItemCount = 0;
 
-    for (const comanda of comandas) {
+    for (const comanda of comandasRef.current) {
       for (const order of comanda.orders) {
         const item = order.items.find(i => i.id === itemId);
         if (item) {
@@ -578,13 +552,12 @@ export const useComandas = (options?: UseComandaOptions) => {
     }
 
     // Optimistic update
-    setComandas(prev => prev.map(comanda => {
+    safeSetComandas(prev => prev.map(comanda => {
       let modified = false;
       let updatedOrders = comanda.orders.map(order => {
         const filteredItems = order.items.filter(item => item.id !== itemId);
         if (filteredItems.length !== order.items.length) {
           modified = true;
-          // If order becomes empty, it will be filtered out below
           const orderTotal = filteredItems.reduce((sum, item) => sum + (item.item_price * item.quantity), 0);
           return { ...order, items: filteredItems, order_total: orderTotal };
         }
@@ -622,11 +595,52 @@ export const useComandas = (options?: UseComandaOptions) => {
     }
 
     return true;
-  };
+  }, [safeSetComandas, fetchComandas]);
 
-  const unpaidTotal = comandas.reduce((sum, c) => sum + c.unpaid_total, 0);
-  const paidTotal = comandas.reduce((sum, c) => sum + c.paid_total, 0);
-  const remainingTotal = comandas.reduce((sum, c) => sum + c.remaining_total, 0);
+  const updateItemQuantity = useCallback(async (itemId: string, newQuantity: number): Promise<boolean> => {
+    if (newQuantity <= 0) {
+      return deleteItem(itemId);
+    }
+
+    // Optimistic update
+    safeSetComandas(prev => prev.map(comanda => {
+      let found = false;
+      const updatedOrders = comanda.orders.map(order => {
+        const updatedItems = order.items.map(item => {
+          if (item.id === itemId) {
+            found = true;
+            return { ...item, quantity: newQuantity };
+          }
+          return item;
+        });
+        if (found) {
+          const orderTotal = updatedItems.reduce((sum, item) => sum + (item.item_price * item.quantity), 0);
+          return { ...order, items: updatedItems, order_total: orderTotal };
+        }
+        return order;
+      });
+
+      if (!found) return comanda;
+      return recalculateComandaTotals({ ...comanda, orders: updatedOrders });
+    }));
+
+    const { error } = await supabase
+      .from('order_items')
+      .update({ quantity: newQuantity })
+      .eq('id', itemId);
+
+    if (error) {
+      console.error('Error updating item quantity:', error);
+      toast.error('Erro ao salvar. Recarregando...');
+      fetchComandas();
+      return false;
+    }
+    return true;
+  }, [safeSetComandas, fetchComandas, deleteItem]);
+
+  const unpaidTotal = useMemo(() => comandas.reduce((sum, c) => sum + c.unpaid_total, 0), [comandas]);
+  const paidTotal = useMemo(() => comandas.reduce((sum, c) => sum + c.paid_total, 0), [comandas]);
+  const remainingTotal = useMemo(() => comandas.reduce((sum, c) => sum + c.remaining_total, 0), [comandas]);
 
   return {
     comandas,
