@@ -114,7 +114,9 @@ export const ComandaHistoryView: React.FC = () => {
   };
 
   const totalRevenue = comandas.reduce((sum, c) => sum + c.total, 0);
-  const totalPaid = comandas.reduce((sum, c) => sum + c.paid_total + c.partial_payments_total, 0);
+  const totalReceived = comandas.reduce((sum, c) => sum + c.partial_payments_total, 0);
+  const totalDiscount = comandas.reduce((sum, c) => sum + (c.discount || 0), 0);
+  const totalPending = comandas.reduce((sum, c) => sum + c.remaining_total, 0);
 
   return (
     <div className="space-y-4">
@@ -209,7 +211,7 @@ export const ComandaHistoryView: React.FC = () => {
       </Card>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card>
           <CardContent className="pt-4">
             <div className="text-2xl font-bold">{comandas.length}</div>
@@ -227,9 +229,17 @@ export const ComandaHistoryView: React.FC = () => {
         <Card>
           <CardContent className="pt-4">
             <div className="text-2xl font-bold text-blue-600">
-              R$ {totalPaid.toFixed(2)}
+              R$ {totalReceived.toFixed(2)}
             </div>
             <div className="text-sm text-muted-foreground">Total Recebido</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="text-2xl font-bold text-orange-600">
+              R$ {totalPending.toFixed(2)}
+            </div>
+            <div className="text-sm text-muted-foreground">Total Pendente</div>
           </CardContent>
         </Card>
       </div>
