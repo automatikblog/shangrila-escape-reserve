@@ -135,7 +135,7 @@ export const useHistoricalComandas = () => {
           }
 
           const sessionDiscount = Number(session.discount) || 0;
-          const remainingTotal = Math.max(0, total - paidTotal - partialPaymentsTotal - sessionDiscount);
+          const remainingTotal = Math.max(0, total - partialPaymentsTotal - sessionDiscount);
 
           return {
             session_id: session.id,
