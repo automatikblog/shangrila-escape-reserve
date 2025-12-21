@@ -114,7 +114,8 @@ export const ComandaHistoryView: React.FC = () => {
   };
 
   const totalRevenue = comandas.reduce((sum, c) => sum + c.total, 0);
-  const totalReceived = comandas.reduce((sum, c) => sum + c.partial_payments_total, 0);
+  // Use the higher value between paid orders and partial payments for each comanda
+  const totalReceived = comandas.reduce((sum, c) => sum + Math.max(c.paid_total, c.partial_payments_total), 0);
   const totalDiscount = comandas.reduce((sum, c) => sum + (c.discount || 0), 0);
   const totalPending = comandas.reduce((sum, c) => sum + c.remaining_total, 0);
 

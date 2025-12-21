@@ -135,7 +135,9 @@ export const useHistoricalComandas = () => {
           }
 
           const sessionDiscount = Number(session.discount) || 0;
-          const remainingTotal = Math.max(0, total - partialPaymentsTotal - sessionDiscount);
+          // Use the higher value between paid orders and partial payments to handle both old and new payment methods
+          const actualPaid = Math.max(paidTotal, partialPaymentsTotal);
+          const remainingTotal = Math.max(0, total - actualPaid - sessionDiscount);
 
           return {
             session_id: session.id,
