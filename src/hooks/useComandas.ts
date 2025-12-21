@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export interface ComandaItem {
   id: string;
@@ -54,13 +55,44 @@ interface UseComandaOptions {
   activeOnly?: boolean;
 }
 
+// Helper to recalculate comanda totals
+const recalculateComandaTotals = (comanda: Comanda): Comanda => {
+  let total = 0;
+  let paidTotal = 0;
+  let unpaidTotal = 0;
+  
+  for (const order of comanda.orders) {
+    const orderTotal = order.items.reduce((sum, item) => sum + (item.item_price * item.quantity), 0);
+    total += orderTotal;
+    if (order.is_paid) {
+      paidTotal += orderTotal;
+    } else {
+      unpaidTotal += orderTotal;
+    }
+  }
+  
+  const partialPaymentsTotal = comanda.partial_payments.reduce((sum, pp) => sum + Number(pp.amount), 0);
+  const remainingTotal = Math.max(0, total - paidTotal - partialPaymentsTotal - comanda.discount);
+  
+  return {
+    ...comanda,
+    total,
+    paid_total: paidTotal,
+    unpaid_total: unpaidTotal,
+    partial_payments_total: partialPaymentsTotal,
+    remaining_total: remainingTotal,
+  };
+};
+
 export const useComandas = (options?: UseComandaOptions) => {
   const [comandas, setComandas] = useState<Comanda[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // FASE 2: Optimized fetchComandas with batch queries (3-4 queries instead of N+1)
   const fetchComandas = useCallback(async () => {
     try {
-      // Build query - NO date filter, comandas only disappear when closed (is_active = false)
+      // Query 1: Get all sessions with tables
       let query = supabase
         .from('client_sessions')
         .select(`
@@ -79,7 +111,6 @@ export const useComandas = (options?: UseComandaOptions) => {
         `)
         .order('created_at', { ascending: false });
 
-      // Filter by active only if requested
       if (options?.activeOnly !== false) {
         query = query.eq('is_active', true);
       }
@@ -104,94 +135,132 @@ export const useComandas = (options?: UseComandaOptions) => {
         );
       }
 
-      // Fetch orders and items for each session
-      const comandasWithTotals: Comanda[] = await Promise.all(
-        filteredSessions.map(async (session: any) => {
-          const { data: orders } = await supabase
-            .from('orders')
-            .select('id, notes, delivery_type, created_at, is_paid, paid_at, payment_method')
-            .eq('client_session_id', session.id)
-            .order('created_at', { ascending: true });
+      if (filteredSessions.length === 0) {
+        setComandas([]);
+        return;
+      }
 
-          // Fetch partial payments for this session
-          const { data: partialPaymentsData } = await supabase
-            .from('partial_payments')
-            .select('id, amount, notes, created_at, payment_method')
-            .eq('client_session_id', session.id)
-            .order('created_at', { ascending: true });
+      const sessionIds = filteredSessions.map((s: any) => s.id);
 
-          const partialPayments: PartialPayment[] = partialPaymentsData || [];
-          const partialPaymentsTotal = partialPayments.reduce(
-            (sum, pp) => sum + Number(pp.amount),
-            0
-          );
+      // Query 2: Get ALL orders for all sessions at once
+      const { data: allOrders } = await supabase
+        .from('orders')
+        .select('id, client_session_id, notes, delivery_type, created_at, is_paid, paid_at, payment_method')
+        .in('client_session_id', sessionIds)
+        .order('created_at', { ascending: true });
 
-          let total = 0;
-          let paidTotal = 0;
-          let unpaidTotal = 0;
-          let allItems: ComandaItem[] = [];
-          let ordersWithItems: ComandaOrder[] = [];
+      // Query 3: Get ALL order items for all orders at once
+      const orderIds = (allOrders || []).map((o: any) => o.id);
+      const { data: allItems } = orderIds.length > 0 
+        ? await supabase
+            .from('order_items')
+            .select('id, order_id, item_name, item_price, quantity, created_at')
+            .in('order_id', orderIds)
+        : { data: [] };
 
-          if (orders && orders.length > 0) {
-            for (const order of orders) {
-              const { data: orderItems } = await supabase
-                .from('order_items')
-                .select('id, item_name, item_price, quantity, created_at')
-                .eq('order_id', order.id);
+      // Query 4: Get ALL partial payments for all sessions at once
+      const { data: allPartialPayments } = await supabase
+        .from('partial_payments')
+        .select('id, client_session_id, amount, notes, created_at, payment_method')
+        .in('client_session_id', sessionIds)
+        .order('created_at', { ascending: true });
 
-              const items = orderItems || [];
-              const orderTotal = items.reduce(
-                (sum, item) => sum + (item.item_price * item.quantity),
-                0
-              );
-              total += orderTotal;
-              
-              if (order.is_paid) {
-                paidTotal += orderTotal;
-              } else {
-                unpaidTotal += orderTotal;
-              }
-              
-              allItems = [...allItems, ...items];
+      // Group data in memory (MUCH faster than N+1 queries)
+      const ordersBySession = new Map<string, any[]>();
+      const itemsByOrder = new Map<string, ComandaItem[]>();
+      const paymentsBySession = new Map<string, PartialPayment[]>();
 
-              ordersWithItems.push({
-                id: order.id,
-                notes: order.notes,
-                delivery_type: order.delivery_type,
-                created_at: order.created_at,
-                is_paid: order.is_paid,
-                paid_at: order.paid_at,
-                payment_method: order.payment_method,
-                items,
-                order_total: orderTotal,
-              });
-            }
+      for (const order of (allOrders || [])) {
+        const existing = ordersBySession.get(order.client_session_id) || [];
+        existing.push(order);
+        ordersBySession.set(order.client_session_id, existing);
+      }
+
+      for (const item of (allItems || [])) {
+        const existing = itemsByOrder.get(item.order_id) || [];
+        existing.push({
+          id: item.id,
+          item_name: item.item_name,
+          item_price: item.item_price,
+          quantity: item.quantity,
+          created_at: item.created_at,
+        });
+        itemsByOrder.set(item.order_id, existing);
+      }
+
+      for (const payment of (allPartialPayments || [])) {
+        const existing = paymentsBySession.get(payment.client_session_id) || [];
+        existing.push({
+          id: payment.id,
+          amount: payment.amount,
+          notes: payment.notes,
+          payment_method: payment.payment_method,
+          created_at: payment.created_at,
+        });
+        paymentsBySession.set(payment.client_session_id, existing);
+      }
+
+      // Build comandas from grouped data
+      const comandasWithTotals: Comanda[] = filteredSessions.map((session: any) => {
+        const sessionOrders = ordersBySession.get(session.id) || [];
+        const partialPayments = paymentsBySession.get(session.id) || [];
+        const partialPaymentsTotal = partialPayments.reduce((sum, pp) => sum + Number(pp.amount), 0);
+
+        let total = 0;
+        let paidTotal = 0;
+        let unpaidTotal = 0;
+        let allSessionItems: ComandaItem[] = [];
+        const ordersWithItems: ComandaOrder[] = [];
+
+        for (const order of sessionOrders) {
+          const items = itemsByOrder.get(order.id) || [];
+          const orderTotal = items.reduce((sum, item) => sum + (item.item_price * item.quantity), 0);
+          total += orderTotal;
+
+          if (order.is_paid) {
+            paidTotal += orderTotal;
+          } else {
+            unpaidTotal += orderTotal;
           }
 
-          const sessionDiscount = Number(session.discount) || 0;
-          const remainingTotal = Math.max(0, total - paidTotal - partialPaymentsTotal - sessionDiscount);
+          allSessionItems = [...allSessionItems, ...items];
 
-          return {
-            session_id: session.id,
-            client_name: session.client_name,
-            table_id: session.table_id,
-            table_number: session.tables.number,
-            table_name: session.tables.name,
-            is_paid: session.is_paid,
-            paid_at: session.paid_at,
-            created_at: session.created_at,
-            discount: sessionDiscount,
-            total,
-            paid_total: paidTotal,
-            unpaid_total: unpaidTotal,
-            partial_payments_total: partialPaymentsTotal,
-            remaining_total: remainingTotal,
-            items: allItems,
-            orders: ordersWithItems,
-            partial_payments: partialPayments,
-          };
-        })
-      );
+          ordersWithItems.push({
+            id: order.id,
+            notes: order.notes,
+            delivery_type: order.delivery_type,
+            created_at: order.created_at,
+            is_paid: order.is_paid,
+            paid_at: order.paid_at,
+            payment_method: order.payment_method,
+            items,
+            order_total: orderTotal,
+          });
+        }
+
+        const sessionDiscount = Number(session.discount) || 0;
+        const remainingTotal = Math.max(0, total - paidTotal - partialPaymentsTotal - sessionDiscount);
+
+        return {
+          session_id: session.id,
+          client_name: session.client_name,
+          table_id: session.table_id,
+          table_number: session.tables.number,
+          table_name: session.tables.name,
+          is_paid: session.is_paid,
+          paid_at: session.paid_at,
+          created_at: session.created_at,
+          discount: sessionDiscount,
+          total,
+          paid_total: paidTotal,
+          unpaid_total: unpaidTotal,
+          partial_payments_total: partialPaymentsTotal,
+          remaining_total: remainingTotal,
+          items: allSessionItems,
+          orders: ordersWithItems,
+          partial_payments: partialPayments,
+        };
+      });
 
       setComandas(comandasWithTotals);
     } catch (error) {
@@ -201,165 +270,175 @@ export const useComandas = (options?: UseComandaOptions) => {
     }
   }, [options?.tableNumber, options?.activeOnly]);
 
+  // FASE 3: Debounced fetch for realtime updates
+  const debouncedFetch = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      fetchComandas();
+    }, 500);
+  }, [fetchComandas]);
+
   useEffect(() => {
     fetchComandas();
     
-    // Real-time subscription for instant updates - using unique channel name
     const channelName = `comandas-realtime-${Date.now()}`;
     const channel = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'client_sessions' },
-        (payload) => {
-          console.log('Realtime: client_sessions changed', payload);
-          fetchComandas();
-        }
+        () => debouncedFetch()
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
-        (payload) => {
-          console.log('Realtime: orders changed', payload);
-          fetchComandas();
-        }
+        () => debouncedFetch()
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'order_items' },
-        (payload) => {
-          console.log('Realtime: order_items changed', payload);
-          fetchComandas();
-        }
+        () => debouncedFetch()
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'partial_payments' },
-        (payload) => {
-          console.log('Realtime: partial_payments changed', payload);
-          fetchComandas();
-        }
+        () => debouncedFetch()
       )
-      .subscribe((status) => {
-        console.log('Comandas realtime subscription status:', status);
-      });
+      .subscribe();
 
     return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
       supabase.removeChannel(channel);
     };
-  }, [fetchComandas]);
+  }, [fetchComandas, debouncedFetch]);
+
+  // FASE 1: Optimistic update functions
 
   const markAsPaid = async (sessionId: string): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('client_sessions')
-        .update({ 
-          is_paid: true, 
-          paid_at: new Date().toISOString() 
-        })
-        .eq('id', sessionId);
+    // Optimistic update
+    setComandas(prev => prev.map(c => 
+      c.session_id === sessionId 
+        ? { ...c, is_paid: true, paid_at: new Date().toISOString() }
+        : c
+    ));
 
-      if (error) {
-        console.error('Error marking as paid:', error);
-        return false;
-      }
+    // Background sync
+    const { error } = await supabase
+      .from('client_sessions')
+      .update({ is_paid: true, paid_at: new Date().toISOString() })
+      .eq('id', sessionId);
 
-      await fetchComandas();
-      return true;
-    } catch (error) {
-      console.error('Error:', error);
+    if (error) {
+      console.error('Error marking as paid:', error);
+      toast.error('Erro ao salvar. Recarregando...');
+      fetchComandas();
       return false;
     }
+    return true;
   };
 
   const markAsUnpaid = async (sessionId: string): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('client_sessions')
-        .update({ 
-          is_paid: false, 
-          paid_at: null 
-        })
-        .eq('id', sessionId);
+    setComandas(prev => prev.map(c => 
+      c.session_id === sessionId 
+        ? { ...c, is_paid: false, paid_at: null }
+        : c
+    ));
 
-      if (error) {
-        console.error('Error marking as unpaid:', error);
-        return false;
-      }
+    const { error } = await supabase
+      .from('client_sessions')
+      .update({ is_paid: false, paid_at: null })
+      .eq('id', sessionId);
 
-      await fetchComandas();
-      return true;
-    } catch (error) {
-      console.error('Error:', error);
+    if (error) {
+      console.error('Error marking as unpaid:', error);
+      toast.error('Erro ao salvar. Recarregando...');
+      fetchComandas();
       return false;
     }
+    return true;
   };
 
   const closeComanda = async (sessionId: string): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('client_sessions')
-        .update({ is_active: false })
-        .eq('id', sessionId);
+    // Optimistic: remove from list
+    setComandas(prev => prev.filter(c => c.session_id !== sessionId));
 
-      if (error) {
-        console.error('Error closing comanda:', error);
-        return false;
-      }
+    const { error } = await supabase
+      .from('client_sessions')
+      .update({ is_active: false })
+      .eq('id', sessionId);
 
-      await fetchComandas();
-      return true;
-    } catch (error) {
-      console.error('Error:', error);
+    if (error) {
+      console.error('Error closing comanda:', error);
+      toast.error('Erro ao fechar. Recarregando...');
+      fetchComandas();
       return false;
     }
+    return true;
   };
 
   const markOrderPaid = async (orderId: string, paymentMethod?: string): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          is_paid: true, 
-          paid_at: new Date().toISOString(),
-          payment_method: paymentMethod || null,
-        })
-        .eq('id', orderId);
+    const now = new Date().toISOString();
+    
+    // Optimistic update
+    setComandas(prev => prev.map(comanda => {
+      const hasOrder = comanda.orders.some(o => o.id === orderId);
+      if (!hasOrder) return comanda;
 
-      if (error) {
-        console.error('Error marking order as paid:', error);
-        return false;
-      }
+      const updatedOrders = comanda.orders.map(order => 
+        order.id === orderId 
+          ? { ...order, is_paid: true, paid_at: now, payment_method: paymentMethod || null }
+          : order
+      );
 
-      await fetchComandas();
-      return true;
-    } catch (error) {
-      console.error('Error:', error);
+      return recalculateComandaTotals({ ...comanda, orders: updatedOrders });
+    }));
+
+    // Background sync
+    const { error } = await supabase
+      .from('orders')
+      .update({ is_paid: true, paid_at: now, payment_method: paymentMethod || null })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('Error marking order as paid:', error);
+      toast.error('Erro ao salvar. Recarregando...');
+      fetchComandas();
       return false;
     }
+    return true;
   };
 
   const markOrderUnpaid = async (orderId: string): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          is_paid: false, 
-          paid_at: null 
-        })
-        .eq('id', orderId);
+    // Optimistic update
+    setComandas(prev => prev.map(comanda => {
+      const hasOrder = comanda.orders.some(o => o.id === orderId);
+      if (!hasOrder) return comanda;
 
-      if (error) {
-        console.error('Error marking order as unpaid:', error);
-        return false;
-      }
+      const updatedOrders = comanda.orders.map(order => 
+        order.id === orderId 
+          ? { ...order, is_paid: false, paid_at: null }
+          : order
+      );
 
-      await fetchComandas();
-      return true;
-    } catch (error) {
-      console.error('Error:', error);
+      return recalculateComandaTotals({ ...comanda, orders: updatedOrders });
+    }));
+
+    const { error } = await supabase
+      .from('orders')
+      .update({ is_paid: false, paid_at: null })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('Error marking order as unpaid:', error);
+      toast.error('Erro ao salvar. Recarregando...');
+      fetchComandas();
       return false;
     }
+    return true;
   };
 
   const addPartialPayment = async (
@@ -368,134 +447,181 @@ export const useComandas = (options?: UseComandaOptions) => {
     paymentMethod: string,
     notes?: string
   ): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('partial_payments')
-        .insert({
-          client_session_id: sessionId,
-          amount,
-          notes: notes || null,
-          payment_method: paymentMethod,
-        });
+    const tempId = `temp-${Date.now()}`;
+    const newPayment: PartialPayment = {
+      id: tempId,
+      amount,
+      notes: notes || null,
+      payment_method: paymentMethod,
+      created_at: new Date().toISOString(),
+    };
 
-      if (error) {
-        console.error('Error adding partial payment:', error);
-        return false;
-      }
+    // Optimistic update
+    setComandas(prev => prev.map(comanda => {
+      if (comanda.session_id !== sessionId) return comanda;
+      
+      const updatedPayments = [...comanda.partial_payments, newPayment];
+      return recalculateComandaTotals({ ...comanda, partial_payments: updatedPayments });
+    }));
 
-      await fetchComandas();
-      return true;
-    } catch (error) {
-      console.error('Error:', error);
+    const { error } = await supabase
+      .from('partial_payments')
+      .insert({
+        client_session_id: sessionId,
+        amount,
+        notes: notes || null,
+        payment_method: paymentMethod,
+      });
+
+    if (error) {
+      console.error('Error adding partial payment:', error);
+      toast.error('Erro ao salvar. Recarregando...');
+      fetchComandas();
       return false;
     }
+    
+    // Fetch to get real ID
+    debouncedFetch();
+    return true;
   };
 
   const updateDiscount = async (sessionId: string, discount: number): Promise<boolean> => {
-    try {
-      // Find the comanda to check if remaining will be 0 after discount
-      const comanda = comandas.find(c => c.session_id === sessionId);
-      
-      const { error } = await supabase
-        .from('client_sessions')
-        .update({ discount })
-        .eq('id', sessionId);
+    // Optimistic update
+    setComandas(prev => prev.map(comanda => {
+      if (comanda.session_id !== sessionId) return comanda;
+      return recalculateComandaTotals({ ...comanda, discount });
+    }));
 
-      if (error) {
-        console.error('Error updating discount:', error);
-        return false;
-      }
+    const { error } = await supabase
+      .from('client_sessions')
+      .update({ discount })
+      .eq('id', sessionId);
 
-      // If discount zeroes out the remaining total, mark as paid
-      if (comanda) {
-        const newRemaining = Math.max(0, comanda.total - comanda.paid_total - comanda.partial_payments_total - discount);
-        if (newRemaining === 0 && !comanda.is_paid) {
-          await supabase
-            .from('client_sessions')
-            .update({ 
-              is_paid: true, 
-              paid_at: new Date().toISOString() 
-            })
-            .eq('id', sessionId);
-        }
-      }
-
-      await fetchComandas();
-      return true;
-    } catch (error) {
-      console.error('Error:', error);
+    if (error) {
+      console.error('Error updating discount:', error);
+      toast.error('Erro ao salvar. Recarregando...');
+      fetchComandas();
       return false;
     }
+
+    // Check if we should mark as paid
+    const comanda = comandas.find(c => c.session_id === sessionId);
+    if (comanda) {
+      const newRemaining = Math.max(0, comanda.total - comanda.paid_total - comanda.partial_payments_total - discount);
+      if (newRemaining === 0 && !comanda.is_paid) {
+        await supabase
+          .from('client_sessions')
+          .update({ is_paid: true, paid_at: new Date().toISOString() })
+          .eq('id', sessionId);
+      }
+    }
+
+    return true;
   };
 
   const updateItemQuantity = async (itemId: string, newQuantity: number): Promise<boolean> => {
-    try {
-      if (newQuantity <= 0) {
-        return deleteItem(itemId);
-      }
-      
-      const { error } = await supabase
-        .from('order_items')
-        .update({ quantity: newQuantity })
-        .eq('id', itemId);
+    if (newQuantity <= 0) {
+      return deleteItem(itemId);
+    }
 
-      if (error) {
-        console.error('Error updating item quantity:', error);
-        return false;
-      }
+    // Optimistic update
+    setComandas(prev => prev.map(comanda => {
+      let found = false;
+      const updatedOrders = comanda.orders.map(order => {
+        const updatedItems = order.items.map(item => {
+          if (item.id === itemId) {
+            found = true;
+            return { ...item, quantity: newQuantity };
+          }
+          return item;
+        });
+        if (found) {
+          const orderTotal = updatedItems.reduce((sum, item) => sum + (item.item_price * item.quantity), 0);
+          return { ...order, items: updatedItems, order_total: orderTotal };
+        }
+        return order;
+      });
 
-      await fetchComandas();
-      return true;
-    } catch (error) {
-      console.error('Error:', error);
+      if (!found) return comanda;
+      return recalculateComandaTotals({ ...comanda, orders: updatedOrders });
+    }));
+
+    const { error } = await supabase
+      .from('order_items')
+      .update({ quantity: newQuantity })
+      .eq('id', itemId);
+
+    if (error) {
+      console.error('Error updating item quantity:', error);
+      toast.error('Erro ao salvar. Recarregando...');
+      fetchComandas();
       return false;
     }
+    return true;
   };
 
   const deleteItem = async (itemId: string): Promise<boolean> => {
-    try {
-      // First, get the order_id for this item
-      const { data: itemData } = await supabase
-        .from('order_items')
-        .select('order_id')
-        .eq('id', itemId)
-        .single();
+    // Find the item and order info before optimistic update
+    let targetOrderId: string | null = null;
+    let orderItemCount = 0;
 
-      const orderId = itemData?.order_id;
-
-      // Delete the item
-      const { error } = await supabase
-        .from('order_items')
-        .delete()
-        .eq('id', itemId);
-
-      if (error) {
-        console.error('Error deleting item:', error);
-        return false;
-      }
-
-      // Check if the order has any remaining items
-      if (orderId) {
-        const { data: remainingItems } = await supabase
-          .from('order_items')
-          .select('id')
-          .eq('order_id', orderId);
-
-        // If no items left, delete the order too
-        if (!remainingItems || remainingItems.length === 0) {
-          await supabase
-            .from('orders')
-            .delete()
-            .eq('id', orderId);
+    for (const comanda of comandas) {
+      for (const order of comanda.orders) {
+        const item = order.items.find(i => i.id === itemId);
+        if (item) {
+          targetOrderId = order.id;
+          orderItemCount = order.items.length;
+          break;
         }
       }
+      if (targetOrderId) break;
+    }
 
-      await fetchComandas();
-      return true;
-    } catch (error) {
-      console.error('Error:', error);
+    // Optimistic update
+    setComandas(prev => prev.map(comanda => {
+      let modified = false;
+      let updatedOrders = comanda.orders.map(order => {
+        const filteredItems = order.items.filter(item => item.id !== itemId);
+        if (filteredItems.length !== order.items.length) {
+          modified = true;
+          // If order becomes empty, it will be filtered out below
+          const orderTotal = filteredItems.reduce((sum, item) => sum + (item.item_price * item.quantity), 0);
+          return { ...order, items: filteredItems, order_total: orderTotal };
+        }
+        return order;
+      });
+
+      // Remove empty orders
+      updatedOrders = updatedOrders.filter(order => order.items.length > 0);
+
+      if (!modified) return comanda;
+
+      const allItems = updatedOrders.flatMap(o => o.items);
+      return recalculateComandaTotals({ ...comanda, orders: updatedOrders, items: allItems });
+    }));
+
+    // Background sync
+    const { error } = await supabase
+      .from('order_items')
+      .delete()
+      .eq('id', itemId);
+
+    if (error) {
+      console.error('Error deleting item:', error);
+      toast.error('Erro ao deletar. Recarregando...');
+      fetchComandas();
       return false;
     }
+
+    // If this was the last item in the order, delete the order too
+    if (targetOrderId && orderItemCount === 1) {
+      await supabase
+        .from('orders')
+        .delete()
+        .eq('id', targetOrderId);
+    }
+
+    return true;
   };
 
   const unpaidTotal = comandas.reduce((sum, c) => sum + c.unpaid_total, 0);
