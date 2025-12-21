@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Comanda, ComandaItem, ComandaOrder, PartialPayment } from './useComandas';
+import { toast } from 'sonner';
 
 interface UseHistoricalComandasOptions {
   dateFrom?: Date;
@@ -8,8 +9,12 @@ interface UseHistoricalComandasOptions {
   clientName?: string;
 }
 
+export interface HistoricalComanda extends Comanda {
+  is_active: boolean;
+}
+
 export const useHistoricalComandas = () => {
-  const [comandas, setComandas] = useState<Comanda[]>([]);
+  const [comandas, setComandas] = useState<HistoricalComanda[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchHistoricalComandas = useCallback(async (options?: UseHistoricalComandasOptions) => {
@@ -141,6 +146,7 @@ export const useHistoricalComandas = () => {
             is_paid: session.is_paid,
             paid_at: session.paid_at,
             created_at: session.created_at,
+            is_active: session.is_active,
             discount: sessionDiscount,
             total,
             paid_total: paidTotal,
@@ -154,7 +160,7 @@ export const useHistoricalComandas = () => {
         })
       );
 
-      setComandas(comandasWithTotals);
+      setComandas(comandasWithTotals as HistoricalComanda[]);
     } catch (error) {
       console.error('Error:', error);
       setComandas([]);
@@ -163,9 +169,34 @@ export const useHistoricalComandas = () => {
     }
   }, []);
 
+  const reactivateComanda = useCallback(async (sessionId: string, clientName: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('client_sessions')
+        .update({ is_active: true, is_paid: false, paid_at: null })
+        .eq('id', sessionId);
+
+      if (error) {
+        console.error('Error reactivating comanda:', error);
+        toast.error('Erro ao reabrir comanda');
+        return false;
+      }
+
+      // Remove from historical list since it's now active
+      setComandas(prev => prev.filter(c => c.session_id !== sessionId));
+      toast.success(`Comanda de ${clientName} reaberta com sucesso`);
+      return true;
+    } catch (error) {
+      console.error('Error reactivating comanda:', error);
+      toast.error('Erro ao reabrir comanda');
+      return false;
+    }
+  }, []);
+
   return {
     comandas,
     isLoading,
     fetchComandas: fetchHistoricalComandas,
+    reactivateComanda,
   };
 };
