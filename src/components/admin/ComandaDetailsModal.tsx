@@ -65,10 +65,16 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [isUpdatingItem, setIsUpdatingItem] = useState(false);
 
+  // Companions state
+  const [companions, setCompanions] = useState<string[]>([]);
+  const [newCompanion, setNewCompanion] = useState('');
+  const [isSavingCompanions, setIsSavingCompanions] = useState(false);
+
   // Initialize states when comanda changes
   useEffect(() => {
     if (comanda) {
       setDiscount(comanda.discount?.toString() || '0');
+      setCompanions(comanda.companions || []);
     }
   }, [comanda]);
 
@@ -185,6 +191,59 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
     }
   };
 
+  const handleAddCompanion = async () => {
+    const name = newCompanion.trim();
+    if (!name) return;
+
+    const updatedCompanions = [...companions, name];
+    setCompanions(updatedCompanions);
+    setNewCompanion('');
+    
+    setIsSavingCompanions(true);
+    try {
+      const { error } = await supabase
+        .from('client_sessions')
+        .update({ companions: updatedCompanions })
+        .eq('id', comanda.session_id);
+      
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error saving companions:', err);
+      toast.error('Erro ao salvar acompanhantes');
+      setCompanions(companions); // Rollback
+    } finally {
+      setIsSavingCompanions(false);
+    }
+  };
+
+  const handleRemoveCompanion = async (index: number) => {
+    const updatedCompanions = companions.filter((_, i) => i !== index);
+    setCompanions(updatedCompanions);
+    
+    setIsSavingCompanions(true);
+    try {
+      const { error } = await supabase
+        .from('client_sessions')
+        .update({ companions: updatedCompanions.length > 0 ? updatedCompanions : null })
+        .eq('id', comanda.session_id);
+      
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error removing companion:', err);
+      toast.error('Erro ao remover acompanhante');
+      setCompanions([...companions]); // Rollback
+    } finally {
+      setIsSavingCompanions(false);
+    }
+  };
+
+  const handleCompanionKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddCompanion();
+    }
+  };
+
   // Calculate totals with discount
   const discountValue = parseFloat(discount.replace(',', '.')) || 0;
   const totalAfterDiscount = Math.max(0, comanda.total - discountValue);
@@ -226,6 +285,52 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
               Balcão
             </span>
           )}
+        </div>
+
+        <Separator className="shrink-0 mx-6" />
+
+        {/* Companions Section */}
+        <div className="shrink-0 px-6 py-2">
+          <div className="p-3 border rounded-lg bg-muted/30 space-y-2">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Acompanhantes
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {companions.map((companion, index) => (
+                <Badge key={index} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
+                  {companion}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-4 w-4 p-0 hover:bg-destructive/20"
+                    onClick={() => handleRemoveCompanion(index)}
+                    disabled={isSavingCompanions}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+              <div className="flex items-center gap-1">
+                <Input
+                  value={newCompanion}
+                  onChange={(e) => setNewCompanion(e.target.value)}
+                  onKeyDown={handleCompanionKeyDown}
+                  placeholder="Nome..."
+                  className="h-7 w-32 text-sm"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 px-2"
+                  onClick={handleAddCompanion}
+                  disabled={!newCompanion.trim() || isSavingCompanions}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <Separator className="shrink-0 mx-6" />

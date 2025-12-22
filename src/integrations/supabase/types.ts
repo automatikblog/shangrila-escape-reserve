@@ -17,6 +17,7 @@ export type Database = {
       client_sessions: {
         Row: {
           client_name: string
+          companions: string[] | null
           created_at: string
           device_fingerprint: string
           discount: number | null
@@ -28,6 +29,7 @@ export type Database = {
         }
         Insert: {
           client_name: string
+          companions?: string[] | null
           created_at?: string
           device_fingerprint: string
           discount?: number | null
@@ -39,6 +41,7 @@ export type Database = {
         }
         Update: {
           client_name?: string
+          companions?: string[] | null
           created_at?: string
           device_fingerprint?: string
           discount?: number | null
