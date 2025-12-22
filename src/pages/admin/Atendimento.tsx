@@ -1131,12 +1131,6 @@ const Atendimento: React.FC = () => {
         open={!!detailsModalComanda}
         onOpenChange={(open) => !open && setDetailsModalComanda(null)}
         onClose={handleCloseFromModal}
-        onMarkOrderPaid={async (orderId, paymentMethod) => {
-          await markOrderPaid(orderId, paymentMethod);
-        }}
-        onMarkOrderUnpaid={async (orderId) => {
-          await markOrderUnpaid(orderId);
-        }}
         onAddPartialPayment={addPartialPayment}
         onUpdateDiscount={updateDiscount}
         onUpdateItemQuantity={updateItemQuantity}
