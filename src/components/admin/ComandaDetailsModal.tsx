@@ -230,41 +230,6 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
 
         <Separator className="shrink-0 mx-6" />
 
-        {/* Fixed Discount Section - Always visible at top */}
-        <div className="shrink-0 px-6 py-2">
-          <div className="p-3 border rounded-lg bg-accent/20 space-y-2">
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <Percent className="h-4 w-4" />
-              Desconto na Comanda
-            </h4>
-            <div className="flex gap-2">
-              <div className="flex-1 flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">R$</span>
-                <Input
-                  value={discount}
-                  onChange={(e) => setDiscount(e.target.value)}
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  className="flex-1"
-                />
-              </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={handleSaveDiscount}
-                disabled={isSavingDiscount}
-              >
-                <Check className="h-3 w-3 mr-1" />
-                Aplicar
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <Separator className="shrink-0 mx-6" />
-
         {/* Scrollable content area with native overflow */}
         <div className="flex-1 overflow-y-auto overscroll-contain px-6 min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
           <div className="space-y-4 py-2">
@@ -505,8 +470,40 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
 
         <Separator className="shrink-0 mx-6" />
 
-        {/* Totals */}
+        {/* Totals Section - Fixed at bottom */}
         <div className="space-y-2 shrink-0 px-6">
+          {/* Discount Section */}
+          <div className="p-3 border rounded-lg bg-accent/20 space-y-2">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <Percent className="h-4 w-4" />
+              Desconto na Comanda
+            </h4>
+            <div className="flex gap-2">
+              <div className="flex-1 flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">R$</span>
+                <Input
+                  value={discount}
+                  onChange={(e) => setDiscount(e.target.value)}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  className="flex-1"
+                />
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleSaveDiscount}
+                disabled={isSavingDiscount}
+              >
+                <Check className="h-3 w-3 mr-1" />
+                Aplicar
+              </Button>
+            </div>
+          </div>
+          
+          <Separator />
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Subtotal dos Pedidos</span>
             <span className="font-medium">R$ {comanda.total.toFixed(2)}</span>
