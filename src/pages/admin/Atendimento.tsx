@@ -85,6 +85,8 @@ const Atendimento: React.FC = () => {
   const [detailsModalComanda, setDetailsModalComanda] = useState<Comanda | null>(null);
   const [newComandaDialogOpen, setNewComandaDialogOpen] = useState(false);
   const [newComandaClientName, setNewComandaClientName] = useState('');
+  const [newComandaCompanions, setNewComandaCompanions] = useState<string[]>([]);
+  const [newCompanionInput, setNewCompanionInput] = useState('');
   
   // Customizable item modal
   const [customizableItem, setCustomizableItem] = useState<MenuItem | null>(null);
@@ -178,9 +180,32 @@ const Atendimento: React.FC = () => {
       setDeliveryType(tableData.number === 0 ? 'balcao' : 'balcao');
       setSelectedComanda(null);
       setClientName(newComandaClientName.trim());
+      // Store companions for later use when creating the session
+      (window as any).__pendingCompanions = newComandaCompanions.length > 0 ? [...newComandaCompanions] : null;
       setNewComandaDialogOpen(false);
       setNewComandaClientName('');
+      setNewComandaCompanions([]);
+      setNewCompanionInput('');
       setCurrentStep('items');
+    }
+  };
+
+  const handleAddNewCompanion = () => {
+    const name = newCompanionInput.trim();
+    if (name && !newComandaCompanions.includes(name)) {
+      setNewComandaCompanions([...newComandaCompanions, name]);
+      setNewCompanionInput('');
+    }
+  };
+
+  const handleRemoveNewCompanion = (index: number) => {
+    setNewComandaCompanions(newComandaCompanions.filter((_, i) => i !== index));
+  };
+
+  const handleNewCompanionKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddNewCompanion();
     }
   };
 
@@ -439,12 +464,17 @@ const Atendimento: React.FC = () => {
       if (selectedComanda) {
         sessionId = selectedComanda.session_id;
       } else {
+        // Get pending companions stored from the new comanda dialog
+        const pendingCompanions = (window as any).__pendingCompanions;
+        (window as any).__pendingCompanions = null;
+        
         const { data: session, error: sessionError } = await supabase
           .from('client_sessions')
           .insert({
             table_id: selectedTable.id,
             client_name: clientName.trim(),
-            device_fingerprint: `manual-${Date.now()}`
+            device_fingerprint: `manual-${Date.now()}`,
+            companions: pendingCompanions
           })
           .select()
           .single();
@@ -1155,7 +1185,11 @@ const Atendimento: React.FC = () => {
       {/* New Comanda Dialog */}
       <Dialog open={newComandaDialogOpen} onOpenChange={(open) => {
         setNewComandaDialogOpen(open);
-        if (!open) setNewComandaClientName('');
+        if (!open) {
+          setNewComandaClientName('');
+          setNewComandaCompanions([]);
+          setNewCompanionInput('');
+        }
       }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1178,6 +1212,46 @@ const Atendimento: React.FC = () => {
                   className="pl-10"
                   autoFocus
                 />
+              </div>
+            </div>
+
+            {/* Companions Section */}
+            <div className="space-y-2">
+              <Label className="font-medium flex items-center gap-2">
+                <ClipboardList className="h-4 w-4" />
+                Acompanhantes (opcional)
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {newComandaCompanions.map((companion, index) => (
+                  <Badge key={index} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
+                    {companion}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0 hover:bg-destructive/20"
+                      onClick={() => handleRemoveNewCompanion(index)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={newCompanionInput}
+                  onChange={(e) => setNewCompanionInput(e.target.value)}
+                  onKeyDown={handleNewCompanionKeyDown}
+                  placeholder="Nome do acompanhante..."
+                  className="flex-1"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleAddNewCompanion}
+                  disabled={!newCompanionInput.trim()}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
