@@ -32,6 +32,7 @@ export const useHistoricalComandas = () => {
           created_at,
           is_active,
           discount,
+          companions,
           tables!inner (
             number,
             name
@@ -150,6 +151,7 @@ export const useHistoricalComandas = () => {
             created_at: session.created_at,
             is_active: session.is_active,
             discount: sessionDiscount,
+            companions: session.companions || null,
             total,
             paid_total: paidTotal,
             unpaid_total: unpaidTotal,

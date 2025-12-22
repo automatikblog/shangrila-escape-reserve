@@ -40,6 +40,7 @@ export interface Comanda {
   paid_at: string | null;
   created_at: string;
   discount: number;
+  companions: string[] | null;
   total: number;
   paid_total: number;
   unpaid_total: number;
@@ -112,6 +113,7 @@ export const useComandas = (options?: UseComandaOptions) => {
           created_at,
           is_active,
           discount,
+          companions,
           tables!inner (
             number,
             name
@@ -252,6 +254,7 @@ export const useComandas = (options?: UseComandaOptions) => {
           paid_at: session.paid_at,
           created_at: session.created_at,
           discount: sessionDiscount,
+          companions: session.companions || null,
           total,
           paid_total: 0, // Not used for active comandas
           unpaid_total: total,
