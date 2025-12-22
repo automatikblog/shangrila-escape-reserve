@@ -56,29 +56,25 @@ interface UseComandaOptions {
 }
 
 // Helper to recalculate comanda totals
+// For active comandas: remaining = total - partial_payments - discount
+// (ignoring per-order is_paid since we now only use partial payments)
 const recalculateComandaTotals = (comanda: Comanda): Comanda => {
   let total = 0;
-  let paidTotal = 0;
-  let unpaidTotal = 0;
   
   for (const order of comanda.orders) {
     const orderTotal = order.items.reduce((sum, item) => sum + (item.item_price * item.quantity), 0);
     total += orderTotal;
-    if (order.is_paid) {
-      paidTotal += orderTotal;
-    } else {
-      unpaidTotal += orderTotal;
-    }
   }
   
   const partialPaymentsTotal = comanda.partial_payments.reduce((sum, pp) => sum + Number(pp.amount), 0);
-  const remainingTotal = Math.max(0, total - paidTotal - partialPaymentsTotal - comanda.discount);
+  // For active comandas, remaining = total - partial_payments - discount
+  const remainingTotal = Math.max(0, total - partialPaymentsTotal - comanda.discount);
   
   return {
     ...comanda,
     total,
-    paid_total: paidTotal,
-    unpaid_total: unpaidTotal,
+    paid_total: 0, // No longer used for active comandas
+    unpaid_total: total, // All orders are "unpaid" until partial payments cover them
     partial_payments_total: partialPaymentsTotal,
     remaining_total: remainingTotal,
   };
@@ -219,8 +215,6 @@ export const useComandas = (options?: UseComandaOptions) => {
         const partialPaymentsTotal = partialPayments.reduce((sum, pp) => sum + Number(pp.amount), 0);
 
         let total = 0;
-        let paidTotal = 0;
-        let unpaidTotal = 0;
         let allSessionItems: ComandaItem[] = [];
         const ordersWithItems: ComandaOrder[] = [];
 
@@ -228,12 +222,6 @@ export const useComandas = (options?: UseComandaOptions) => {
           const items = itemsByOrder.get(order.id) || [];
           const orderTotal = items.reduce((sum, item) => sum + (item.item_price * item.quantity), 0);
           total += orderTotal;
-
-          if (order.is_paid) {
-            paidTotal += orderTotal;
-          } else {
-            unpaidTotal += orderTotal;
-          }
 
           allSessionItems = [...allSessionItems, ...items];
 
@@ -251,7 +239,8 @@ export const useComandas = (options?: UseComandaOptions) => {
         }
 
         const sessionDiscount = Number(session.discount) || 0;
-        const remainingTotal = Math.max(0, total - paidTotal - partialPaymentsTotal - sessionDiscount);
+        // For active comandas: remaining = total - partial_payments - discount
+        const remainingTotal = Math.max(0, total - partialPaymentsTotal - sessionDiscount);
 
         return {
           session_id: session.id,
@@ -264,8 +253,8 @@ export const useComandas = (options?: UseComandaOptions) => {
           created_at: session.created_at,
           discount: sessionDiscount,
           total,
-          paid_total: paidTotal,
-          unpaid_total: unpaidTotal,
+          paid_total: 0, // Not used for active comandas
+          unpaid_total: total,
           partial_payments_total: partialPaymentsTotal,
           remaining_total: remainingTotal,
           items: allSessionItems,
