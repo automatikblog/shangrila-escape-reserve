@@ -148,16 +148,18 @@ const Reservas = () => {
       toast.error("Por favor, selecione uma data");
       return;
     }
-    if (!name || !email || !whatsapp || !tipoReserva || !numeroPessoas) {
-      toast.error("Por favor, preencha todos os campos");
+    if (!name || !whatsapp || !tipoReserva || !numeroPessoas) {
+      toast.error("Por favor, preencha todos os campos obrigatórios");
       return;
     }
 
-    // Validar email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      toast.error("Por favor, informe um email válido");
-      return;
+    // Validar email apenas se preenchido
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        toast.error("Por favor, informe um email válido");
+        return;
+      }
     }
 
     // Validação: Café só aos domingos
@@ -182,7 +184,7 @@ const Reservas = () => {
           reservation_date: reservationDate,
           reservation_type: tipoReserva,
           client_name: name,
-          client_email: email,
+          client_email: email || '',
           client_whatsapp: whatsapp,
           num_people: parseInt(numeroPessoas),
           status: 'confirmed',
@@ -190,15 +192,17 @@ const Reservas = () => {
 
       if (error) throw error;
 
-      // Enviar email de confirmação
-      await sendConfirmationEmail({
-        clientName: name,
-        clientEmail: email,
-        reservationDate: reservationDate,
-        reservationType: tipoReserva,
-        reservationPrice: RESERVATION_PRICES[tipoReserva],
-        numPeople: parseInt(numeroPessoas),
-      });
+      // Enviar email de confirmação apenas se email foi informado
+      if (email) {
+        await sendConfirmationEmail({
+          clientName: name,
+          clientEmail: email,
+          reservationDate: reservationDate,
+          reservationType: tipoReserva,
+          reservationPrice: RESERVATION_PRICES[tipoReserva],
+          numPeople: parseInt(numeroPessoas),
+        });
+      }
 
       toast.success("Reserva confirmada! Você receberá a confirmação no email informado.");
       
@@ -390,22 +394,23 @@ const Reservas = () => {
                 </div>
 
                 <div>
-                  <Label htmlFor="email">Email *</Label>
+                  <Label htmlFor="email">Email <span className="text-muted-foreground font-normal">(opcional)</span></Label>
                   <Input 
                     id="email" 
                     type="email"
                     value={email} 
                     onChange={e => setEmail(e.target.value)} 
                     placeholder="seu@email.com" 
-                    required 
                     className="mt-1" 
                   />
-                  <div className="mt-2 p-3 bg-primary/10 border border-primary/30 rounded-md">
-                    <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      Você receberá a confirmação da sua reserva neste email
-                    </p>
-                  </div>
+                  {email && (
+                    <div className="mt-2 p-3 bg-primary/10 border border-primary/30 rounded-md">
+                      <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        Você receberá a confirmação da sua reserva neste email
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div>

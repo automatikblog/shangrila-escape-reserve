@@ -20,7 +20,9 @@ import {
   Trash2, 
   AlertCircle,
   CheckCircle,
-  List
+  List,
+  Plus,
+  Pencil
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -33,16 +35,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import ReservationFormModal from '@/components/admin/ReservationFormModal';
 
 const AdminReservations: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [dayReservations, setDayReservations] = useState<any[]>([]);
   const [availability, setAvailability] = useState<Record<string, number>>({});
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingReservation, setEditingReservation] = useState<any | null>(null);
   const { 
     reservations, 
     loading, 
     getAvailability,
-    deleteReservation 
+    deleteReservation,
+    fetchReservations
   } = useReservations();
 
   const datesWithReservations = useMemo(() => {
@@ -91,6 +97,20 @@ const AdminReservations: React.FC = () => {
     }
   };
 
+  const handleOpenAdd = () => {
+    setEditingReservation(null);
+    setModalOpen(true);
+  };
+
+  const handleOpenEdit = (reservation: any) => {
+    setEditingReservation(reservation);
+    setModalOpen(true);
+  };
+
+  const handleModalSuccess = () => {
+    fetchReservations();
+  };
+
   const getOccupancyColor = (type: string, count: number) => {
     const limit = RESERVATION_LIMITS[type];
     if (limit === null) return 'text-green-600';
@@ -124,40 +144,63 @@ const AdminReservations: React.FC = () => {
         </div>
       </div>
 
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button variant="destructive" size="sm" className="shrink-0">
-            <Trash2 className="h-4 w-4 mr-1" />
-            Remover
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover Reserva?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Remover a reserva de <strong>{reservation.client_name}</strong> e liberar a vaga?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => handleDelete(reservation.id)}
-              className="bg-destructive text-destructive-foreground"
-            >
+      <div className="flex items-center gap-2 shrink-0">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => handleOpenEdit(reservation)}
+        >
+          <Pencil className="h-4 w-4 mr-1" />
+          Editar
+        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" size="sm">
+              <Trash2 className="h-4 w-4 mr-1" />
               Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remover Reserva?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Remover a reserva de <strong>{reservation.client_name}</strong> e liberar a vaga?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => handleDelete(reservation.id)}
+                className="bg-destructive text-destructive-foreground"
+              >
+                Remover
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Reservas</h1>
-        <p className="text-muted-foreground">Gerencie as reservas do clube</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Reservas</h1>
+          <p className="text-muted-foreground">Gerencie as reservas do clube</p>
+        </div>
+        <Button onClick={handleOpenAdd}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nova Reserva
+        </Button>
       </div>
+
+      <ReservationFormModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        reservation={editingReservation}
+        onSuccess={handleModalSuccess}
+      />
 
       <Tabs defaultValue="calendario" className="w-full">
         <TabsList className="w-full max-w-sm">
