@@ -1294,10 +1294,10 @@ const Atendimento: React.FC = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Fechar Comanda</AlertDialogTitle>
             <AlertDialogDescription>
-              {comandaToClose && comandaToClose.unpaid_total > 0 ? (
+              {comandaToClose && comandaToClose.remaining_total > 0 ? (
                 <>
-                  A comanda de <strong>{comandaToClose?.client_name}</strong> tem pedidos não pagos 
-                  (R$ {comandaToClose?.unpaid_total.toFixed(2)} de R$ {comandaToClose?.total.toFixed(2)}). Deseja fechar mesmo assim?
+                  A comanda de <strong>{comandaToClose?.client_name}</strong> tem saldo pendente de 
+                  R$ {comandaToClose?.remaining_total.toFixed(2)} (de R$ {comandaToClose?.total.toFixed(2)} total). Deseja fechar mesmo assim?
                 </>
               ) : (
                 <>
@@ -1308,7 +1308,7 @@ const Atendimento: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            {comandaToClose && comandaToClose.unpaid_total > 0 && (
+            {comandaToClose && comandaToClose.remaining_total > 0 && (
               <Button
                 variant="outline"
                 onClick={async () => {
@@ -1320,7 +1320,7 @@ const Atendimento: React.FC = () => {
               </Button>
             )}
             <AlertDialogAction onClick={handleCloseComanda}>
-              {comandaToClose && comandaToClose.unpaid_total > 0 ? 'Fechar sem Pagar' : 'Fechar'}
+              {comandaToClose && comandaToClose.remaining_total > 0 ? 'Fechar sem Pagar' : 'Fechar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
