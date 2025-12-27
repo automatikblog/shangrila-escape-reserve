@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useMenuItems, categoryLabels, MenuItem } from '@/hooks/useMenuItems';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
-import { useComandas, Comanda } from '@/hooks/useComandas';
+import { useComandas, Comanda, Companion } from '@/hooks/useComandas';
 import { useFrequentItems } from '@/hooks/useFrequentItems';
 import { useTablesWithActivity } from '@/hooks/useTablesWithActivity';
 import { useSettings } from '@/hooks/useSettings';
@@ -19,7 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame, TrendingUp, Beaker, Beer, History, PlusCircle, ArrowLeft, ClipboardList } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, Plus, Minus, Trash2, ShoppingCart, User, MapPin, Store, Send, Search, Coffee, Clock, DollarSign, Check, X, Eye, Ticket, Waves, Flame, TrendingUp, Beaker, Beer, History, PlusCircle, ArrowLeft, ClipboardList, Baby, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -85,8 +86,9 @@ const Atendimento: React.FC = () => {
   const [detailsModalComanda, setDetailsModalComanda] = useState<Comanda | null>(null);
   const [newComandaDialogOpen, setNewComandaDialogOpen] = useState(false);
   const [newComandaClientName, setNewComandaClientName] = useState('');
-  const [newComandaCompanions, setNewComandaCompanions] = useState<string[]>([]);
+  const [newComandaCompanions, setNewComandaCompanions] = useState<Companion[]>([]);
   const [newCompanionInput, setNewCompanionInput] = useState('');
+  const [newCompanionIsChild, setNewCompanionIsChild] = useState(false);
   
   // Customizable item modal
   const [customizableItem, setCustomizableItem] = useState<MenuItem | null>(null);
@@ -186,15 +188,17 @@ const Atendimento: React.FC = () => {
       setNewComandaClientName('');
       setNewComandaCompanions([]);
       setNewCompanionInput('');
+      setNewCompanionIsChild(false);
       setCurrentStep('items');
     }
   };
 
   const handleAddNewCompanion = () => {
     const name = newCompanionInput.trim();
-    if (name && !newComandaCompanions.includes(name)) {
-      setNewComandaCompanions([...newComandaCompanions, name]);
+    if (name && !newComandaCompanions.some(c => c.name === name)) {
+      setNewComandaCompanions([...newComandaCompanions, { name, isChild: newCompanionIsChild }]);
       setNewCompanionInput('');
+      setNewCompanionIsChild(false);
     }
   };
 
@@ -615,14 +619,35 @@ const Atendimento: React.FC = () => {
                 onClick={() => handleSelectComanda(comanda)}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 opacity-60" />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <User className="h-4 w-4 opacity-60 shrink-0" />
                     <span className="font-semibold truncate">{comanda.client_name}</span>
+                    {comanda.companions && comanda.companions.length > 0 && (
+                      <Badge variant="outline" className="text-xs shrink-0 gap-1">
+                        <Users className="h-3 w-3" />
+                        +{comanda.companions.length}
+                      </Badge>
+                    )}
                   </div>
                   <Badge variant="outline" className="text-xs shrink-0">
                     {getComandaTableLabel(comanda)}
                   </Badge>
                 </div>
+                {/* Show companions */}
+                {comanda.companions && comanda.companions.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {comanda.companions.slice(0, 3).map((comp, idx) => (
+                      <span key={idx} className="text-xs text-muted-foreground flex items-center gap-0.5">
+                        {comp.isChild && <Baby className="h-3 w-3 text-primary" />}
+                        {comp.name}
+                        {idx < Math.min(comanda.companions!.length - 1, 2) && ','}
+                      </span>
+                    ))}
+                    {comanda.companions.length > 3 && (
+                      <span className="text-xs text-muted-foreground">+{comanda.companions.length - 3}</span>
+                    )}
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 text-sm opacity-75">
                     <span className="flex items-center gap-1">
@@ -681,9 +706,23 @@ const Atendimento: React.FC = () => {
           <h1 className="text-xl font-bold">Marcar Itens</h1>
           <p className="text-sm text-muted-foreground">
             {selectedComanda ? (
-              <span className="flex items-center gap-2">
-                <User className="h-3 w-3" />
-                {selectedComanda.client_name} • {getComandaTableLabel(selectedComanda)}
+              <span className="flex items-center gap-2 flex-wrap">
+                <span className="flex items-center gap-1">
+                  <User className="h-3 w-3" />
+                  {selectedComanda.client_name}
+                </span>
+                {selectedComanda.companions && selectedComanda.companions.length > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    {selectedComanda.companions.map((c, i) => (
+                      <span key={i} className="flex items-center gap-0.5">
+                        {c.isChild && <Baby className="h-3 w-3 text-primary" />}
+                        {c.name}{i < selectedComanda.companions!.length - 1 && ','}
+                      </span>
+                    ))}
+                  </span>
+                )}
+                <span>• {getComandaTableLabel(selectedComanda)}</span>
               </span>
             ) : (
               <span className="flex items-center gap-2">
@@ -1189,6 +1228,7 @@ const Atendimento: React.FC = () => {
           setNewComandaClientName('');
           setNewComandaCompanions([]);
           setNewCompanionInput('');
+          setNewCompanionIsChild(false);
         }
       }}>
         <DialogContent className="max-w-md">
@@ -1218,13 +1258,14 @@ const Atendimento: React.FC = () => {
             {/* Companions Section */}
             <div className="space-y-2">
               <Label className="font-medium flex items-center gap-2">
-                <ClipboardList className="h-4 w-4" />
+                <Users className="h-4 w-4" />
                 Acompanhantes (opcional)
               </Label>
               <div className="flex flex-wrap gap-2">
                 {newComandaCompanions.map((companion, index) => (
                   <Badge key={index} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
-                    {companion}
+                    {companion.isChild && <Baby className="h-3 w-3 text-primary" />}
+                    {companion.name}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1244,6 +1285,17 @@ const Atendimento: React.FC = () => {
                   placeholder="Nome do acompanhante..."
                   className="flex-1"
                 />
+                <div className="flex items-center gap-1.5">
+                  <Checkbox
+                    id="newComandaCompanionIsChild"
+                    checked={newCompanionIsChild}
+                    onCheckedChange={(checked) => setNewCompanionIsChild(checked === true)}
+                  />
+                  <label htmlFor="newComandaCompanionIsChild" className="text-xs text-muted-foreground cursor-pointer flex items-center gap-1">
+                    <Baby className="h-3 w-3" />
+                    Criança
+                  </label>
+                </div>
                 <Button
                   size="sm"
                   variant="secondary"
