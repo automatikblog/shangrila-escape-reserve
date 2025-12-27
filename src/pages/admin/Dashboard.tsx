@@ -487,6 +487,17 @@ const AdminDashboard: React.FC = () => {
                 variant="outline" 
                 size="sm"
                 onClick={() => {
+                  const yesterday = subDays(new Date(), 1);
+                  setRevenueStartDate(yesterday);
+                  setRevenueEndDate(yesterday);
+                }}
+              >
+                Ontem
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
                   setRevenueStartDate(subDays(new Date(), 7));
                   setRevenueEndDate(new Date());
                 }}
