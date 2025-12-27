@@ -135,10 +135,10 @@ const AdminDashboard: React.FC = () => {
       const startISO = startOfDay(revenueStartDate).toISOString();
       const endISO = endOfDay(revenueEndDate).toISOString();
       
-      // Fetch client sessions (unique clients) in period
+      // Fetch client sessions (unique clients) in period with discount info
       const { data: sessions, error: sessionsError } = await supabase
         .from('client_sessions')
-        .select('id')
+        .select('id, discount')
         .gte('created_at', startISO)
         .lte('created_at', endISO);
       
@@ -151,6 +151,9 @@ const AdminDashboard: React.FC = () => {
       }
       
       const sessionIds = sessions.map(s => s.id);
+      
+      // Calculate total discounts from all sessions
+      const totalDiscounts = sessions.reduce((sum, s) => sum + (Number(s.discount) || 0), 0);
       
       // Fetch orders for these sessions
       const { data: orders, error: ordersError } = await supabase
@@ -175,9 +178,12 @@ const AdminDashboard: React.FC = () => {
       
       if (itemsError) throw itemsError;
       
-      const total = (items || []).reduce((sum, item) => 
+      const subtotal = (items || []).reduce((sum, item) => 
         sum + (item.item_price * item.quantity), 0
       );
+      
+      // Subtract discounts from total revenue
+      const total = Math.max(0, subtotal - totalDiscounts);
       
       setPeriodRevenue(total);
       setPeriodClientCount(sessions.length);
