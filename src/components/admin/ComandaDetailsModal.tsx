@@ -55,7 +55,7 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   
   // Bill splitter state
-  const [splitPeople, setSplitPeople] = useState<number>(2);
+  const [splitPeopleInput, setSplitPeopleInput] = useState<string>('2');
   
   // Discount state
   const [discount, setDiscount] = useState<string>('0');
@@ -250,7 +250,8 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   const remainingAfterDiscount = Math.max(0, comanda.remaining_total - discountValue + (comanda.discount || 0));
   
   // Calculate split amount based on remaining after discount
-  const splitAmount = splitPeople > 0 ? remainingAfterDiscount / splitPeople : 0;
+  const splitPeopleNum = parseInt(splitPeopleInput) || 0;
+  const splitAmount = splitPeopleNum > 0 ? remainingAfterDiscount / splitPeopleNum : 0;
 
   const getPaymentMethodLabel = (method: string | null) => {
     if (!method) return null;
@@ -655,10 +656,11 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
                   <Calculator className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Dividir por</span>
                   <Input
-                    type="number"
-                    min={1}
-                    value={splitPeople}
-                    onChange={(e) => setSplitPeople(Math.max(1, parseInt(e.target.value) || 1))}
+                    type="text"
+                    inputMode="numeric"
+                    value={splitPeopleInput}
+                    onChange={(e) => setSplitPeopleInput(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="2"
                     className="w-14 h-7 text-center text-sm"
                   />
                   <Users className="h-4 w-4 text-muted-foreground" />
