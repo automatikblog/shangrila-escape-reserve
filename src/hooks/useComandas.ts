@@ -30,6 +30,11 @@ export interface PartialPayment {
   created_at: string;
 }
 
+export interface Companion {
+  name: string;
+  isChild: boolean;
+}
+
 export interface Comanda {
   session_id: string;
   client_name: string;
@@ -40,7 +45,7 @@ export interface Comanda {
   paid_at: string | null;
   created_at: string;
   discount: number;
-  companions: string[] | null;
+  companions: Companion[] | null;
   total: number;
   paid_total: number;
   unpaid_total: number;

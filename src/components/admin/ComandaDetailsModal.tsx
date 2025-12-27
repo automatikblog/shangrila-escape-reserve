@@ -10,8 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Comanda, ComandaOrder } from '@/hooks/useComandas';
-import { Clock, DollarSign, FileText, User, MapPin, Store, Check, X, Plus, Banknote, Pencil, Calculator, Users, Percent, CreditCard, Minus, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Comanda, ComandaOrder, Companion } from '@/hooks/useComandas';
+import { Clock, DollarSign, FileText, User, MapPin, Store, Check, X, Plus, Banknote, Pencil, Calculator, Users, Percent, CreditCard, Minus, Trash2, Baby } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -66,8 +67,9 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   const [isUpdatingItem, setIsUpdatingItem] = useState(false);
 
   // Companions state
-  const [companions, setCompanions] = useState<string[]>([]);
+  const [companions, setCompanions] = useState<Companion[]>([]);
   const [newCompanion, setNewCompanion] = useState('');
+  const [newCompanionIsChild, setNewCompanionIsChild] = useState(false);
   const [isSavingCompanions, setIsSavingCompanions] = useState(false);
 
   // Initialize states when comanda changes
@@ -195,15 +197,17 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
     const name = newCompanion.trim();
     if (!name) return;
 
-    const updatedCompanions = [...companions, name];
+    const newCompanionObj: Companion = { name, isChild: newCompanionIsChild };
+    const updatedCompanions = [...companions, newCompanionObj];
     setCompanions(updatedCompanions);
     setNewCompanion('');
+    setNewCompanionIsChild(false);
     
     setIsSavingCompanions(true);
     try {
       const { error } = await supabase
         .from('client_sessions')
-        .update({ companions: updatedCompanions })
+        .update({ companions: updatedCompanions as unknown as any })
         .eq('id', comanda.session_id);
       
       if (error) throw error;
@@ -224,7 +228,7 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
     try {
       const { error } = await supabase
         .from('client_sessions')
-        .update({ companions: updatedCompanions.length > 0 ? updatedCompanions : null })
+        .update({ companions: updatedCompanions.length > 0 ? updatedCompanions as unknown as any : null })
         .eq('id', comanda.session_id);
       
       if (error) throw error;
@@ -300,7 +304,8 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
             <div className="flex flex-wrap gap-2">
               {companions.map((companion, index) => (
                 <Badge key={index} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
-                  {companion}
+                  {companion.isChild && <Baby className="h-3 w-3 text-primary" />}
+                  {companion.name}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -312,24 +317,35 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
                   </Button>
                 </Badge>
               ))}
-              <div className="flex items-center gap-1">
-                <Input
-                  value={newCompanion}
-                  onChange={(e) => setNewCompanion(e.target.value)}
-                  onKeyDown={handleCompanionKeyDown}
-                  placeholder="Nome..."
-                  className="h-7 w-32 text-sm"
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                value={newCompanion}
+                onChange={(e) => setNewCompanion(e.target.value)}
+                onKeyDown={handleCompanionKeyDown}
+                placeholder="Nome..."
+                className="h-8 flex-1 text-sm"
+              />
+              <div className="flex items-center gap-1.5">
+                <Checkbox
+                  id="newCompanionIsChild"
+                  checked={newCompanionIsChild}
+                  onCheckedChange={(checked) => setNewCompanionIsChild(checked === true)}
                 />
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="h-7 px-2"
-                  onClick={handleAddCompanion}
-                  disabled={!newCompanion.trim() || isSavingCompanions}
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
+                <label htmlFor="newCompanionIsChild" className="text-xs text-muted-foreground cursor-pointer flex items-center gap-1">
+                  <Baby className="h-3 w-3" />
+                  Criança
+                </label>
               </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 px-2"
+                onClick={handleAddCompanion}
+                disabled={!newCompanion.trim() || isSavingCompanions}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
             </div>
           </div>
         </div>
