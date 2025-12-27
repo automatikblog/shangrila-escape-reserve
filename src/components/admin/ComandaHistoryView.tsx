@@ -38,10 +38,17 @@ export const ComandaHistoryView: React.FC = () => {
     handleQuickFilter('today');
   }, []);
 
+  const parseLocalDateInput = (value: string) => {
+    // HTML date input returns YYYY-MM-DD; new Date(value) treats it as UTC and shifts the day.
+    const [y, m, d] = value.split('-').map(Number);
+    if (!y || !m || !d) return undefined;
+    return new Date(y, m - 1, d);
+  };
+
   const handleSearch = () => {
     fetchComandas({
-      dateFrom: dateFrom ? new Date(dateFrom) : undefined,
-      dateTo: dateTo ? new Date(dateTo) : undefined,
+      dateFrom: dateFrom ? parseLocalDateInput(dateFrom) : undefined,
+      dateTo: dateTo ? parseLocalDateInput(dateTo) : undefined,
       clientName: clientName || undefined,
     });
   };
@@ -64,8 +71,8 @@ export const ComandaHistoryView: React.FC = () => {
         break;
     }
 
-    setDateFrom(from.toISOString().split('T')[0]);
-    setDateTo(today.toISOString().split('T')[0]);
+    setDateFrom(format(from, 'yyyy-MM-dd'));
+    setDateTo(format(today, 'yyyy-MM-dd'));
     setClientName('');
 
     fetchComandas({
