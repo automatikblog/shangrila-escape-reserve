@@ -41,22 +41,27 @@ const MenuItemsPage: React.FC = () => {
     is_sellable: false
   });
 
-  // Filter to show only non-sellable items (ingredients/stock items) and sort A-Z
+  // Filter and sort ALL items A-Z (Estoque shows everything)
   const sortedItems = useMemo(() => {
     return items
       .filter(item => {
-        // Only show non-sellable items in Estoque (ingredients, raw materials)
-        if (item.is_sellable) return false;
-        
         const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (item.product_code && item.product_code.some(code => code.toLowerCase().includes(searchTerm.toLowerCase())));
         return matchesSearch;
       })
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   }, [items, searchTerm]);
-  
-  // Count only non-sellable items for the header
-  const stockItemsCount = useMemo(() => items.filter(item => !item.is_sellable).length, [items]);
+
+  // Toggle sellable status (move between Estoque-only and Cardápio)
+  const toggleSellable = async (item: MenuItem) => {
+    const newSellable = !item.is_sellable;
+    const { error } = await updateItem(item.id, { is_sellable: newSellable });
+    if (error) {
+      toast.error('Erro ao atualizar item');
+    } else {
+      toast.success(newSellable ? 'Item adicionado ao Cardápio' : 'Item removido do Cardápio');
+    }
+  };
 
   const openNewItemDialog = () => {
     setEditingItem(null);
@@ -195,7 +200,7 @@ const MenuItemsPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Estoque</h1>
-          <p className="text-muted-foreground">{stockItemsCount} itens no estoque</p>
+          <p className="text-muted-foreground">{items.length} itens cadastrados</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsImporterOpen(true)}>
@@ -240,6 +245,9 @@ const MenuItemsPage: React.FC = () => {
                 <div key={item.id} className="py-3 flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
+                      {item.is_sellable && (
+                        <Badge className="bg-green-500/80 text-xs">No Cardápio</Badge>
+                      )}
                       {item.product_code && item.product_code.length > 0 && (
                         <Badge variant="outline" className="font-mono text-xs" title={item.product_code.join(', ')}>
                           {item.product_code[0]}
@@ -275,6 +283,16 @@ const MenuItemsPage: React.FC = () => {
                       </span>
                     )}
                     <div className="flex gap-1">
+                      <Button 
+                        variant={item.is_sellable ? "default" : "outline"} 
+                        size="sm"
+                        onClick={() => toggleSellable(item)}
+                        title={item.is_sellable ? "Remover do Cardápio" : "Adicionar ao Cardápio"}
+                        className="text-xs"
+                      >
+                        <ShoppingBag className="h-3 w-3 mr-1" />
+                        {item.is_sellable ? "No Cardápio" : "Só Estoque"}
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
                         <Edit className="h-4 w-4" />
                       </Button>
