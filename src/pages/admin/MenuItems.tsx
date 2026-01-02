@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useMenuItems, MenuItem, MenuItemInput } from '@/hooks/useMenuItems';
+import { useInventoryItems, InventoryItem, InventoryItemInput } from '@/hooks/useInventoryItems';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,108 +9,70 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Loader2, AlertCircle, Wine, FileImage, ShoppingBag } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Loader2, AlertCircle, Wine, FileImage } from 'lucide-react';
 import { InvoiceImporter } from '@/components/admin/InvoiceImporter';
 
 const MenuItemsPage: React.FC = () => {
-  const { items, categories, isLoading, createItem, updateItem, deleteItem, fetchItems } = useMenuItems();
+  const { items, isLoading, createItem, updateItem, deleteItem, fetchItems } = useInventoryItems();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [showAll, setShowAll] = useState(false); // Toggle to show all items or only stock items
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isImporterOpen, setIsImporterOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [formData, setFormData] = useState<MenuItemInput>({
+  const [formData, setFormData] = useState<InventoryItemInput>({
     name: '',
-    price: 0,
     description: '',
-    category: 'estoque',
-    is_available: true,
-    stock_quantity: null,
     product_code: null,
     cost_price: null,
+    stock_quantity: null,
     // Bottle stock tracking
     is_bottle: false,
     bottle_ml: null,
     bottles_in_stock: 0,
-    current_bottle_ml: 0,
-    // Cardápio-only fields (defaults for estoque)
-    goes_to_kitchen: false,
-    is_customizable: false,
-    is_sellable: false
+    current_bottle_ml: 0
   });
 
-  // Count items by type
-  const stockOnlyItems = useMemo(() => items.filter(item => !item.is_sellable), [items]);
-  const cardapioItems = useMemo(() => items.filter(item => item.is_sellable), [items]);
-
-  // Filter and sort items - by default show only stock items (is_sellable = false)
+  // Filter and sort items alphabetically
   const sortedItems = useMemo(() => {
     return items
       .filter(item => {
-        // Filter by sellable status unless showAll is true
-        if (!showAll && item.is_sellable) return false;
-        
         const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (item.product_code && item.product_code.some(code => code.toLowerCase().includes(searchTerm.toLowerCase())));
         return matchesSearch;
       })
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-  }, [items, searchTerm, showAll]);
-
-  // Toggle sellable status (move between Estoque-only and Cardápio)
-  const toggleSellable = async (item: MenuItem) => {
-    const newSellable = !item.is_sellable;
-    const { error } = await updateItem(item.id, { is_sellable: newSellable });
-    if (error) {
-      toast.error('Erro ao atualizar item');
-    } else {
-      toast.success(newSellable ? 'Item adicionado ao Cardápio' : 'Item removido do Cardápio');
-    }
-  };
+  }, [items, searchTerm]);
 
   const openNewItemDialog = () => {
     setEditingItem(null);
     setFormData({
       name: '',
-      price: 0,
       description: '',
-      category: 'estoque',
-      is_available: true,
-      stock_quantity: null,
       product_code: null,
       cost_price: null,
+      stock_quantity: null,
       is_bottle: false,
       bottle_ml: null,
       bottles_in_stock: 0,
-      current_bottle_ml: 0,
-      goes_to_kitchen: false,
-      is_customizable: false,
-      is_sellable: false
+      current_bottle_ml: 0
     });
     setIsDialogOpen(true);
   };
 
-  const openEditDialog = (item: MenuItem) => {
+  const openEditDialog = (item: InventoryItem) => {
     setEditingItem(item);
     setFormData({
       name: item.name,
-      price: item.price,
       description: item.description || '',
-      category: item.category,
-      is_available: item.is_available,
-      stock_quantity: item.stock_quantity,
       product_code: item.product_code,
       cost_price: item.cost_price,
+      stock_quantity: item.stock_quantity,
       is_bottle: item.is_bottle,
       bottle_ml: item.bottle_ml,
       bottles_in_stock: item.bottles_in_stock,
-      current_bottle_ml: item.current_bottle_ml,
-      goes_to_kitchen: item.goes_to_kitchen,
-      is_customizable: item.is_customizable,
-      is_sellable: item.is_sellable
+      current_bottle_ml: item.current_bottle_ml
     });
     setIsDialogOpen(true);
   };
@@ -121,24 +83,10 @@ const MenuItemsPage: React.FC = () => {
       return;
     }
 
-    // Determine availability based on stock type
-    let isAvailable = true;
-    if (formData.is_bottle) {
-      const totalMl = ((formData.bottles_in_stock || 0) * (formData.bottle_ml || 0)) + (formData.current_bottle_ml || 0);
-      isAvailable = totalMl > 0 || formData.bottles_in_stock === null;
-    } else {
-      isAvailable = formData.stock_quantity === null || formData.stock_quantity > 0;
-    }
-
-    const dataToSave = { 
-      ...formData, 
-      is_available: isAvailable
-    };
-
     setIsSaving(true);
 
     if (editingItem) {
-      const { error } = await updateItem(editingItem.id, dataToSave);
+      const { error } = await updateItem(editingItem.id, formData);
       if (error) {
         toast.error('Erro ao atualizar item');
       } else {
@@ -146,7 +94,7 @@ const MenuItemsPage: React.FC = () => {
         setIsDialogOpen(false);
       }
     } else {
-      const { error } = await createItem(dataToSave);
+      const { error } = await createItem(formData);
       if (error) {
         toast.error('Erro ao criar item');
       } else {
@@ -158,7 +106,7 @@ const MenuItemsPage: React.FC = () => {
     setIsSaving(false);
   };
 
-  const handleDelete = async (item: MenuItem) => {
+  const handleDelete = async (item: InventoryItem) => {
     const { error } = await deleteItem(item.id);
     if (error) {
       toast.error('Erro ao excluir item');
@@ -167,7 +115,7 @@ const MenuItemsPage: React.FC = () => {
     }
   };
 
-  const getStockDisplay = (item: MenuItem) => {
+  const getStockDisplay = (item: InventoryItem) => {
     if (item.is_bottle) {
       const bottles = item.bottles_in_stock || 0;
       const currentMl = item.current_bottle_ml || 0;
@@ -209,18 +157,10 @@ const MenuItemsPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Estoque</h1>
           <p className="text-muted-foreground">
-            {stockOnlyItems.length} itens no estoque
-            {cardapioItems.length > 0 && ` • ${cardapioItems.length} no cardápio`}
+            {items.length} itens no estoque
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant={showAll ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setShowAll(!showAll)}
-          >
-            {showAll ? "Mostrando Todos" : "Mostrar Todos"}
-          </Button>
           <Button variant="outline" onClick={() => setIsImporterOpen(true)}>
             <FileImage className="h-4 w-4 mr-2" />
             Importar Nota
@@ -263,9 +203,6 @@ const MenuItemsPage: React.FC = () => {
                 <div key={item.id} className="py-3 flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      {item.is_sellable && (
-                        <Badge className="bg-green-500/80 text-xs">No Cardápio</Badge>
-                      )}
                       {item.product_code && item.product_code.length > 0 && (
                         <Badge variant="outline" className="font-mono text-xs" title={item.product_code.join(', ')}>
                           {item.product_code[0]}
@@ -277,16 +214,13 @@ const MenuItemsPage: React.FC = () => {
                           <Wine className="h-4 w-4 text-purple-500" />
                         </span>
                       )}
-                      <span className={`font-medium truncate ${!item.is_available ? 'text-muted-foreground line-through' : ''}`}>
+                      <span className="font-medium truncate">
                         {item.name}
                       </span>
                       {item.is_bottle && item.bottle_ml && (
                         <span className="text-xs text-muted-foreground">
                           ({item.bottle_ml}ml/gf)
                         </span>
-                      )}
-                      {!item.is_available && (
-                        <Badge variant="outline" className="text-xs">Indisponível</Badge>
                       )}
                     </div>
                     {item.description && (
@@ -301,47 +235,30 @@ const MenuItemsPage: React.FC = () => {
                       </span>
                     )}
                     <div className="flex gap-1">
-                      <Button 
-                        variant={item.is_sellable ? "default" : "outline"} 
-                        size="sm"
-                        onClick={() => toggleSellable(item)}
-                        title={item.is_sellable ? "Remover do Cardápio" : "Adicionar ao Cardápio"}
-                        className="text-xs"
-                      >
-                        <ShoppingBag className="h-3 w-3 mr-1" />
-                        {item.is_sellable ? "No Cardápio" : "Só Estoque"}
-                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      {/* Only show delete button for non-sellable items (stock only) */}
-                      {!item.is_sellable ? (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir item</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Tem certeza que deseja excluir "{item.name}"? Esta ação não pode ser desfeita.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(item)}>
-                                Excluir
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      ) : (
-                        <span className="text-xs text-muted-foreground px-2" title="Remova do Cardápio primeiro para poder excluir">
-                          Protegido
-                        </span>
-                      )}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir item</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir "{item.name}"? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(item)}>
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 </div>
@@ -496,22 +413,6 @@ const MenuItemsPage: React.FC = () => {
                 </p>
               </div>
             )}
-
-            {/* Sellable toggle */}
-            <div className="flex items-center justify-between py-2 border-t">
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="h-4 w-4 text-green-500" />
-                <div>
-                  <Label htmlFor="is_sellable" className="cursor-pointer">Vendável no Cardápio</Label>
-                  <p className="text-xs text-muted-foreground">Marque para itens vendidos diretamente</p>
-                </div>
-              </div>
-              <Switch
-                id="is_sellable"
-                checked={formData.is_sellable ?? false}
-                onCheckedChange={checked => setFormData(prev => ({ ...prev, is_sellable: checked }))}
-              />
-            </div>
           </div>
 
           <DialogFooter>
@@ -530,8 +431,11 @@ const MenuItemsPage: React.FC = () => {
       <InvoiceImporter
         open={isImporterOpen}
         onOpenChange={setIsImporterOpen}
-        existingItems={items}
-        categories={categories}
+        existingItems={items.map(i => ({ 
+          id: i.id, 
+          name: i.name, 
+          product_code: i.product_code 
+        }))}
         onImportComplete={fetchItems}
       />
     </div>
