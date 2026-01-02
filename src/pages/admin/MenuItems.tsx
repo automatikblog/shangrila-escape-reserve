@@ -16,6 +16,7 @@ const MenuItemsPage: React.FC = () => {
   const { items, categories, isLoading, createItem, updateItem, deleteItem, fetchItems } = useMenuItems();
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAll, setShowAll] = useState(false); // Toggle to show all items or only stock items
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isImporterOpen, setIsImporterOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -41,16 +42,23 @@ const MenuItemsPage: React.FC = () => {
     is_sellable: false
   });
 
-  // Filter and sort ALL items A-Z (Estoque shows everything)
+  // Count items by type
+  const stockOnlyItems = useMemo(() => items.filter(item => !item.is_sellable), [items]);
+  const cardapioItems = useMemo(() => items.filter(item => item.is_sellable), [items]);
+
+  // Filter and sort items - by default show only stock items (is_sellable = false)
   const sortedItems = useMemo(() => {
     return items
       .filter(item => {
+        // Filter by sellable status unless showAll is true
+        if (!showAll && item.is_sellable) return false;
+        
         const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (item.product_code && item.product_code.some(code => code.toLowerCase().includes(searchTerm.toLowerCase())));
         return matchesSearch;
       })
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-  }, [items, searchTerm]);
+  }, [items, searchTerm, showAll]);
 
   // Toggle sellable status (move between Estoque-only and Cardápio)
   const toggleSellable = async (item: MenuItem) => {
@@ -200,9 +208,19 @@ const MenuItemsPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Estoque</h1>
-          <p className="text-muted-foreground">{items.length} itens cadastrados</p>
+          <p className="text-muted-foreground">
+            {stockOnlyItems.length} itens no estoque
+            {cardapioItems.length > 0 && ` • ${cardapioItems.length} no cardápio`}
+          </p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant={showAll ? "default" : "outline"} 
+            size="sm"
+            onClick={() => setShowAll(!showAll)}
+          >
+            {showAll ? "Mostrando Todos" : "Mostrar Todos"}
+          </Button>
           <Button variant="outline" onClick={() => setIsImporterOpen(true)}>
             <FileImage className="h-4 w-4 mr-2" />
             Importar Nota
