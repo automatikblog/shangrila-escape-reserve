@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useMenuItems, MenuItem, MenuItemInput, categoryLabels } from '@/hooks/useMenuItems';
+import { useMenuProducts, MenuProduct, MenuProductInput, categoryLabels } from '@/hooks/useMenuProducts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,43 +10,32 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, Wine, ChefHat, ShoppingBag, FlaskConical } from 'lucide-react';
-import { RecipeManagerModal } from '@/components/admin/RecipeManagerModal';
+import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, ChefHat, ShoppingBag } from 'lucide-react';
 import { CategoryEditor } from '@/components/admin/CategoryEditor';
 
-const dynamicCategoryLabels: Record<string, string> = { ...categoryLabels };
-
 const getCategoryLabel = (category: string): string => {
-  return dynamicCategoryLabels[category] || categoryLabels[category] || category;
+  return categoryLabels[category] || category;
 };
 
 const CardapioPage: React.FC = () => {
-  const { items: allItems, categories, isLoading, createItem, updateItem, fetchItems } = useMenuItems();
-  
-  // Filter only sellable items for display
-  const items = useMemo(() => allItems.filter(item => item.is_sellable), [allItems]);
+  const { items, categories, isLoading, createItem, updateItem, deleteItem, fetchItems } = useMenuProducts();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [editingItem, setEditingItem] = useState<MenuProduct | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isNewCategory, setIsNewCategory] = useState(false);
   const [newCategoryLabel, setNewCategoryLabel] = useState('');
-  const [recipeModalItem, setRecipeModalItem] = useState<MenuItem | null>(null);
 
-  const [formData, setFormData] = useState<MenuItemInput>({
+  const [formData, setFormData] = useState<MenuProductInput>({
     name: '',
     price: 0,
     description: '',
     category: '',
     is_available: true,
-    stock_quantity: null,
-    is_sellable: true,
     goes_to_kitchen: true,
-    is_bottle: false,
-    bottle_ml: null,
-    dose_ml: null
+    is_customizable: false
   });
 
   const filteredItems = useMemo(() => {
@@ -58,7 +47,7 @@ const CardapioPage: React.FC = () => {
   }, [items, searchTerm, categoryFilter]);
 
   const groupedItems = useMemo(() => {
-    const groups: Record<string, MenuItem[]> = {};
+    const groups: Record<string, MenuProduct[]> = {};
     filteredItems.forEach(item => {
       if (!groups[item.category]) {
         groups[item.category] = [];
@@ -71,7 +60,7 @@ const CardapioPage: React.FC = () => {
     return groups;
   }, [filteredItems]);
 
-  const sellableCategories = useMemo(() => {
+  const sortedCategories = useMemo(() => {
     return [...new Set(items.map(i => i.category))].sort((a, b) => 
       getCategoryLabel(a).localeCompare(getCategoryLabel(b), 'pt-BR')
     );
@@ -85,19 +74,15 @@ const CardapioPage: React.FC = () => {
       name: '',
       price: 0,
       description: '',
-      category: sellableCategories[0] || '',
+      category: sortedCategories[0] || '',
       is_available: true,
-      stock_quantity: null,
-      is_sellable: true,
       goes_to_kitchen: true,
-      is_bottle: false,
-      bottle_ml: null,
-      dose_ml: null
+      is_customizable: false
     });
     setIsDialogOpen(true);
   };
 
-  const openEditDialog = (item: MenuItem) => {
+  const openEditDialog = (item: MenuProduct) => {
     setEditingItem(item);
     setIsNewCategory(false);
     setNewCategoryLabel('');
@@ -107,18 +92,13 @@ const CardapioPage: React.FC = () => {
       description: item.description || '',
       category: item.category,
       is_available: item.is_available,
-      stock_quantity: item.stock_quantity,
-      is_sellable: true,
       goes_to_kitchen: item.goes_to_kitchen,
-      is_bottle: item.is_bottle,
-      bottle_ml: item.bottle_ml,
-      dose_ml: item.dose_ml
+      is_customizable: item.is_customizable
     });
     setIsDialogOpen(true);
   };
 
   const handleSave = async () => {
-    // Use category name directly (no slug conversion)
     const finalCategory = isNewCategory ? newCategoryLabel.trim() : formData.category;
     
     if (!formData.name || !finalCategory || formData.price <= 0) {
@@ -133,8 +113,7 @@ const CardapioPage: React.FC = () => {
 
     const dataToSave = { 
       ...formData, 
-      category: finalCategory, 
-      is_sellable: true,
+      category: finalCategory,
       is_available: true 
     };
 
@@ -161,13 +140,12 @@ const CardapioPage: React.FC = () => {
     setIsSaving(false);
   };
 
-  // Remove from Cardápio (mark as not sellable) - item stays in Estoque
-  const handleRemoveFromMenu = async (item: MenuItem) => {
-    const { error } = await updateItem(item.id, { is_sellable: false });
+  const handleDeleteFromMenu = async (item: MenuProduct) => {
+    const { error } = await deleteItem(item.id);
     if (error) {
-      toast.error('Erro ao remover do cardápio');
+      toast.error('Erro ao excluir do cardápio');
     } else {
-      toast.success('Produto removido do cardápio (continua no estoque)');
+      toast.success('Produto excluído do cardápio');
     }
   };
 
@@ -187,7 +165,7 @@ const CardapioPage: React.FC = () => {
             <ShoppingBag className="h-6 w-6 text-primary" />
             Cardápio
           </h1>
-          <p className="text-muted-foreground">{items.length} produtos vendáveis</p>
+          <p className="text-muted-foreground">{items.length} produtos no cardápio</p>
         </div>
         <Button onClick={openNewItemDialog}>
           <Plus className="h-4 w-4 mr-2" />
@@ -214,7 +192,7 @@ const CardapioPage: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as categorias</SelectItem>
-                {sellableCategories.map(cat => (
+                {sortedCategories.map(cat => (
                   <SelectItem key={cat} value={cat}>
                     {getCategoryLabel(cat)}
                   </SelectItem>
@@ -232,7 +210,7 @@ const CardapioPage: React.FC = () => {
             <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">Nenhum produto encontrado</p>
             <p className="text-sm text-muted-foreground mt-2">
-              Adicione produtos vendáveis clicando em "Novo Produto"
+              Adicione produtos clicando em "Novo Produto"
             </p>
           </CardContent>
         </Card>
@@ -247,6 +225,7 @@ const CardapioPage: React.FC = () => {
                   category={category}
                   categoryLabel={getCategoryLabel(category)}
                   onCategoryRenamed={fetchItems}
+                  tableName="menu_products"
                 />
                 <Badge variant="outline" className="ml-2">{categoryItems.length}</Badge>
               </CardTitle>
@@ -257,11 +236,6 @@ const CardapioPage: React.FC = () => {
                   <div key={item.id} className="py-3 flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        {item.is_bottle && (
-                          <span title="Vendido por dose">
-                            <Wine className="h-4 w-4 text-purple-500" />
-                          </span>
-                        )}
                         {item.goes_to_kitchen && (
                           <span title="Vai para cozinha">
                             <ChefHat className="h-4 w-4 text-orange-500" />
@@ -281,7 +255,6 @@ const CardapioPage: React.FC = () => {
                     <div className="flex items-center gap-4 shrink-0">
                       <span className="font-medium text-primary">
                         R$ {item.price.toFixed(2).replace('.', ',')}
-                        {item.is_bottle && <span className="text-xs text-muted-foreground">/dose</span>}
                       </span>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
@@ -289,21 +262,21 @@ const CardapioPage: React.FC = () => {
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title="Remover do cardápio">
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title="Excluir do cardápio">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Remover do Cardápio</AlertDialogTitle>
+                              <AlertDialogTitle>Excluir do Cardápio</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Remover "{item.name}" do cardápio? O item continuará disponível no Estoque.
+                                Excluir "{item.name}" do cardápio? Esta ação não afeta o estoque.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleRemoveFromMenu(item)}>
-                                Remover do Cardápio
+                              <AlertDialogAction onClick={() => handleDeleteFromMenu(item)}>
+                                Excluir
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -417,78 +390,6 @@ const CardapioPage: React.FC = () => {
                 onCheckedChange={checked => setFormData(prev => ({ ...prev, goes_to_kitchen: checked }))}
               />
             </div>
-
-            {/* Bottle/dose toggle */}
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-2">
-                <Wine className="h-4 w-4 text-purple-500" />
-                <Label htmlFor="is_bottle" className="cursor-pointer">Vendido por dose</Label>
-              </div>
-              <Switch
-                id="is_bottle"
-                checked={formData.is_bottle ?? false}
-                onCheckedChange={checked => setFormData(prev => ({ ...prev, is_bottle: checked }))}
-              />
-            </div>
-
-            {formData.is_bottle && (
-              <div className="grid grid-cols-2 gap-4 pl-6">
-                <div>
-                  <Label htmlFor="bottle_ml">mL da Garrafa</Label>
-                  <Input
-                    id="bottle_ml"
-                    type="number"
-                    min="0"
-                    value={formData.bottle_ml ?? ''}
-                    onChange={e => setFormData(prev => ({ 
-                      ...prev, 
-                      bottle_ml: e.target.value === '' ? null : parseInt(e.target.value) 
-                    }))}
-                    placeholder="Ex: 700"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="dose_ml">mL da Dose</Label>
-                  <Input
-                    id="dose_ml"
-                    type="number"
-                    min="0"
-                    value={formData.dose_ml ?? ''}
-                    onChange={e => setFormData(prev => ({ 
-                      ...prev, 
-                      dose_ml: e.target.value === '' ? null : parseInt(e.target.value) 
-                    }))}
-                    placeholder="Ex: 50"
-                  />
-                </div>
-                {formData.bottle_ml && formData.dose_ml && (
-                  <p className="text-xs text-muted-foreground col-span-2">
-                    = {Math.floor(formData.bottle_ml / formData.dose_ml)} doses por garrafa
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Recipe Manager inside edit dialog */}
-            {editingItem && (
-              <div className="pt-2 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setIsDialogOpen(false);
-                    setRecipeModalItem(editingItem);
-                  }}
-                >
-                  <FlaskConical className="h-4 w-4 mr-2 text-primary" />
-                  Gerenciar Receita
-                </Button>
-                <p className="text-xs text-muted-foreground mt-1 text-center">
-                  Vincule ingredientes do estoque para debitar automaticamente
-                </p>
-              </div>
-            )}
           </div>
 
           <DialogFooter>
@@ -502,14 +403,6 @@ const CardapioPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Recipe Manager Modal */}
-      <RecipeManagerModal
-        open={!!recipeModalItem}
-        onOpenChange={(open) => !open && setRecipeModalItem(null)}
-        item={recipeModalItem}
-        allItems={allItems}
-      />
     </div>
   );
 };
