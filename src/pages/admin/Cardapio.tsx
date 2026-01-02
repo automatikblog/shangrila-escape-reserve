@@ -10,8 +10,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, ChefHat, ShoppingBag } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, ChefHat, ShoppingBag, FlaskConical } from 'lucide-react';
 import { CategoryEditor } from '@/components/admin/CategoryEditor';
+import { ProductRecipeModal } from '@/components/admin/ProductRecipeModal';
 
 const getCategoryLabel = (category: string): string => {
   return categoryLabels[category] || category;
@@ -24,6 +25,8 @@ const CardapioPage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuProduct | null>(null);
+  const [recipeProduct, setRecipeProduct] = useState<MenuProduct | null>(null);
+  const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isNewCategory, setIsNewCategory] = useState(false);
   const [newCategoryLabel, setNewCategoryLabel] = useState('');
@@ -257,6 +260,17 @@ const CardapioPage: React.FC = () => {
                         R$ {item.price.toFixed(2).replace('.', ',')}
                       </span>
                       <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          title="Montar receita"
+                          onClick={() => {
+                            setRecipeProduct(item);
+                            setIsRecipeModalOpen(true);
+                          }}
+                        >
+                          <FlaskConical className="h-4 w-4 text-primary" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -403,6 +417,13 @@ const CardapioPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Recipe Modal */}
+      <ProductRecipeModal 
+        open={isRecipeModalOpen} 
+        onOpenChange={setIsRecipeModalOpen} 
+        product={recipeProduct} 
+      />
     </div>
   );
 };
