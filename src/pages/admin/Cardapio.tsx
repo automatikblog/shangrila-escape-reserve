@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useMenuProducts, MenuProduct, MenuProductInput, categoryLabels } from '@/hooks/useMenuProducts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,9 +10,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, ChefHat, ShoppingBag, FlaskConical } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, ChefHat, ShoppingBag, FlaskConical, AlertTriangle } from 'lucide-react';
 import { CategoryEditor } from '@/components/admin/CategoryEditor';
 import { ProductRecipeModal } from '@/components/admin/ProductRecipeModal';
+import { supabase } from '@/integrations/supabase/client';
 
 const getCategoryLabel = (category: string): string => {
   return categoryLabels[category] || category;
@@ -20,6 +21,7 @@ const getCategoryLabel = (category: string): string => {
 
 const CardapioPage: React.FC = () => {
   const { items, categories, isLoading, createItem, updateItem, deleteItem, fetchItems } = useMenuProducts();
+  const [productsWithRecipe, setProductsWithRecipe] = useState<Set<string>>(new Set());
   
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -30,6 +32,24 @@ const CardapioPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isNewCategory, setIsNewCategory] = useState(false);
   const [newCategoryLabel, setNewCategoryLabel] = useState('');
+  const [showOnlyMissingRecipe, setShowOnlyMissingRecipe] = useState(false);
+
+  // Fetch products that have recipes configured
+  const fetchProductsWithRecipe = async () => {
+    const { data } = await supabase
+      .from('item_recipes')
+      .select('parent_product_id')
+      .not('parent_product_id', 'is', null);
+    
+    if (data) {
+      const ids = new Set(data.map(r => r.parent_product_id).filter(Boolean) as string[]);
+      setProductsWithRecipe(ids);
+    }
+  };
+
+  useEffect(() => {
+    fetchProductsWithRecipe();
+  }, [isRecipeModalOpen]); // Refresh when modal closes
 
   const [formData, setFormData] = useState<MenuProductInput>({
     name: '',
@@ -45,9 +65,15 @@ const CardapioPage: React.FC = () => {
     return items.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
-      return matchesSearch && matchesCategory;
+      const matchesMissingRecipe = !showOnlyMissingRecipe || !productsWithRecipe.has(item.id);
+      return matchesSearch && matchesCategory && matchesMissingRecipe;
     });
-  }, [items, searchTerm, categoryFilter]);
+  }, [items, searchTerm, categoryFilter, showOnlyMissingRecipe, productsWithRecipe]);
+
+  // Count products without recipe
+  const productsWithoutRecipeCount = useMemo(() => {
+    return items.filter(item => !productsWithRecipe.has(item.id)).length;
+  }, [items, productsWithRecipe]);
 
   const groupedItems = useMemo(() => {
     const groups: Record<string, MenuProduct[]> = {};
@@ -176,6 +202,34 @@ const CardapioPage: React.FC = () => {
         </Button>
       </div>
 
+      {/* Warning Banner for missing recipes */}
+      {productsWithoutRecipeCount > 0 && (
+        <Card className="border-amber-500/50 bg-amber-500/10">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <div>
+                  <p className="font-medium text-amber-700 dark:text-amber-400">
+                    {productsWithoutRecipeCount} produto{productsWithoutRecipeCount > 1 ? 's' : ''} sem receita configurada
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Estes produtos não irão debitar nada do estoque quando vendidos
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant={showOnlyMissingRecipe ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowOnlyMissingRecipe(!showOnlyMissingRecipe)}
+              >
+                {showOnlyMissingRecipe ? 'Mostrar todos' : 'Ver pendentes'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
@@ -235,10 +289,17 @@ const CardapioPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="divide-y divide-border">
-                {categoryItems.map(item => (
-                  <div key={item.id} className="py-3 flex items-center justify-between gap-4">
+                {categoryItems.map(item => {
+                  const hasRecipe = productsWithRecipe.has(item.id);
+                  return (
+                  <div key={item.id} className={`py-3 flex items-center justify-between gap-4 ${!hasRecipe ? 'bg-amber-500/5' : ''}`}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {!hasRecipe && (
+                          <span title="Sem receita - não debita estoque">
+                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                          </span>
+                        )}
                         {item.goes_to_kitchen && (
                           <span title="Vai para cozinha">
                             <ChefHat className="h-4 w-4 text-orange-500" />
@@ -249,6 +310,11 @@ const CardapioPage: React.FC = () => {
                         </span>
                         {!item.is_available && (
                           <Badge variant="outline" className="text-xs">Indisponível</Badge>
+                        )}
+                        {!hasRecipe && (
+                          <Badge variant="outline" className="text-xs text-amber-600 border-amber-500/50">
+                            Sem receita
+                          </Badge>
                         )}
                       </div>
                       {item.description && (
@@ -261,15 +327,15 @@ const CardapioPage: React.FC = () => {
                       </span>
                       <div className="flex gap-1">
                         <Button 
-                          variant="ghost" 
+                          variant={hasRecipe ? "ghost" : "outline"}
                           size="icon" 
-                          title="Montar receita"
+                          title={hasRecipe ? "Editar receita" : "Montar receita"}
+                          className={!hasRecipe ? "border-amber-500 text-amber-600 hover:bg-amber-500/10" : ""}
                           onClick={() => {
                             setRecipeProduct(item);
                             setIsRecipeModalOpen(true);
                           }}
                         >
-                          <FlaskConical className="h-4 w-4 text-primary" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
                           <Edit className="h-4 w-4" />
@@ -298,7 +364,8 @@ const CardapioPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
