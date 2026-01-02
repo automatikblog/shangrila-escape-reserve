@@ -21,7 +21,7 @@ const getCategoryLabel = (category: string): string => {
 };
 
 const CardapioPage: React.FC = () => {
-  const { items: allItems, categories, isLoading, createItem, updateItem, deleteItem, fetchItems } = useMenuItems();
+  const { items: allItems, categories, isLoading, createItem, updateItem, fetchItems } = useMenuItems();
   
   // Filter only sellable items for display
   const items = useMemo(() => allItems.filter(item => item.is_sellable), [allItems]);
@@ -161,12 +161,13 @@ const CardapioPage: React.FC = () => {
     setIsSaving(false);
   };
 
-  const handleDelete = async (item: MenuItem) => {
-    const { error } = await deleteItem(item.id);
+  // Remove from Cardápio (mark as not sellable) - item stays in Estoque
+  const handleRemoveFromMenu = async (item: MenuItem) => {
+    const { error } = await updateItem(item.id, { is_sellable: false });
     if (error) {
-      toast.error('Erro ao excluir produto');
+      toast.error('Erro ao remover do cardápio');
     } else {
-      toast.success('Produto excluído com sucesso');
+      toast.success('Produto removido do cardápio (continua no estoque)');
     }
   };
 
@@ -288,21 +289,21 @@ const CardapioPage: React.FC = () => {
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title="Remover do cardápio">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir produto</AlertDialogTitle>
+                              <AlertDialogTitle>Remover do Cardápio</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Tem certeza que deseja excluir "{item.name}"? Esta ação não pode ser desfeita.
+                                Remover "{item.name}" do cardápio? O item continuará disponível no Estoque.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(item)}>
-                                Excluir
+                              <AlertDialogAction onClick={() => handleRemoveFromMenu(item)}>
+                                Remover do Cardápio
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
