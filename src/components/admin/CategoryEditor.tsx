@@ -11,12 +11,14 @@ interface CategoryEditorProps {
   category: string;
   categoryLabel: string;
   onCategoryRenamed: () => void;
+  tableName?: 'menu_items' | 'menu_products';
 }
 
 export const CategoryEditor: React.FC<CategoryEditorProps> = ({
   category,
   categoryLabel,
-  onCategoryRenamed
+  onCategoryRenamed,
+  tableName = 'menu_items'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [newName, setNewName] = useState(categoryLabel);
@@ -34,8 +36,8 @@ export const CategoryEditor: React.FC<CategoryEditorProps> = ({
     try {
       // Update all items with this category to the new name
       const { error } = await supabase
-        .from('menu_items')
-        .update({ category: trimmedName })
+        .from(tableName)
+        .update({ category: trimmedName } as any)
         .eq('category', category);
 
       if (error) throw error;

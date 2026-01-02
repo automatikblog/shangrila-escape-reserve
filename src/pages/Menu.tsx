@@ -3,21 +3,20 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from 'lucide-react';
-import { useMenuItems, categoryLabels } from '@/hooks/useMenuItems';
+import { usePublicMenuProducts, categoryLabels } from '@/hooks/useMenuProducts';
 
 const getCategoryLabel = (category: string): string => {
   return categoryLabels[category] || category;
 };
 
 const Menu = () => {
-  const { items: allItems, isLoading } = useMenuItems();
+  const { items, isLoading } = usePublicMenuProducts();
 
-  // Filter only sellable items and group by category
+  // Group by category
   const groupedItems = useMemo(() => {
-    const sellableItems = allItems.filter(item => item.is_sellable && item.is_available);
-    const groups: Record<string, typeof sellableItems> = {};
+    const groups: Record<string, typeof items> = {};
     
-    sellableItems.forEach(item => {
+    items.forEach(item => {
       if (!groups[item.category]) {
         groups[item.category] = [];
       }
@@ -30,7 +29,7 @@ const Menu = () => {
     });
 
     return groups;
-  }, [allItems]);
+  }, [items]);
 
   // Sort categories by label
   const sortedCategories = useMemo(() => {
@@ -39,9 +38,8 @@ const Menu = () => {
     );
   }, [groupedItems]);
 
-  const formatPrice = (price: number, isBottle?: boolean) => {
-    const formatted = `R$ ${price.toFixed(2).replace('.', ',')}`;
-    return isBottle ? `${formatted}/dose` : formatted;
+  const formatPrice = (price: number) => {
+    return `R$ ${price.toFixed(2).replace('.', ',')}`;
   };
 
   return (
@@ -95,7 +93,7 @@ const Menu = () => {
                             )}
                           </div>
                           <span className="font-semibold text-primary whitespace-nowrap text-sm">
-                            {formatPrice(item.price, item.is_bottle)}
+                            {formatPrice(item.price)}
                           </span>
                         </div>
                       ))}
