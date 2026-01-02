@@ -61,32 +61,93 @@ export type Database = {
           },
         ]
       }
+      inventory_items: {
+        Row: {
+          bottle_ml: number | null
+          bottles_in_stock: number
+          cost_price: number | null
+          created_at: string
+          current_bottle_ml: number
+          description: string | null
+          dose_ml: number | null
+          id: string
+          is_bottle: boolean
+          name: string
+          product_code: string[] | null
+          stock_quantity: number | null
+          updated_at: string
+        }
+        Insert: {
+          bottle_ml?: number | null
+          bottles_in_stock?: number
+          cost_price?: number | null
+          created_at?: string
+          current_bottle_ml?: number
+          description?: string | null
+          dose_ml?: number | null
+          id?: string
+          is_bottle?: boolean
+          name: string
+          product_code?: string[] | null
+          stock_quantity?: number | null
+          updated_at?: string
+        }
+        Update: {
+          bottle_ml?: number | null
+          bottles_in_stock?: number
+          cost_price?: number | null
+          created_at?: string
+          current_bottle_ml?: number
+          description?: string | null
+          dose_ml?: number | null
+          id?: string
+          is_bottle?: boolean
+          name?: string
+          product_code?: string[] | null
+          stock_quantity?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       item_recipes: {
         Row: {
           created_at: string
           id: string
+          ingredient_inventory_item_id: string | null
           ingredient_item_id: string
           parent_item_id: string
+          parent_product_id: string | null
           quantity_ml: number | null
           quantity_units: number
         }
         Insert: {
           created_at?: string
           id?: string
+          ingredient_inventory_item_id?: string | null
           ingredient_item_id: string
           parent_item_id: string
+          parent_product_id?: string | null
           quantity_ml?: number | null
           quantity_units?: number
         }
         Update: {
           created_at?: string
           id?: string
+          ingredient_inventory_item_id?: string | null
           ingredient_item_id?: string
           parent_item_id?: string
+          parent_product_id?: string | null
           quantity_ml?: number | null
           quantity_units?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "item_recipes_ingredient_inventory_item_id_fkey"
+            columns: ["ingredient_inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "item_recipes_ingredient_item_id_fkey"
             columns: ["ingredient_item_id"]
@@ -99,6 +160,13 @@ export type Database = {
             columns: ["parent_item_id"]
             isOneToOne: false
             referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_recipes_parent_product_id_fkey"
+            columns: ["parent_product_id"]
+            isOneToOne: false
+            referencedRelation: "menu_products"
             referencedColumns: ["id"]
           },
         ]
@@ -168,6 +236,56 @@ export type Database = {
           stock_quantity?: number | null
         }
         Relationships: []
+      }
+      menu_products: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          goes_to_kitchen: boolean
+          id: string
+          inventory_item_id: string | null
+          is_available: boolean
+          is_customizable: boolean
+          name: string
+          price: number
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          goes_to_kitchen?: boolean
+          id?: string
+          inventory_item_id?: string | null
+          is_available?: boolean
+          is_customizable?: boolean
+          name: string
+          price: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          goes_to_kitchen?: boolean
+          id?: string
+          inventory_item_id?: string | null
+          is_available?: boolean
+          is_customizable?: boolean
+          name?: string
+          price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_products_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_items: {
         Row: {
