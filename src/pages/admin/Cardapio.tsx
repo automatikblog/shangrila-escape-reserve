@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Plus, Search, Edit, Trash2, Loader2, Package, AlertCircle, Wine, ChefHat, ShoppingBag, FlaskConical } from 'lucide-react';
 import { RecipeManagerModal } from '@/components/admin/RecipeManagerModal';
+import { CategoryEditor } from '@/components/admin/CategoryEditor';
 
 const dynamicCategoryLabels: Record<string, string> = { ...categoryLabels };
 
@@ -20,7 +21,7 @@ const getCategoryLabel = (category: string): string => {
 };
 
 const CardapioPage: React.FC = () => {
-  const { items: allItems, categories, isLoading, createItem, updateItem, deleteItem } = useMenuItems();
+  const { items: allItems, categories, isLoading, createItem, updateItem, deleteItem, fetchItems } = useMenuItems();
   
   // Filter only sellable items for display
   const items = useMemo(() => allItems.filter(item => item.is_sellable), [allItems]);
@@ -247,6 +248,11 @@ const CardapioPage: React.FC = () => {
               <CardTitle className="text-lg flex items-center gap-2">
                 <Package className="h-5 w-5 text-primary" />
                 {getCategoryLabel(category)}
+                <CategoryEditor
+                  category={category}
+                  categoryLabel={getCategoryLabel(category)}
+                  onCategoryRenamed={fetchItems}
+                />
                 <Badge variant="outline" className="ml-2">{categoryItems.length}</Badge>
               </CardTitle>
             </CardHeader>
