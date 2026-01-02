@@ -3,14 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Loader2, Upload, Camera, FileImage, Check, AlertCircle, Package } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { MenuItem } from '@/hooks/useMenuItems';
 
 interface ParsedItem {
   codigo: string;
@@ -24,39 +22,45 @@ interface ParsedItem {
   // Pack detection
   unitsPerPack: number;
   totalUnits: number;
-  editedTotalUnits: string; // Changed to string to allow empty field during editing
+  editedTotalUnits: string;
   isPack: boolean;
   // New item creation
   newItemName?: string;
-  newItemCategory?: string;
+}
+
+interface ExistingItem {
+  id: string;
+  name: string;
+  product_code: string[] | null;
+  is_bottle?: boolean;
+  bottles_in_stock?: number;
+  stock_quantity?: number | null;
 }
 
 interface InvoiceImporterProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  existingItems: MenuItem[];
-  categories: string[];
+  existingItems: ExistingItem[];
   onImportComplete: () => void;
 }
 
 // Detect pack pattern and extract units per pack
 const detectPackInfo = (description: string): { isPack: boolean; unitsPerPack: number } => {
-  // Match patterns like "12X269ML", "6X1L", "24 x 350ml", "12UN", "CX 12"
   const patterns = [
-    /(\d+)\s*[xX×]\s*\d+/,           // 12X269ML, 6x1L
-    /(\d+)\s*UN/i,                    // 12UN
-    /CX\s*(\d+)/i,                    // CX 12
-    /(\d+)\s*UNID/i,                  // 12 UNIDADES
-    /PACK\s*(\d+)/i,                  // PACK 12
-    /(\d+)\s*LATAS?/i,                // 12 LATAS
-    /(\d+)\s*GARRAFAS?/i,             // 6 GARRAFAS
+    /(\d+)\s*[xX×]\s*\d+/,
+    /(\d+)\s*UN/i,
+    /CX\s*(\d+)/i,
+    /(\d+)\s*UNID/i,
+    /PACK\s*(\d+)/i,
+    /(\d+)\s*LATAS?/i,
+    /(\d+)\s*GARRAFAS?/i,
   ];
   
   for (const pattern of patterns) {
     const match = description.match(pattern);
     if (match) {
       const units = parseInt(match[1]);
-      if (units > 1 && units <= 48) { // Reasonable pack size
+      if (units > 1 && units <= 48) {
         return { isPack: true, unitsPerPack: units };
       }
     }
@@ -84,15 +88,13 @@ const extractKeyTerms = (description: string): string[] => {
 };
 
 // Score how well two items match
-const calculateMatchScore = (invoiceDesc: string, invoiceCode: string, existingItem: MenuItem): number => {
+const calculateMatchScore = (invoiceDesc: string, invoiceCode: string, existingItem: ExistingItem): number => {
   let score = 0;
   
-  // Exact code match is highest priority (now checks array of codes)
   if (existingItem.product_code && existingItem.product_code.length > 0 && invoiceCode) {
     if (existingItem.product_code.includes(invoiceCode)) {
-      return 100; // Exact match in codes array
+      return 100;
     }
-    // Check if any existing code partially matches
     const hasPartialMatch = existingItem.product_code.some(code => 
       code.includes(invoiceCode) || invoiceCode.includes(code)
     );
@@ -104,11 +106,9 @@ const calculateMatchScore = (invoiceDesc: string, invoiceCode: string, existingI
   const invoiceTerms = extractKeyTerms(invoiceDesc);
   const itemTerms = extractKeyTerms(existingItem.name);
   
-  // Check for brand matches
   const brandMatches = invoiceTerms.filter(term => itemTerms.includes(term));
   score += brandMatches.length * 15;
   
-  // Check for size/volume matches (269ml, 600ml, etc)
   const sizePattern = /(\d+)\s*ml/i;
   const invoiceSizeMatch = invoiceDesc.match(sizePattern);
   const itemSizeMatch = existingItem.name.match(sizePattern);
@@ -117,11 +117,9 @@ const calculateMatchScore = (invoiceDesc: string, invoiceCode: string, existingI
     score += 30;
   }
   
-  // For individual items (latas, garrafas), prefer items without "balde" or "pack"
   const invoiceIsPack = detectPackInfo(invoiceDesc).isPack;
   const itemIsBalde = /balde|pack|caixa|fardo|\d+\s*unid/i.test(existingItem.name);
   
-  // If invoice is a pack of individual items, prefer individual stock items
   if (invoiceIsPack && !itemIsBalde) {
     score += 20;
   }
@@ -130,8 +128,8 @@ const calculateMatchScore = (invoiceDesc: string, invoiceCode: string, existingI
 };
 
 // Find best matching item
-const findBestMatch = (invoiceDesc: string, invoiceCode: string, existingItems: MenuItem[]): MenuItem | undefined => {
-  let bestMatch: MenuItem | undefined;
+const findBestMatch = (invoiceDesc: string, invoiceCode: string, existingItems: ExistingItem[]): ExistingItem | undefined => {
+  let bestMatch: ExistingItem | undefined;
   let bestScore = 0;
   
   for (const item of existingItems) {
@@ -149,7 +147,6 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
   open,
   onOpenChange,
   existingItems,
-  categories,
   onImportComplete
 }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -183,14 +180,11 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
         return;
       }
 
-      // Process items - AI should return QTD.TRIB directly now
       const itemsWithMatches: ParsedItem[] = data.items.map((item: any) => {
         const packInfo = detectPackInfo(item.descricao);
-        // AI now returns total units directly from QTD.TRIB, so no need to multiply
         const totalUnits = item.quantidade;
         const bestMatch = findBestMatch(item.descricao, item.codigo, existingItems);
         
-        // Extract a clean name for new items (remove pack info like "CX C/8")
         const cleanName = item.descricao
           .replace(/\s*CX?\s*[Cc]?\/?(\d+)/g, '')
           .replace(/\s*FRIDGE\s*PACK/gi, '')
@@ -205,8 +199,7 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
           totalUnits: totalUnits,
           editedTotalUnits: String(totalUnits),
           isPack: packInfo.isPack,
-          newItemName: cleanName,
-          newItemCategory: 'estoque' // Default category for new ingredient items
+          newItemName: cleanName
         };
       });
 
@@ -235,7 +228,7 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
     let created = 0;
 
     try {
-      // Update existing items
+      // Update existing items in inventory_items table
       for (const item of linkedItems) {
         const existingItem = existingItems.find(e => e.id === item.linkedItemId);
         if (!existingItem) continue;
@@ -252,7 +245,7 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
 
         if (existingItem.is_bottle) {
           await supabase
-            .from('menu_items')
+            .from('inventory_items')
             .update({
               bottles_in_stock: (existingItem.bottles_in_stock || 0) + quantityToAdd,
               cost_price: unitCost,
@@ -261,7 +254,7 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
             .eq('id', item.linkedItemId);
         } else {
           await supabase
-            .from('menu_items')
+            .from('inventory_items')
             .update({
               stock_quantity: (existingItem.stock_quantity || 0) + quantityToAdd,
               cost_price: unitCost,
@@ -272,7 +265,7 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
         imported++;
       }
 
-      // Create new items
+      // Create new items in inventory_items table
       for (const item of newItems) {
         const quantityToAdd = parseInt(item.editedTotalUnits) || 0;
         if (quantityToAdd <= 0 || !item.newItemName) continue;
@@ -280,17 +273,15 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
         const unitCost = item.valorUnitario / (item.isPack ? item.unitsPerPack : 1);
 
         await supabase
-          .from('menu_items')
+          .from('inventory_items')
           .insert({
             name: item.newItemName,
-            category: item.newItemCategory || 'estoque',
-            price: 0, // Owner needs to set price in Cardápio
             stock_quantity: quantityToAdd,
             cost_price: unitCost,
             product_code: [item.codigo],
-            is_available: true,
-            is_sellable: false, // Ingredients are not sellable by default
-            goes_to_kitchen: false
+            is_bottle: false,
+            bottles_in_stock: 0,
+            current_bottle_ml: 0
           });
         created++;
       }
@@ -337,12 +328,6 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
   const updateNewItemName = (index: number, name: string) => {
     setParsedItems(prev => prev.map((item, i) => 
       i === index ? { ...item, newItemName: name } : item
-    ));
-  };
-
-  const updateNewItemCategory = (index: number, category: string) => {
-    setParsedItems(prev => prev.map((item, i) => 
-      i === index ? { ...item, newItemCategory: category } : item
     ));
   };
 
@@ -455,7 +440,6 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
                           <span className="font-medium text-sm">{item.descricao}</span>
                         </div>
                         
-                        {/* Pack detection info */}
                         {item.isPack && (
                           <div className="flex items-center gap-2 text-xs bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 p-2 rounded">
                             <Package className="h-4 w-4" />
@@ -465,7 +449,6 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
                           </div>
                         )}
                         
-                        {/* Quantity and price */}
                         <div className="flex items-center gap-4 text-sm flex-wrap">
                           <div className="flex items-center gap-2">
                             <Label className="text-xs text-muted-foreground">Total unidades:</Label>
@@ -483,7 +466,6 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
                           </span>
                         </div>
                         
-                        {/* Create new item checkbox */}
                         <div className="flex items-center gap-2 p-2 rounded bg-muted/50">
                           <Checkbox
                             id={`create-new-${index}`}
@@ -495,7 +477,6 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
                           </Label>
                         </div>
 
-                        {/* New item fields */}
                         {item.createNew && (
                           <div className="space-y-2 p-3 border rounded bg-green-50 dark:bg-green-950/30">
                             <div>
@@ -507,79 +488,42 @@ export const InvoiceImporter: React.FC<InvoiceImporterProps> = ({
                                 placeholder="Nome do produto"
                               />
                             </div>
-                            <div>
-                              <Label className="text-xs">Categoria:</Label>
-                              <Select
-                                value={item.newItemCategory || 'outros'}
-                                onValueChange={(val) => updateNewItemCategory(index, val)}
-                              >
-                                <SelectTrigger className="mt-1 h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {categories.map(cat => (
-                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
                             <p className="text-xs text-muted-foreground">
-                              Preço será definido como R$ 0,00 - edite depois
+                              O item será criado no Estoque
                             </p>
                           </div>
                         )}
 
-                        {/* Existing item link */}
                         {!item.createNew && (
                           <div>
                             <Label className="text-xs">Vincular a item do estoque:</Label>
-                            <Select
+                            <select
                               value={item.linkedItemId || '__none__'}
-                              onValueChange={(val) => updateItemLink(index, val === '__none__' ? undefined : val)}
+                              onChange={(e) => updateItemLink(index, e.target.value === '__none__' ? undefined : e.target.value)}
+                              className="mt-1 w-full h-10 px-3 py-2 text-sm border rounded-md bg-background"
                             >
-                              <SelectTrigger className="mt-1">
-                                <SelectValue placeholder="Selecione..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none__">
-                                  <span className="text-muted-foreground">Não vincular</span>
-                                </SelectItem>
-                                {getSortedExistingItems(item).map(existing => {
-                                  const matchScore = calculateMatchScore(item.descricao, item.codigo, existing);
-                                  return (
-                                    <SelectItem key={existing.id} value={existing.id}>
-                                      <div className="flex items-center gap-2">
-                                        {matchScore >= 30 && (
-                                          <Badge variant="secondary" className="text-[10px] px-1">
-                                            Sugerido
-                                          </Badge>
-                                        )}
-                                        {existing.product_code && existing.product_code.length > 0 && (
-                                          <span className="text-xs text-muted-foreground font-mono">
-                                            [{existing.product_code[0]}{existing.product_code.length > 1 ? `+${existing.product_code.length - 1}` : ''}]
-                                          </span>
-                                        )}
-                                        <span>{existing.name}</span>
-                                        {existing.is_bottle && (
-                                          <span className="text-xs text-muted-foreground">
-                                            ({existing.bottles_in_stock || 0} gfs)
-                                          </span>
-                                        )}
-                                        {!existing.is_bottle && existing.stock_quantity !== null && (
-                                          <span className="text-xs text-muted-foreground">
-                                            ({existing.stock_quantity} un)
-                                          </span>
-                                        )}
-                                      </div>
-                                    </SelectItem>
-                                  );
-                                })}
-                              </SelectContent>
-                            </Select>
+                              <option value="__none__">Não vincular</option>
+                              {getSortedExistingItems(item).map(existing => {
+                                const matchScore = calculateMatchScore(item.descricao, item.codigo, existing);
+                                return (
+                                  <option key={existing.id} value={existing.id}>
+                                    {matchScore >= 30 ? '★ ' : ''}
+                                    {existing.product_code && existing.product_code.length > 0 
+                                      ? `[${existing.product_code[0]}] ` 
+                                      : ''}
+                                    {existing.name}
+                                    {existing.is_bottle 
+                                      ? ` (${existing.bottles_in_stock || 0} gfs)` 
+                                      : existing.stock_quantity !== null 
+                                        ? ` (${existing.stock_quantity} un)` 
+                                        : ''}
+                                  </option>
+                                );
+                              })}
+                            </select>
                           </div>
                         )}
 
-                        {/* Status messages */}
                         {item.linkedItemId && !item.createNew && (
                           <div className="flex items-center gap-1 text-xs text-green-600">
                             <Check className="h-3 w-3" />
