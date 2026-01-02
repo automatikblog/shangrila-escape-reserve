@@ -23,32 +23,19 @@ export const CategoryEditor: React.FC<CategoryEditorProps> = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
-    if (!newName.trim()) {
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
       toast.error('Informe o nome da categoria');
-      return;
-    }
-
-    // Generate new category key from the new name
-    const newCategoryKey = newName
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove accents
-      .replace(/[^a-z0-9\s-]/g, '') // Remove special chars
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .trim();
-
-    if (!newCategoryKey) {
-      toast.error('Nome de categoria inválido');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Update all items with this category to the new category key
+      // Update all items with this category to the new name
       const { error } = await supabase
         .from('menu_items')
-        .update({ category: newCategoryKey })
+        .update({ category: trimmedName })
         .eq('category', category);
 
       if (error) throw error;

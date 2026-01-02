@@ -32,7 +32,6 @@ const CardapioPage: React.FC = () => {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isNewCategory, setIsNewCategory] = useState(false);
-  const [newCategoryKey, setNewCategoryKey] = useState('');
   const [newCategoryLabel, setNewCategoryLabel] = useState('');
   const [recipeModalItem, setRecipeModalItem] = useState<MenuItem | null>(null);
 
@@ -81,7 +80,6 @@ const CardapioPage: React.FC = () => {
   const openNewItemDialog = () => {
     setEditingItem(null);
     setIsNewCategory(false);
-    setNewCategoryKey('');
     setNewCategoryLabel('');
     setFormData({
       name: '',
@@ -102,7 +100,6 @@ const CardapioPage: React.FC = () => {
   const openEditDialog = (item: MenuItem) => {
     setEditingItem(item);
     setIsNewCategory(false);
-    setNewCategoryKey('');
     setNewCategoryLabel('');
     setFormData({
       name: item.name,
@@ -121,14 +118,15 @@ const CardapioPage: React.FC = () => {
   };
 
   const handleSave = async () => {
-    const finalCategory = isNewCategory ? newCategoryKey.toLowerCase().replace(/\s+/g, '-') : formData.category;
+    // Use category name directly (no slug conversion)
+    const finalCategory = isNewCategory ? newCategoryLabel.trim() : formData.category;
     
     if (!formData.name || !finalCategory || formData.price <= 0) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
     
-    if (isNewCategory && !newCategoryLabel) {
+    if (isNewCategory && !newCategoryLabel.trim()) {
       toast.error('Informe o nome da nova categoria');
       return;
     }
@@ -139,10 +137,6 @@ const CardapioPage: React.FC = () => {
       is_sellable: true,
       is_available: true 
     };
-    
-    if (isNewCategory && newCategoryKey && newCategoryLabel) {
-      dynamicCategoryLabels[finalCategory] = newCategoryLabel;
-    }
 
     setIsSaving(true);
 
@@ -384,11 +378,6 @@ const CardapioPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Input
-                    placeholder="ID da categoria (ex: sobremesas)"
-                    value={newCategoryKey}
-                    onChange={e => setNewCategoryKey(e.target.value)}
-                  />
                   <Input
                     placeholder="Nome da categoria (ex: Sobremesas)"
                     value={newCategoryLabel}
