@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useInventoryItems, InventoryItem, InventoryItemInput } from '@/hooks/useInventoryItems';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,9 +10,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Loader2, AlertCircle, Wine, FileImage } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Loader2, AlertCircle, Wine, FileImage, ShoppingBag } from 'lucide-react';
 import { InvoiceImporter } from '@/components/admin/InvoiceImporter';
-
 const MenuItemsPage: React.FC = () => {
   const { items, isLoading, createItem, updateItem, deleteItem, fetchItems } = useInventoryItems();
   
@@ -33,6 +33,7 @@ const MenuItemsPage: React.FC = () => {
     bottles_in_stock: 0,
     current_bottle_ml: 0
   });
+  const [addToMenu, setAddToMenu] = useState(false);
 
   // Filter and sort items alphabetically
   const sortedItems = useMemo(() => {
@@ -58,6 +59,7 @@ const MenuItemsPage: React.FC = () => {
       bottles_in_stock: 0,
       current_bottle_ml: 0
     });
+    setAddToMenu(false);
     setIsDialogOpen(true);
   };
 
@@ -94,11 +96,31 @@ const MenuItemsPage: React.FC = () => {
         setIsDialogOpen(false);
       }
     } else {
-      const { error } = await createItem(formData);
+      const { data: newItem, error } = await createItem(formData);
       if (error) {
         toast.error('Erro ao criar item');
       } else {
-        toast.success('Item criado com sucesso');
+        // If addToMenu is checked, also create in menu_products
+        if (addToMenu && newItem) {
+          const { error: menuError } = await supabase
+            .from('menu_products')
+            .insert({
+              name: newItem.name,
+              description: newItem.description,
+              category: 'Outros',
+              price: 0,
+              is_available: true,
+              inventory_item_id: newItem.id
+            });
+          
+          if (menuError) {
+            toast.warning('Item criado no estoque, mas erro ao adicionar ao cardápio');
+          } else {
+            toast.success('Item criado no estoque e cardápio');
+          }
+        } else {
+          toast.success('Item criado com sucesso');
+        }
         setIsDialogOpen(false);
       }
     }
@@ -411,6 +433,26 @@ const MenuItemsPage: React.FC = () => {
                 <p className="text-xs text-muted-foreground mt-1">
                   Deixe vazio para sem controle de estoque
                 </p>
+              </div>
+            )}
+
+            {/* Add to menu toggle - only for new items */}
+            {!editingItem && (
+              <div className="flex items-center justify-between py-2 border-t">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="h-4 w-4 text-green-500" />
+                  <div>
+                    <Label htmlFor="add_to_menu" className="cursor-pointer">Também adicionar ao Cardápio</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Cria no cardápio com preço R$ 0,00 para configurar depois
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="add_to_menu"
+                  checked={addToMenu}
+                  onCheckedChange={setAddToMenu}
+                />
               </div>
             )}
           </div>
