@@ -114,8 +114,8 @@ export type Database = {
           created_at: string
           id: string
           ingredient_inventory_item_id: string | null
-          ingredient_item_id: string
-          parent_item_id: string
+          ingredient_item_id: string | null
+          parent_item_id: string | null
           parent_product_id: string | null
           quantity_ml: number | null
           quantity_units: number
@@ -124,8 +124,8 @@ export type Database = {
           created_at?: string
           id?: string
           ingredient_inventory_item_id?: string | null
-          ingredient_item_id: string
-          parent_item_id: string
+          ingredient_item_id?: string | null
+          parent_item_id?: string | null
           parent_product_id?: string | null
           quantity_ml?: number | null
           quantity_units?: number
@@ -134,8 +134,8 @@ export type Database = {
           created_at?: string
           id?: string
           ingredient_inventory_item_id?: string | null
-          ingredient_item_id?: string
-          parent_item_id?: string
+          ingredient_item_id?: string | null
+          parent_item_id?: string | null
           parent_product_id?: string | null
           quantity_ml?: number | null
           quantity_units?: number
@@ -146,20 +146,6 @@ export type Database = {
             columns: ["ingredient_inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "item_recipes_ingredient_item_id_fkey"
-            columns: ["ingredient_item_id"]
-            isOneToOne: false
-            referencedRelation: "menu_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "item_recipes_parent_item_id_fkey"
-            columns: ["parent_item_id"]
-            isOneToOne: false
-            referencedRelation: "menu_items"
             referencedColumns: ["id"]
           },
           {
