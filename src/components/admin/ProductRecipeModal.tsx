@@ -47,14 +47,27 @@ export const ProductRecipeModal: React.FC<ProductRecipeModalProps> = ({
       return;
     }
 
+    // Validate based on ingredient type
+    if (selectedIngredientItem?.is_bottle) {
+      if (!quantityMl || parseInt(quantityMl) <= 0) {
+        toast.error('Informe a quantidade em ml');
+        return;
+      }
+    } else {
+      if (!quantityUnits || parseInt(quantityUnits) <= 0) {
+        toast.error('Informe a quantidade em unidades');
+        return;
+      }
+    }
+
     setIsAdding(true);
-    const ml = quantityMl ? parseInt(quantityMl) : null;
-    const units = parseInt(quantityUnits) || 1;
+    const ml = selectedIngredientItem?.is_bottle ? parseInt(quantityMl) : null;
+    const units = selectedIngredientItem?.is_bottle ? 0 : (parseInt(quantityUnits) || 1);
 
     const { error } = await addIngredient(selectedIngredient, ml, units);
     
     if (error) {
-      toast.error('Erro ao adicionar ingrediente');
+      toast.error('Erro ao adicionar ingrediente: ' + error);
     } else {
       toast.success('Ingrediente adicionado');
       setSelectedIngredient('');
