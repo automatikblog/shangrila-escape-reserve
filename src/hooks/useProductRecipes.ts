@@ -62,18 +62,32 @@ export const useProductRecipes = (parentProductId?: string) => {
     if (!parentProductId) return { error: 'No parent product' };
 
     try {
+      // Check if recipe already exists for this ingredient
+      const { data: existing } = await supabase
+        .from('item_recipes')
+        .select('id')
+        .eq('parent_product_id', parentProductId)
+        .eq('ingredient_inventory_item_id', ingredientInventoryItemId)
+        .maybeSingle();
+
+      if (existing) {
+        return { error: 'Ingrediente já está na receita' };
+      }
+
       // We need to provide a dummy parent_item_id since the column is NOT NULL
       // This is a workaround until the schema is properly updated
+      const insertData = {
+        parent_product_id: parentProductId,
+        parent_item_id: parentProductId, // Using product id as fallback for required field
+        ingredient_inventory_item_id: ingredientInventoryItemId,
+        ingredient_item_id: ingredientInventoryItemId, // Using inventory id as fallback
+        quantity_ml: quantityMl,
+        quantity_units: quantityUnits || 0
+      };
+
       const { error } = await supabase
         .from('item_recipes')
-        .insert({
-          parent_product_id: parentProductId,
-          parent_item_id: parentProductId, // Using product id as fallback for required field
-          ingredient_inventory_item_id: ingredientInventoryItemId,
-          ingredient_item_id: ingredientInventoryItemId, // Using inventory id as fallback
-          quantity_ml: quantityMl,
-          quantity_units: quantityUnits
-        });
+        .insert(insertData);
 
       if (error) throw error;
       await fetchRecipes();
