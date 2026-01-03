@@ -74,15 +74,13 @@ export const useProductRecipes = (parentProductId?: string) => {
         return { error: 'Ingrediente já está na receita' };
       }
 
-      // Generate valid UUIDs for legacy NOT NULL columns
-      // These columns exist for backward compatibility but aren't used with inventory_items
-      const dummyUuid = '00000000-0000-0000-0000-000000000000';
-      
+      // Legacy columns exist for backwards compatibility. For product→inventory recipes
+      // we must keep them NULL to avoid legacy UNIQUE/FK constraints.
       const insertData = {
         parent_product_id: parentProductId,
-        parent_item_id: dummyUuid, // Legacy field - required but not used
+        parent_item_id: null,
         ingredient_inventory_item_id: ingredientInventoryItemId,
-        ingredient_item_id: dummyUuid, // Legacy field - required but not used
+        ingredient_item_id: null,
         quantity_ml: quantityMl,
         quantity_units: quantityUnits || 0
       };
