@@ -132,9 +132,11 @@ export const useRealtimeOrders = (statusFilter?: OrderStatus[]) => {
 
       if (orderError) throw orderError;
 
+      // Note: menu_item_id references menu_items table (legacy), so we pass null 
+      // for items from menu_products to avoid FK constraint violations
       const orderItems = items.map(item => ({
         order_id: order.id,
-        menu_item_id: item.menuItemId || null,
+        menu_item_id: null, // Always null since we now use menu_products, not menu_items
         item_name: item.name,
         item_price: item.price,
         quantity: item.quantity,
