@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useMenuItems, categoryLabels, MenuItem } from '@/hooks/useMenuItems';
+import { useCardapioItems, categoryLabels } from '@/hooks/useCardapioItems';
+import { MenuItem } from '@/hooks/useMenuItems';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { useComandas, Comanda, Companion } from '@/hooks/useComandas';
 import { useFrequentItems } from '@/hooks/useFrequentItems';
@@ -60,7 +61,7 @@ interface Table {
 type Step = 'comanda' | 'items' | 'review';
 
 const Atendimento: React.FC = () => {
-  const { items: menuItems, isLoading: loadingMenu } = useMenuItems();
+  const { items: menuItems, isLoading: loadingMenu } = useCardapioItems();
   const { createOrder } = useRealtimeOrders();
   const { items: frequentItems, isLoading: loadingFrequent } = useFrequentItems(6);
   const { tables: tablesWithActivity, isLoading: loadingTables } = useTablesWithActivity();
