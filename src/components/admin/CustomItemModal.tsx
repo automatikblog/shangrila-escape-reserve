@@ -57,20 +57,20 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
           .from('item_recipes')
           .select(`
             *,
-            ingredient:menu_items!ingredient_item_id(id, name, is_bottle, bottle_ml)
+            ingredient:inventory_items!ingredient_inventory_item_id(id, name, is_bottle, bottle_ml)
           `)
-          .eq('parent_item_id', item.id);
+          .or(`parent_item_id.eq.${item.id},parent_product_id.eq.${item.id}`);
 
         if (error) throw error;
 
         if (recipeData && recipeData.length > 0) {
           // Has recipe in database - load those ingredients
           const mapped: CustomIngredient[] = recipeData.map(r => ({
-            item_id: r.ingredient_item_id,
-            item_name: r.ingredient?.name || 'Item desconhecido',
+            item_id: r.ingredient_inventory_item_id || r.ingredient_item_id,
+            item_name: (r.ingredient as any)?.name || 'Item desconhecido',
             quantity_ml: r.quantity_ml,
             quantity_units: r.quantity_units || 1,
-            is_bottle: r.ingredient?.is_bottle || false
+            is_bottle: (r.ingredient as any)?.is_bottle || false
           }));
           setIngredients(mapped);
         } else if (item.default_recipe_suggestion) {

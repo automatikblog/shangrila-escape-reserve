@@ -33,12 +33,14 @@ export const useItemRecipes = (parentItemId?: string) => {
         .from('item_recipes')
         .select(`
           *,
-          ingredient:menu_items!ingredient_item_id(id, name, is_bottle, bottle_ml)
+          ingredient:inventory_items!ingredient_inventory_item_id(id, name, is_bottle, bottle_ml)
         `)
-        .eq('parent_item_id', parentItemId);
+        .or(`parent_item_id.eq.${parentItemId},parent_product_id.eq.${parentItemId}`);
 
       if (error) throw error;
-      setRecipes(data || []);
+      // Filter to only include recipes with inventory items and cast properly
+      const validRecipes = (data || []).filter(r => r.ingredient_inventory_item_id);
+      setRecipes(validRecipes as unknown as RecipeIngredient[]);
     } catch (err) {
       console.error('Error fetching recipes:', err);
     } finally {
