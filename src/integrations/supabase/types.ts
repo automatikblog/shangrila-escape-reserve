@@ -486,6 +486,48 @@ export type Database = {
         }
         Relationships: []
       }
+      recurring_expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          days_of_week: number[]
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          paid_by: string | null
+          payment_method: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          days_of_week: number[]
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          paid_by?: string | null
+          payment_method?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          days_of_week?: number[]
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          paid_by?: string | null
+          payment_method?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       reservations: {
         Row: {
           client_email: string
