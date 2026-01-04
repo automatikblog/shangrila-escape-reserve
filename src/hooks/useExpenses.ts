@@ -28,6 +28,20 @@ export interface ExpensePayer {
   created_at: string;
 }
 
+export interface RecurringExpense {
+  id: string;
+  name: string;
+  category: string;
+  amount: number;
+  payment_method: string | null;
+  paid_by: string | null;
+  notes: string | null;
+  days_of_week: number[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ExpenseFilters {
   startDate?: string;
   endDate?: string;
@@ -39,6 +53,7 @@ export function useExpenses(filters?: ExpenseFilters) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [payers, setPayers] = useState<ExpensePayer[]>([]);
+  const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
@@ -100,10 +115,22 @@ export function useExpenses(filters?: ExpenseFilters) {
     }
   };
 
+  const fetchRecurringExpenses = async () => {
+    const { data, error } = await supabase
+      .from('recurring_expenses')
+      .select('*')
+      .order('name');
+
+    if (!error && data) {
+      setRecurringExpenses(data as RecurringExpense[]);
+    }
+  };
+
   useEffect(() => {
     fetchExpenses();
     fetchCategories();
     fetchPayers();
+    fetchRecurringExpenses();
   }, [filters?.startDate, filters?.endDate, filters?.category, filters?.status]);
 
   const createExpense = async (expense: Omit<Expense, 'id' | 'created_at' | 'updated_at'>) => {
@@ -167,6 +194,26 @@ export function useExpenses(filters?: ExpenseFilters) {
     return true;
   };
 
+  // Get all unique expense names for selection
+  const getAllExpenseNames = async (): Promise<Expense[]> => {
+    const { data } = await supabase
+      .from('expenses')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!data) return [];
+
+    // Get unique names with their last expense data
+    const uniqueMap = new Map<string, Expense>();
+    data.forEach(e => {
+      if (!uniqueMap.has(e.name)) {
+        uniqueMap.set(e.name, e as Expense);
+      }
+    });
+
+    return Array.from(uniqueMap.values());
+  };
+
   const getExpenseNameSuggestions = async (search: string): Promise<string[]> => {
     if (!search || search.length < 2) return [];
 
@@ -223,6 +270,26 @@ export function useExpenses(filters?: ExpenseFilters) {
     return data;
   };
 
+  const deleteCategory = async (id: string) => {
+    const { error } = await supabase
+      .from('expense_categories')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({
+        title: 'Erro ao excluir categoria',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    await fetchCategories();
+    toast({ title: 'Categoria excluída!' });
+    return true;
+  };
+
   const createPayer = async (name: string) => {
     const { data, error } = await supabase
       .from('expense_payers')
@@ -251,6 +318,81 @@ export function useExpenses(filters?: ExpenseFilters) {
     return data;
   };
 
+  // Recurring expenses functions
+  const createRecurringExpense = async (expense: Omit<RecurringExpense, 'id' | 'created_at' | 'updated_at'>) => {
+    const { data, error } = await supabase
+      .from('recurring_expenses')
+      .insert(expense)
+      .select()
+      .single();
+
+    if (error) {
+      toast({
+        title: 'Erro ao criar gasto recorrente',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    await fetchRecurringExpenses();
+    toast({ title: 'Gasto recorrente criado!' });
+    return data;
+  };
+
+  const updateRecurringExpense = async (id: string, updates: Partial<RecurringExpense>) => {
+    const { error } = await supabase
+      .from('recurring_expenses')
+      .update(updates)
+      .eq('id', id);
+
+    if (error) {
+      toast({
+        title: 'Erro ao atualizar gasto recorrente',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    await fetchRecurringExpenses();
+    toast({ title: 'Gasto recorrente atualizado!' });
+    return true;
+  };
+
+  const deleteRecurringExpense = async (id: string) => {
+    const { error } = await supabase
+      .from('recurring_expenses')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({
+        title: 'Erro ao excluir gasto recorrente',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    await fetchRecurringExpenses();
+    toast({ title: 'Gasto recorrente excluído!' });
+    return true;
+  };
+
+  const applyRecurringExpense = async (recurring: RecurringExpense, date: string) => {
+    return createExpense({
+      name: recurring.name,
+      category: recurring.category,
+      amount: recurring.amount,
+      expense_date: date,
+      payment_method: recurring.payment_method,
+      paid_by: recurring.paid_by,
+      status: 'paid',
+      notes: recurring.notes,
+    });
+  };
+
   // Calculate totals
   const totals = {
     total: expenses.reduce((sum, e) => sum + Number(e.amount), 0),
@@ -268,16 +410,23 @@ export function useExpenses(filters?: ExpenseFilters) {
     expenses,
     categories,
     payers,
+    recurringExpenses,
     isLoading,
     totals,
     byCategory,
     createExpense,
     updateExpense,
     deleteExpense,
+    getAllExpenseNames,
     getExpenseNameSuggestions,
     getLastExpenseByName,
     createCategory,
+    deleteCategory,
     createPayer,
+    createRecurringExpense,
+    updateRecurringExpense,
+    deleteRecurringExpense,
+    applyRecurringExpense,
     refetch: fetchExpenses,
   };
 }
