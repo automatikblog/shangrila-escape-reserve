@@ -9,8 +9,8 @@ import {
   CalendarDays,
   UtensilsCrossed,
   ClipboardList,
-  X,
-  ShoppingBag
+  ShoppingBag,
+  Wallet
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ const navItems = [
   { to: '/admin/estoque', icon: UtensilsCrossed, label: 'Estoque' },
   { to: '/admin/cardapio', icon: ShoppingBag, label: 'Cardápio' },
   { to: '/admin/atendimento', icon: ClipboardList, label: 'Atendimento' },
+  { to: '/admin/gastos', icon: Wallet, label: 'Gastos' },
   { to: '/admin/cozinha', icon: ChefHat, label: 'Cozinha' },
 ];
 
