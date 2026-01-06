@@ -20,9 +20,16 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Plus, Loader2, Search, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+
+// Helper to parse date string without timezone issues
+const parseDateString = (dateStr: string): Date => {
+  // Parse as local date to avoid timezone shifting
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
 import { Expense, ExpenseCategory, ExpensePayer } from '@/hooks/useExpenses';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -105,7 +112,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
         setName(expense.name);
         setCategory(expense.category);
         setAmount(expense.amount.toString());
-        setExpenseDate(new Date(expense.expense_date));
+        setExpenseDate(parseDateString(expense.expense_date));
         setPaymentMethod(expense.payment_method || '');
         setPaidBy(expense.paid_by || '');
         setStatus(expense.status);
@@ -283,7 +290,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                           <div className="text-right">
                             <div className="font-semibold">{formatCurrency(exp.amount)}</div>
                             <div className="text-xs text-muted-foreground">
-                              {format(new Date(exp.expense_date), 'dd/MM/yy')}
+                              {format(parseDateString(exp.expense_date), 'dd/MM/yy')}
                             </div>
                           </div>
                         </div>

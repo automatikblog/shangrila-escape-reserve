@@ -55,10 +55,12 @@ export function useExpenses(filters?: ExpenseFilters) {
   const [payers, setPayers] = useState<ExpensePayer[]>([]);
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
   const { toast } = useToast();
 
   const fetchExpenses = async () => {
     try {
+      setIsLoading(true);
       let query = supabase
         .from('expenses')
         .select('*')
@@ -126,12 +128,20 @@ export function useExpenses(filters?: ExpenseFilters) {
     }
   };
 
+  // Fetch expenses when filters change
   useEffect(() => {
     fetchExpenses();
-    fetchCategories();
-    fetchPayers();
-    fetchRecurringExpenses();
   }, [filters?.startDate, filters?.endDate, filters?.category, filters?.status]);
+
+  // Fetch categories, payers, and recurring only once
+  useEffect(() => {
+    if (!hasLoadedInitialData) {
+      fetchCategories();
+      fetchPayers();
+      fetchRecurringExpenses();
+      setHasLoadedInitialData(true);
+    }
+  }, [hasLoadedInitialData]);
 
   const createExpense = async (expense: Omit<Expense, 'id' | 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase
