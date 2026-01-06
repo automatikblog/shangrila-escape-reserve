@@ -1,6 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, startOfWeek, endOfWeek, getDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+// Helper to parse date string without timezone issues
+const parseDateString = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
 import { 
   Plus, 
   Wallet, 
@@ -44,6 +50,7 @@ import { cn } from '@/lib/utils';
 import { useExpenses, Expense, RecurringExpense, ExpenseFilters } from '@/hooks/useExpenses';
 import { ExpenseFormModal } from '@/components/admin/ExpenseFormModal';
 import { RecurringExpenseModal } from '@/components/admin/RecurringExpenseModal';
+import { supabase } from '@/integrations/supabase/client';
 
 const DAYS_OF_WEEK_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -58,6 +65,9 @@ const Expenses: React.FC = () => {
     category: 'all',
     status: 'all',
   });
+
+  // Previous month totals (fetched separately to avoid double hook)
+  const [prevMonthTotal, setPrevMonthTotal] = useState(0);
 
   const {
     expenses,
@@ -81,6 +91,25 @@ const Expenses: React.FC = () => {
     applyRecurringExpense,
   } = useExpenses(filters);
 
+  // Fetch previous month total once on mount
+  React.useEffect(() => {
+    const fetchPrevMonth = async () => {
+      const prevMonthStart = format(startOfMonth(subMonths(today, 1)), 'yyyy-MM-dd');
+      const prevMonthEnd = format(endOfMonth(subMonths(today, 1)), 'yyyy-MM-dd');
+      
+      const { data } = await supabase
+        .from('expenses')
+        .select('amount')
+        .gte('expense_date', prevMonthStart)
+        .lte('expense_date', prevMonthEnd);
+      
+      if (data) {
+        setPrevMonthTotal(data.reduce((sum, e) => sum + Number(e.amount), 0));
+      }
+    };
+    fetchPrevMonth();
+  }, []);
+
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -93,21 +122,13 @@ const Expenses: React.FC = () => {
   const [deleteRecurringDialogOpen, setDeleteRecurringDialogOpen] = useState(false);
   const [recurringToDelete, setRecurringToDelete] = useState<RecurringExpense | null>(null);
 
-  // Previous month data for comparison
-  const prevMonthStart = format(startOfMonth(subMonths(today, 1)), 'yyyy-MM-dd');
-  const prevMonthEnd = format(endOfMonth(subMonths(today, 1)), 'yyyy-MM-dd');
-  const { totals: prevMonthTotals } = useExpenses({
-    startDate: prevMonthStart,
-    endDate: prevMonthEnd,
-  });
-
   // Filter recurring expenses for today
   const todayRecurring = recurringExpenses.filter(
     r => r.is_active && r.days_of_week.includes(todayDayOfWeek)
   );
 
   // Quick filters
-  const applyQuickFilter = (type: 'today' | 'week' | 'month' | 'year') => {
+  const applyQuickFilter = useCallback((type: 'today' | 'week' | 'month' | 'year') => {
     let start: Date, end: Date;
     switch (type) {
       case 'today':
@@ -126,17 +147,17 @@ const Expenses: React.FC = () => {
         end = endOfYear(today);
         break;
     }
-    setFilters({
-      ...filters,
+    setFilters(prev => ({
+      ...prev,
       startDate: format(start, 'yyyy-MM-dd'),
       endDate: format(end, 'yyyy-MM-dd'),
-    });
-  };
+    }));
+  }, [today]);
 
   // Month comparison
-  const monthDiff = totals.total - prevMonthTotals.total;
-  const monthDiffPercent = prevMonthTotals.total > 0 
-    ? ((monthDiff / prevMonthTotals.total) * 100).toFixed(1) 
+  const monthDiff = totals.total - prevMonthTotal;
+  const monthDiffPercent = prevMonthTotal > 0 
+    ? ((monthDiff / prevMonthTotal) * 100).toFixed(1) 
     : '0';
 
   // Sort categories by amount for visualization
@@ -526,7 +547,7 @@ const Expenses: React.FC = () => {
                           </Badge>
                         </div>
                         <div className="text-sm text-muted-foreground mt-1">
-                          {format(new Date(expense.expense_date), 'dd/MM/yyyy', { locale: ptBR })}
+                          {format(parseDateString(expense.expense_date), 'dd/MM/yyyy', { locale: ptBR })}
                           {expense.paid_by && ` • Pago por: ${expense.paid_by}`}
                           {expense.payment_method && ` • ${expense.payment_method}`}
                         </div>
