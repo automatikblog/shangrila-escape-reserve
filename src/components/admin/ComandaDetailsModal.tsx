@@ -525,68 +525,6 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
               </>
             )}
 
-            {/* Partial Payment Form */}
-            {showPartialPaymentForm && (
-              <div className="p-3 border rounded-lg bg-accent/20 space-y-3">
-                <h4 className="text-sm font-medium flex items-center gap-2">
-                  <Banknote className="h-4 w-4" />
-                  Novo Pagamento
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    placeholder="Valor (ex: 40)"
-                    value={partialAmount}
-                    onChange={(e) => setPartialAmount(e.target.value)}
-                    type="number"
-                    step="0.01"
-                  />
-                  <Select
-                    value={partialPaymentMethod}
-                    onValueChange={setPartialPaymentMethod}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Método" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_METHODS.map(pm => (
-                        <SelectItem key={pm.value} value={pm.value}>
-                          {pm.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Input
-                  placeholder="Quem pagou? (opcional)"
-                  value={partialNotes}
-                  onChange={(e) => setPartialNotes(e.target.value)}
-                />
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={handleAddPartialPayment}
-                    disabled={isSubmittingPartial || !partialAmount || !partialPaymentMethod}
-                    className="flex-1"
-                  >
-                    <Check className="h-3 w-3 mr-1" />
-                    Confirmar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setShowPartialPaymentForm(false);
-                      setPartialAmount('');
-                      setPartialNotes('');
-                      setPartialPaymentMethod('');
-                    }}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -699,7 +637,72 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 shrink-0 px-6 pb-6">
+        {/* Payment Section - Fixed at bottom, easy access */}
+        <div className="shrink-0 px-6 pb-6 space-y-2">
+          {/* Partial Payment Form - Always visible when toggled */}
+          {showPartialPaymentForm && (
+            <div className="p-3 border rounded-lg bg-accent/20 space-y-3">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <Banknote className="h-4 w-4" />
+                Novo Pagamento
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Valor (ex: 40)"
+                  value={partialAmount}
+                  onChange={(e) => setPartialAmount(e.target.value)}
+                  type="number"
+                  step="0.01"
+                  autoFocus
+                />
+                <Select
+                  value={partialPaymentMethod}
+                  onValueChange={setPartialPaymentMethod}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Método" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHODS.map(pm => (
+                      <SelectItem key={pm.value} value={pm.value}>
+                        {pm.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Input
+                placeholder="Quem pagou? (opcional)"
+                value={partialNotes}
+                onChange={(e) => setPartialNotes(e.target.value)}
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={handleAddPartialPayment}
+                  disabled={isSubmittingPartial || !partialAmount || !partialPaymentMethod}
+                  className="flex-1"
+                >
+                  <Check className="h-3 w-3 mr-1" />
+                  Confirmar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setShowPartialPaymentForm(false);
+                    setPartialAmount('');
+                    setPartialNotes('');
+                    setPartialPaymentMethod('');
+                  }}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          )}
+          
           {/* Payment Button */}
           {!showPartialPaymentForm && remainingAfterDiscount > 0 && onAddPartialPayment && (
             <Button
