@@ -486,6 +486,57 @@ export type Database = {
         }
         Relationships: []
       }
+      print_jobs: {
+        Row: {
+          client_session_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          job_type: string
+          order_id: string | null
+          payload: Json
+          printed_at: string | null
+          status: string
+        }
+        Insert: {
+          client_session_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_type: string
+          order_id?: string | null
+          payload: Json
+          printed_at?: string | null
+          status?: string
+        }
+        Update: {
+          client_session_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_type?: string
+          order_id?: string | null
+          payload?: Json
+          printed_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_jobs_client_session_id_fkey"
+            columns: ["client_session_id"]
+            isOneToOne: false
+            referencedRelation: "client_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recurring_expenses: {
         Row: {
           amount: number
