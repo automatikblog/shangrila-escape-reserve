@@ -12,7 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Comanda, ComandaOrder, Companion } from '@/hooks/useComandas';
-import { Clock, DollarSign, FileText, User, MapPin, Store, Check, X, Plus, Banknote, Pencil, Calculator, Users, Percent, CreditCard, Minus, Trash2, Baby } from 'lucide-react';
+import { Clock, DollarSign, FileText, User, MapPin, Store, Check, X, Plus, Banknote, Pencil, Calculator, Users, Percent, CreditCard, Minus, Trash2, Baby, Receipt } from 'lucide-react';
+import { ComandaConsolidatedView } from './ComandaConsolidatedView';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -71,6 +72,9 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   const [newCompanion, setNewCompanion] = useState('');
   const [newCompanionIsChild, setNewCompanionIsChild] = useState(false);
   const [isSavingCompanions, setIsSavingCompanions] = useState(false);
+
+  // Consolidated view state
+  const [showConsolidatedView, setShowConsolidatedView] = useState(false);
 
   // Initialize states when comanda changes
   useEffect(() => {
@@ -273,24 +277,42 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center gap-3 flex-wrap shrink-0 px-6">
-          <span className="text-sm text-muted-foreground flex items-center gap-1">
-            <Clock className="h-4 w-4" />
-            Aberta há {formatTimeElapsed(comanda.created_at)}
-          </span>
-          {comanda.table_number !== 0 && (
+        <div className="flex items-center justify-between flex-wrap shrink-0 px-6 gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-sm text-muted-foreground flex items-center gap-1">
-              <MapPin className="h-4 w-4" />
-              Mesa {comanda.table_number}
+              <Clock className="h-4 w-4" />
+              Aberta há {formatTimeElapsed(comanda.created_at)}
             </span>
-          )}
-          {comanda.table_number === 0 && (
-            <span className="text-sm text-muted-foreground flex items-center gap-1">
-              <Store className="h-4 w-4" />
-              Balcão
-            </span>
-          )}
+            {comanda.table_number !== 0 && (
+              <span className="text-sm text-muted-foreground flex items-center gap-1">
+                <MapPin className="h-4 w-4" />
+                Mesa {comanda.table_number}
+              </span>
+            )}
+            {comanda.table_number === 0 && (
+              <span className="text-sm text-muted-foreground flex items-center gap-1">
+                <Store className="h-4 w-4" />
+                Balcão
+              </span>
+            )}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowConsolidatedView(true)}
+            className="gap-1"
+          >
+            <Receipt className="h-4 w-4" />
+            Ver Resumo
+          </Button>
         </div>
+
+        {/* Consolidated View Modal */}
+        <ComandaConsolidatedView
+          comanda={comanda}
+          open={showConsolidatedView}
+          onOpenChange={setShowConsolidatedView}
+        />
 
         <Separator className="shrink-0 mx-6" />
 
