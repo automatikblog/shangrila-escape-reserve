@@ -9,6 +9,7 @@ import { Table2, ClipboardList, Clock, CalendarDays, Users, DollarSign, AlertTri
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import ProductSalesSummary from '@/components/admin/ProductSalesSummary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -553,6 +554,9 @@ const AdminDashboard: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Product Sales Summary */}
+      <ProductSalesSummary />
 
       {/* Tables Needing Attention Alert */}
       {attentionTables.length > 0 && (
