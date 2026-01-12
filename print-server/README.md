@@ -25,7 +25,7 @@ npm install
 Edite o arquivo `.env` com o IP da sua impressora:
 
 ```
-PRINTER_IP=192.168.1.100
+PRINTER_IP=192.168.0.31
 PRINTER_PORT=9100
 ```
 
