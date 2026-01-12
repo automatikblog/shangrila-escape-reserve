@@ -1,13 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 import net from 'net';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { config } from 'dotenv';
 
-config();
+// Always load .env from this folder (important when running via pm2/service)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+config({ path: path.join(__dirname, '.env'), override: true });
 
 const PRINTER_IP = process.env.PRINTER_IP || '192.168.1.100';
 const PRINTER_PORT = parseInt(process.env.PRINTER_PORT || '9100');
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gehmvvvlinstfprgtkeg.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlaG12dnZsaW5zdGZwcmd0a2VnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NTczNDAsImV4cCI6MjA4MDUzMzM0MH0.TP0Rp0kIzDpwpMcdanPbpex9Xb1I2DcIjehuYsf_YCk';
+
+if (!process.env.PRINTER_IP) {
+  console.warn('[CONFIG] PRINTER_IP não encontrado no .env; usando fallback 192.168.1.100');
+}
+if (!process.env.PRINTER_PORT) {
+  console.warn('[CONFIG] PRINTER_PORT não encontrado no .env; usando fallback 9100');
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
