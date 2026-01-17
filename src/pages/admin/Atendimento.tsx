@@ -61,7 +61,24 @@ interface Table {
 type Step = 'comanda' | 'items' | 'review';
 
 const Atendimento: React.FC = () => {
-  const { items: menuItems, isLoading: loadingMenu } = useCardapioItems();
+  const { items: menuItems, isLoading: loadingMenu, getAvailableDoses } = useCardapioItems();
+
+  // Helper to get stock display string for an item
+  const getStockDisplay = (item: MenuItem): string | null => {
+    // Bottle/dose items
+    if (item.is_bottle && item.dose_ml) {
+      const doses = getAvailableDoses(item);
+      if (doses !== null) {
+        return `${doses} doses`;
+      }
+      return null;
+    }
+    // Regular stock items
+    if (item.stock_quantity !== null && item.stock_quantity !== undefined) {
+      return `${item.stock_quantity} un`;
+    }
+    return null;
+  };
   const { createOrder } = useRealtimeOrders();
   const { items: frequentItems, isLoading: loadingFrequent } = useFrequentItems(6);
   const { tables: tablesWithActivity, isLoading: loadingTables } = useTablesWithActivity();
@@ -779,6 +796,8 @@ const Atendimento: React.FC = () => {
                   const menuItem = menuItems.find(m => m.name === item.item_name);
                   const cartItem = menuItem ? cart.find(c => c.menuItemId === menuItem.id) : null;
                   
+                  const stockDisplay = menuItem ? getStockDisplay(menuItem) : null;
+                  
                   return (
                     <div
                       key={item.item_name}
@@ -793,6 +812,11 @@ const Atendimento: React.FC = () => {
                           <Badge variant="outline" className="text-[10px] h-4 px-1">
                             {item.total_qty}x pedido
                           </Badge>
+                          {stockDisplay && (
+                            <span className="text-[10px] text-muted-foreground">
+                              Est: {stockDisplay}
+                            </span>
+                          )}
                         </div>
                       </div>
                       {menuItem && (
@@ -856,6 +880,7 @@ const Atendimento: React.FC = () => {
               menuItem && c.menuItemId === menuItem.id
             );
             const IconComponent = quickItem.icon;
+            const stockDisplay = menuItem ? getStockDisplay(menuItem) : null;
             
             return (
               <div
@@ -866,9 +891,16 @@ const Atendimento: React.FC = () => {
                   <IconComponent className="h-4 w-4 text-primary shrink-0" />
                   <div className="min-w-0">
                     <p className="text-xs font-medium truncate">{quickItem.name}</p>
-                    <p className="text-xs text-primary font-bold">
-                      R$ {menuItem?.price.toFixed(2) || quickItem.price.toFixed(2)}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-primary font-bold">
+                        R$ {menuItem?.price.toFixed(2) || quickItem.price.toFixed(2)}
+                      </p>
+                      {stockDisplay && (
+                        <span className="text-[10px] text-muted-foreground">
+                          Est: {stockDisplay}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {menuItem && (
@@ -934,6 +966,7 @@ const Atendimento: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {items.map(item => {
                   const cartItem = cart.find(c => c.menuItemId === item.id && !c.custom_ingredients);
+                  const stockDisplay = getStockDisplay(item);
                   return (
                     <div
                       key={item.id}
@@ -941,7 +974,14 @@ const Atendimento: React.FC = () => {
                     >
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm truncate">{item.name}</p>
-                        <p className="text-sm text-primary font-bold">R$ {item.price.toFixed(2)}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-primary font-bold">R$ {item.price.toFixed(2)}</p>
+                          {stockDisplay && (
+                            <span className="text-xs text-muted-foreground">
+                              Est: {stockDisplay}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {cartItem ? (
                         <div className="flex items-center gap-1 shrink-0">
