@@ -635,6 +635,72 @@ export const useComandas = (options?: UseComandaOptions) => {
     return true;
   }, [safeSetComandas, fetchComandas, deleteItem]);
 
+  const updatePartialPayment = useCallback(async (
+    paymentId: string,
+    amount: number,
+    paymentMethod: string,
+    notes?: string
+  ): Promise<boolean> => {
+    // Optimistic update
+    safeSetComandas(prev => prev.map(comanda => {
+      const paymentIndex = comanda.partial_payments.findIndex(pp => pp.id === paymentId);
+      if (paymentIndex === -1) return comanda;
+      
+      const updatedPayments = [...comanda.partial_payments];
+      updatedPayments[paymentIndex] = {
+        ...updatedPayments[paymentIndex],
+        amount,
+        payment_method: paymentMethod,
+        notes: notes || null,
+      };
+      
+      return recalculateComandaTotals({ ...comanda, partial_payments: updatedPayments });
+    }));
+
+    const { error } = await supabase
+      .from('partial_payments')
+      .update({
+        amount,
+        payment_method: paymentMethod,
+        notes: notes || null,
+      })
+      .eq('id', paymentId);
+
+    if (error) {
+      console.error('Error updating partial payment:', error);
+      toast.error('Erro ao atualizar pagamento. Recarregando...');
+      fetchComandas();
+      return false;
+    }
+    
+    return true;
+  }, [safeSetComandas, fetchComandas]);
+
+  const deletePartialPayment = useCallback(async (paymentId: string): Promise<boolean> => {
+    // Optimistic update
+    safeSetComandas(prev => prev.map(comanda => {
+      const paymentExists = comanda.partial_payments.some(pp => pp.id === paymentId);
+      if (!paymentExists) return comanda;
+      
+      const updatedPayments = comanda.partial_payments.filter(pp => pp.id !== paymentId);
+      return recalculateComandaTotals({ ...comanda, partial_payments: updatedPayments });
+    }));
+
+    const { error } = await supabase
+      .from('partial_payments')
+      .delete()
+      .eq('id', paymentId);
+
+    if (error) {
+      console.error('Error deleting partial payment:', error);
+      toast.error('Erro ao excluir pagamento. Recarregando...');
+      fetchComandas();
+      return false;
+    }
+    
+    return true;
+  }, [safeSetComandas, fetchComandas]);
+
   const unpaidTotal = useMemo(() => comandas.reduce((sum, c) => sum + c.unpaid_total, 0), [comandas]);
   const paidTotal = useMemo(() => comandas.reduce((sum, c) => sum + c.paid_total, 0), [comandas]);
   const remainingTotal = useMemo(() => comandas.reduce((sum, c) => sum + c.remaining_total, 0), [comandas]);
@@ -649,6 +715,8 @@ export const useComandas = (options?: UseComandaOptions) => {
     markOrderPaid,
     markOrderUnpaid,
     addPartialPayment,
+    updatePartialPayment,
+    deletePartialPayment,
     updateDiscount,
     updateItemQuantity,
     deleteItem,

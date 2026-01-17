@@ -23,6 +23,8 @@ interface ComandaDetailsModalProps {
   onOpenChange: (open: boolean) => void;
   onClose: (comanda: Comanda) => void;
   onAddPartialPayment?: (sessionId: string, amount: number, paymentMethod: string, notes?: string) => Promise<boolean>;
+  onUpdatePartialPayment?: (paymentId: string, amount: number, paymentMethod: string, notes?: string) => Promise<boolean>;
+  onDeletePartialPayment?: (paymentId: string) => Promise<boolean>;
   onUpdateDiscount?: (sessionId: string, discount: number) => Promise<boolean>;
   onUpdateItemQuantity?: (itemId: string, newQuantity: number) => Promise<boolean>;
   onDeleteItem?: (itemId: string) => Promise<boolean>;
@@ -41,6 +43,8 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   onOpenChange,
   onClose,
   onAddPartialPayment,
+  onUpdatePartialPayment,
+  onDeletePartialPayment,
   onUpdateDiscount,
   onUpdateItemQuantity,
   onDeleteItem,
@@ -66,6 +70,13 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   // Edit item state
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [isUpdatingItem, setIsUpdatingItem] = useState(false);
+
+  // Edit payment state
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [editPaymentAmount, setEditPaymentAmount] = useState('');
+  const [editPaymentMethod, setEditPaymentMethod] = useState('');
+  const [editPaymentNotes, setEditPaymentNotes] = useState('');
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
 
   // Companions state
   const [companions, setCompanions] = useState<Companion[]>([]);
@@ -195,6 +206,55 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
       toast.success('Item removido');
       setEditingItemId(null);
     }
+  };
+
+  const handleStartEditPayment = (payment: { id: string; amount: number; payment_method: string | null; notes: string | null }) => {
+    setEditingPaymentId(payment.id);
+    setEditPaymentAmount(String(payment.amount));
+    setEditPaymentMethod(payment.payment_method || '');
+    setEditPaymentNotes(payment.notes || '');
+  };
+
+  const handleSavePayment = async () => {
+    const amount = parseFloat(editPaymentAmount.replace(',', '.'));
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Digite um valor válido');
+      return;
+    }
+    if (!editPaymentMethod) {
+      toast.error('Selecione o método de pagamento');
+      return;
+    }
+
+    setIsUpdatingPayment(true);
+    const success = await onUpdatePartialPayment?.(editingPaymentId!, amount, editPaymentMethod, editPaymentNotes || undefined);
+    setIsUpdatingPayment(false);
+
+    if (success) {
+      toast.success('Pagamento atualizado');
+      setEditingPaymentId(null);
+      setEditPaymentAmount('');
+      setEditPaymentMethod('');
+      setEditPaymentNotes('');
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    setIsUpdatingPayment(true);
+    const success = await onDeletePartialPayment?.(paymentId);
+    setIsUpdatingPayment(false);
+
+    if (success) {
+      toast.success('Pagamento excluído');
+      setEditingPaymentId(null);
+    }
+  };
+
+  const handleCancelEditPayment = () => {
+    setEditingPaymentId(null);
+    setEditPaymentAmount('');
+    setEditPaymentMethod('');
+    setEditPaymentNotes('');
   };
 
   const handleAddCompanion = async () => {
@@ -529,18 +589,93 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
                     Pagamentos Realizados
                   </h4>
                   {comanda.partial_payments.map((pp) => (
-                    <div key={pp.id} className="flex justify-between items-center text-sm p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-900">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Check className="h-3 w-3 text-blue-600" />
-                        <span className="text-muted-foreground">{formatTime(pp.created_at)}</span>
-                        {pp.payment_method && (
-                          <Badge variant="outline" className="text-xs">
-                            {getPaymentMethodLabel(pp.payment_method)}
-                          </Badge>
-                        )}
-                        {pp.notes && <span className="text-xs">({pp.notes})</span>}
-                      </div>
-                      <span className="font-medium text-blue-600">R$ {Number(pp.amount).toFixed(2)}</span>
+                    <div key={pp.id}>
+                      {editingPaymentId === pp.id ? (
+                        <div className="p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-900 space-y-2">
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <Input
+                                value={editPaymentAmount}
+                                onChange={(e) => setEditPaymentAmount(e.target.value)}
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="Valor"
+                                className="h-8"
+                              />
+                            </div>
+                            <Select value={editPaymentMethod} onValueChange={setEditPaymentMethod}>
+                              <SelectTrigger className="w-28 h-8">
+                                <SelectValue placeholder="Método" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PAYMENT_METHODS.map(pm => (
+                                  <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Input
+                            value={editPaymentNotes}
+                            onChange={(e) => setEditPaymentNotes(e.target.value)}
+                            placeholder="Observação (opcional)"
+                            className="h-8"
+                          />
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-destructive hover:text-destructive"
+                              onClick={() => handleDeletePayment(pp.id)}
+                              disabled={isUpdatingPayment}
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              Excluir
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2"
+                              onClick={handleCancelEditPayment}
+                              disabled={isUpdatingPayment}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="h-7 px-2"
+                              onClick={handleSavePayment}
+                              disabled={isUpdatingPayment}
+                            >
+                              <Check className="h-3 w-3 mr-1" />
+                              Salvar
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div 
+                          className="flex justify-between items-center text-sm p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-900 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors group"
+                          onClick={() => onUpdatePartialPayment && handleStartEditPayment(pp)}
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Check className="h-3 w-3 text-blue-600" />
+                            <span className="text-muted-foreground">{formatTime(pp.created_at)}</span>
+                            {pp.payment_method && (
+                              <Badge variant="outline" className="text-xs">
+                                {getPaymentMethodLabel(pp.payment_method)}
+                              </Badge>
+                            )}
+                            {pp.notes && <span className="text-xs">({pp.notes})</span>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-blue-600">R$ {Number(pp.amount).toFixed(2)}</span>
+                            {onUpdatePartialPayment && (
+                              <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
