@@ -125,6 +125,8 @@ const Atendimento: React.FC = () => {
     markOrderPaid,
     markOrderUnpaid,
     addPartialPayment,
+    updatePartialPayment,
+    deletePartialPayment,
     updateDiscount,
     updateItemQuantity,
     deleteItem,
@@ -1244,6 +1246,8 @@ const Atendimento: React.FC = () => {
         onOpenChange={(open) => !open && setDetailsModalComanda(null)}
         onClose={handleCloseFromModal}
         onAddPartialPayment={addPartialPayment}
+        onUpdatePartialPayment={updatePartialPayment}
+        onDeletePartialPayment={deletePartialPayment}
         onUpdateDiscount={updateDiscount}
         onUpdateItemQuantity={updateItemQuantity}
         onDeleteItem={deleteItem}
