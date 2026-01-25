@@ -1,38 +1,30 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Clock, MessageCircle, DollarSign, Gift, Users, Calendar } from "lucide-react";
-
-const pricingOptions = [
-  {
-    title: "Entrada do Clube",
-    price: "R$ 10",
-    description: "Acesso às áreas de lazer",
-    features: ["Playground", "Áreas de convivência"],
-  },
-  {
-    title: "Piscina",
-    price: "R$ 20",
-    description: "Acesso completo à piscina",
-    features: ["Inclui entrada do clube", "Uso da piscina", "Banheiros"],
-    popular: true,
-  },
-  {
-    title: "Quiosque/Churrasqueira",
-    price: "R$ 50",
-    description: "Aluguel do espaço",
-    features: ["Área equipada", "Mesa e bancos", "Perfeito para família"],
-  },
-  {
-    title: "Café da Manhã",
-    price: "R$ 45",
-    description: "Exclusivo aos domingos",
-    features: ["Domingos das 10h às 13h", "Reserva obrigatória", "Café completo"],
-    special: true,
-  },
-];
-
+const pricingOptions = [{
+  title: "Entrada do Clube",
+  price: "R$ 10",
+  description: "Acesso às áreas de lazer",
+  features: ["Playground", "Áreas de convivência"]
+}, {
+  title: "Piscina",
+  price: "R$ 20",
+  description: "Acesso completo à piscina",
+  features: ["Inclui entrada do clube", "Uso da piscina", "Banheiros"],
+  popular: true
+}, {
+  title: "Quiosque/Churrasqueira",
+  price: "R$ 50",
+  description: "Aluguel do espaço",
+  features: ["Área equipada", "Mesa e bancos", "Perfeito para família"]
+}, {
+  title: "Café da Manhã",
+  price: "R$ 45",
+  description: "Exclusivo aos domingos",
+  features: ["Domingos das 10h às 13h", "Reserva obrigatória", "Café completo"],
+  special: true
+}];
 const Pricing = () => {
-  return (
-    <section id="precos" className="py-20 bg-muted/30 overflow-visible">
+  return <section id="precos" className="py-20 bg-muted/30 overflow-visible">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
@@ -44,30 +36,18 @@ const Pricing = () => {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto mb-12 pt-6 overflow-visible">
-          {pricingOptions.map((option, index) => (
-            <Card
-              key={index}
-              className={`relative overflow-visible transition-all duration-300 hover:shadow-xl hover:-translate-y-2 ${
-                option.popular ? "border-primary border-2 shadow-lg mt-4" : ""
-              } ${
-                option.special ? "border-orange-500 border-2 shadow-lg bg-gradient-to-br from-primary/5 to-orange-500/5 mt-4" : ""
-              }`}
-            >
-              {option.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+          {pricingOptions.map((option, index) => <Card key={index} className={`relative overflow-visible transition-all duration-300 hover:shadow-xl hover:-translate-y-2 ${option.popular ? "border-primary border-2 shadow-lg mt-4" : ""} ${option.special ? "border-orange-500 border-2 shadow-lg bg-gradient-to-br from-primary/5 to-orange-500/5 mt-4" : ""}`}>
+              {option.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                   <span className="bg-primary text-primary-foreground px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap shadow-md">
                     Mais Popular
                   </span>
-                </div>
-              )}
-              {option.special && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                </div>}
+              {option.special && <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                   <span className="bg-orange-500 text-white px-4 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1 whitespace-nowrap shadow-md">
                     <Clock className="w-3 h-3" />
                     Domingos
                   </span>
-                </div>
-              )}
+                </div>}
               <CardHeader className="text-center pb-4">
                 <CardTitle className="text-xl mb-2">{option.title}</CardTitle>
                 <div className="text-4xl font-bold text-primary mb-2">
@@ -79,16 +59,13 @@ const Pricing = () => {
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3">
-                  {option.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-2">
+                  {option.features.map((feature, idx) => <li key={idx} className="flex items-center gap-2">
                       <Check className="w-5 h-5 text-primary flex-shrink-0" />
                       <span className="text-sm">{feature}</span>
-                    </li>
-                  ))}
+                    </li>)}
                 </ul>
               </CardContent>
-            </Card>
-          ))}
+            </Card>)}
         </div>
 
         {/* Informações Importantes */}
@@ -147,12 +124,7 @@ const Pricing = () => {
                     <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
                       Disponibilizamos o espaço completo para aniversários, confraternizações e eventos especiais.
                     </p>
-                    <a
-                      href="https://wa.me/5513996327270?text=Ol%C3%A1+Gostaria+de+mais+informa%C3%A7%C3%B5es+sobre+aluguel+para+eventos"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20BD5A] text-white font-semibold py-3 px-4 rounded-lg transition-colors shadow-md"
-                    >
+                    <a target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20BD5A] text-white font-semibold py-3 px-4 rounded-lg transition-colors shadow-md" href="https://api.whatsapp.com/send/?phone=5511917248967&text=Ol%C3%A1%21+Gostaria+de+mais+informa%C3%A7%C3%B5es+sobre+o+Clube+de+Lazer+Shangril%C3%A1.">
                       <MessageCircle className="w-5 h-5" />
                       Consultar pelo WhatsApp
                     </a>
@@ -163,8 +135,6 @@ const Pricing = () => {
           </Card>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
-
 export default Pricing;
