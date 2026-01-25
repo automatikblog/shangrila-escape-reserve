@@ -2,7 +2,7 @@ import { MapPin, Phone, MessageCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Contact = () => {
-  const whatsappLink = "https://wa.me/5513996327270?text=Ol%C3%A1%20Gostaria%20de%20mais%20informa%C3%A7%C3%B5es%20sobre%20o%20Clube%20Shangril%C3%A1";
+  const whatsappLink = "https://wa.me/5511917248967?text=Ol%C3%A1%20Gostaria%20de%20mais%20informa%C3%A7%C3%B5es%20sobre%20o%20Clube%20Shangril%C3%A1";
 
   return (
     <section id="contato" className="py-20 bg-muted/30">
@@ -49,7 +49,7 @@ const Contact = () => {
               <div>
                 <h3 className="font-semibold text-lg mb-1">WhatsApp</h3>
                 <p className="text-muted-foreground">
-                  (13) 99632-7270
+                  (11) 91724-8967
                 </p>
               </div>
             </div>

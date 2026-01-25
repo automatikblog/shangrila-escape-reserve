@@ -1,7 +1,7 @@
 import { MessageCircle } from "lucide-react";
 
 const WhatsAppButton = () => {
-  const whatsappNumber = "5511999999999"; // Substitua pelo número real do clube
+  const whatsappNumber = "5511917248967";
   const message = "Olá! Gostaria de mais informações sobre o Clube Shangrilá.";
   
   const handleClick = () => {
