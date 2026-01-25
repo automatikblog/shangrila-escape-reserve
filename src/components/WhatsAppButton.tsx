@@ -1,12 +1,10 @@
 import { MessageCircle } from "lucide-react";
 
 const WhatsAppButton = () => {
-  const whatsappNumber = "5511917248967";
-  const message = "Olá! Gostaria de mais informações sobre o Clube Shangrilá.";
+  const whatsappLink = "https://wa.me/5511917248967?text=Ol%C3%A1%21+Gostaria+de+mais+informa%C3%A7%C3%B5es+sobre+o+Clube+de+Lazer+Shangril%C3%A1.";
   
   const handleClick = () => {
-    const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank");
+    window.open(whatsappLink, "_blank");
   };
 
   return (
