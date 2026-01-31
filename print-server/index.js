@@ -130,7 +130,7 @@ function buildOrderTicket(payload) {
   
   // Total
   lines.push(COMMANDS.ALIGN_CENTER);
-  lines.push(COMMANDS.DOUBLE_HEIGHT);
+  lines.push(COMMANDS.DOUBLE_SIZE);
   lines.push(COMMANDS.BOLD_ON);
   lines.push(`TOTAL: ${formatCurrency(total)}\n`);
   lines.push(COMMANDS.NORMAL_SIZE);
