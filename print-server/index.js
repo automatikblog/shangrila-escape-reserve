@@ -15,7 +15,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gehmvvvlinstfprgtkeg.s
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlaG12dnZsaW5zdGZwcmd0a2VnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NTczNDAsImV4cCI6MjA4MDUzMzM0MH0.TP0Rp0kIzDpwpMcdanPbpex9Xb1I2DcIjehuYsf_YCk';
 
 if (!PRINTER_IP) {
-  throw new Error('[CONFIG] PRINTER_IP ausente. Configure no print-server/.env (ex: PRINTER_IP=192.168.0.31)');
+  throw new Error('[CONFIG] PRINTER_IP ausente. Configure no print-server/.env (ex: PRINTER_IP=192.168.15.31)');
 }
 if (!Number.isFinite(PRINTER_PORT) || PRINTER_PORT <= 0) {
   throw new Error('[CONFIG] PRINTER_PORT inválida. Configure no print-server/.env (ex: PRINTER_PORT=9100)');
