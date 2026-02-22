@@ -66,18 +66,10 @@ const Reservas = () => {
     return isWeekendDay(date) || isFeriado(date);
   };
 
-  const isSunday = (date: Date | undefined) => {
-    return date ? date.getDay() === 0 : false;
-  };
-
   // Carregar disponibilidade quando a data muda
   useEffect(() => {
     if (date) {
       loadAvailability(date);
-      // Resetar tipo de reserva se mudar de/para domingo
-      if (tipoReserva === 'cafe' && !isSunday(date)) {
-        setTipoReserva('');
-      }
     }
   }, [date]);
 
@@ -93,7 +85,7 @@ const Reservas = () => {
 
       if (error) throw error;
 
-      const counts: Record<string, number> = { entrada: 0, piscina: 0, quiosque: 0, cafe: 0 };
+      const counts: Record<string, number> = { entrada: 0, piscina: 0, quiosque: 0 };
       data?.forEach(r => {
         if (counts[r.reservation_type] !== undefined) {
           counts[r.reservation_type]++;
@@ -160,12 +152,6 @@ const Reservas = () => {
         toast.error("Por favor, informe um email válido");
         return;
       }
-    }
-
-    // Validação: Café só aos domingos
-    if (tipoReserva === 'cafe' && !isSunday(date)) {
-      toast.error("Café da manhã está disponível apenas aos domingos");
-      return;
     }
 
     // Verificar disponibilidade
@@ -257,7 +243,7 @@ const Reservas = () => {
               <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                 <p className="text-sm font-medium flex items-center gap-2 text-amber-700 dark:text-amber-400">
                   <AlertTriangle className="h-4 w-4" />
-                  Vagas limitadas! Quiosque/Churrasqueira: 5 vagas | Café da manhã: 30 vagas
+                  Vagas limitadas! Quiosque/Churrasqueira: 5 vagas
                 </p>
               </div>
 
@@ -339,18 +325,6 @@ const Reservas = () => {
                         )}
                       </span>
                     </SelectItem>
-                    {isSunday(date) && (
-                      <SelectItem value="cafe" disabled={!isTypeAvailable('cafe')}>
-                        <span className="flex items-center gap-2">
-                          {getOptionLabel('cafe')}
-                          {isTypeAvailable('cafe') ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <AlertTriangle className="h-4 w-4 text-red-500" />
-                          )}
-                        </span>
-                      </SelectItem>
-                    )}
                   </SelectContent>
                 </Select>
                 {!date && (

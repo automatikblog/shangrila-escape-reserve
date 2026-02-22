@@ -16,12 +16,6 @@ const pricingOptions = [{
   price: "R$ 50",
   description: "Aluguel do espaço",
   features: ["Área equipada", "Mesa e bancos", "Perfeito para família"]
-}, {
-  title: "Café da Manhã",
-  price: "R$ 45",
-  description: "Exclusivo aos domingos",
-  features: ["Domingos das 10h às 13h", "Reserva obrigatória", "Café completo"],
-  special: true
 }];
 const Pricing = () => {
   return <section id="precos" className="py-20 bg-muted/30 overflow-visible">
@@ -35,17 +29,11 @@ const Pricing = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto mb-12 pt-6 overflow-visible">
-          {pricingOptions.map((option, index) => <Card key={index} className={`relative overflow-visible transition-all duration-300 hover:shadow-xl hover:-translate-y-2 ${option.popular ? "border-primary border-2 shadow-lg mt-4" : ""} ${option.special ? "border-orange-500 border-2 shadow-lg bg-gradient-to-br from-primary/5 to-orange-500/5 mt-4" : ""}`}>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto mb-12 pt-6 overflow-visible">
+          {pricingOptions.map((option, index) => <Card key={index} className={`relative overflow-visible transition-all duration-300 hover:shadow-xl hover:-translate-y-2 ${option.popular ? "border-primary border-2 shadow-lg mt-4" : ""}`}>
               {option.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                   <span className="bg-primary text-primary-foreground px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap shadow-md">
                     Mais Popular
-                  </span>
-                </div>}
-              {option.special && <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                  <span className="bg-orange-500 text-white px-4 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1 whitespace-nowrap shadow-md">
-                    <Clock className="w-3 h-3" />
-                    Domingos
                   </span>
                 </div>}
               <CardHeader className="text-center pb-4">
