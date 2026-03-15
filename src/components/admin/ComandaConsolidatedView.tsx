@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Comanda } from '@/hooks/useComandas';
 import { ShoppingBag, User, MapPin, Store, Clock, DollarSign, Users, Baby } from 'lucide-react';
 
