@@ -75,7 +75,7 @@ export const ComandaConsolidatedView: React.FC<ComandaConsolidatedViewProps> = (
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[85vh] overflow-hidden p-0 flex flex-col [display:flex]">
+      <DialogContent className="max-w-md h-[85vh] overflow-hidden p-0 !flex !flex-col gap-0">
         <DialogHeader className="shrink-0 p-6 pb-4 text-center">
           <DialogTitle className="flex items-center justify-center gap-2 text-xl">
             <ShoppingBag className="h-5 w-5" />
