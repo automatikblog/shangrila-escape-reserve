@@ -89,7 +89,7 @@ const recalculateComandaTotals = (comanda: Comanda): Comanda => {
 export const useComandas = (options?: UseComandaOptions) => {
   const [comandas, setComandas] = useState<Comanda[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
   const comandasRef = useRef<Comanda[]>([]);
   

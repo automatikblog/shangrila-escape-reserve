@@ -1,38 +1,23 @@
 
+## Remover Cafe da Manha da Pagina Principal
 
-## Atualizar Acesso Rapido no Atendimento
+### O que sera feito
 
-### Alteracoes em `src/pages/admin/Atendimento.tsx` (linhas 870-876)
+Remover todas as referencias ao "Cafe da manha" na pagina principal do site (pagina publica). A area administrativa nao sera alterada.
 
-Substituir o array de itens de acesso rapido:
+### Alteracoes
 
-**Antes:**
-```
-Entrada do clube sem piscina - R$20
-Entrada com piscina - R$50
-Entrada sem piscina (antiga) - R$10  [HIDDEN/disabled]
-Entrada com piscina (antiga) - R$30  [HIDDEN/disabled]
-Churrasqueira - R$50
-Café da manhã - R$45
-```
+**1. `src/components/Pricing.tsx`**
+- Remover o card "Cafe da Manha" (R$ 45) do array `pricingOptions`
+- O grid passara de 4 colunas para 3 colunas (`lg:grid-cols-3`)
 
-**Depois:**
-```
-Entrada sem piscina (verão) - R$20
-Entrada com piscina (verão) - R$50
-Entrada sem piscina (inverno) - R$10
-Entrada com piscina (inverno) - R$30
-Criança 6-10 anos com piscina - R$15  [NOVO]
-Churrasqueira - R$50
-```
+**2. `src/components/Reservas.tsx`**
+- Remover a opcao "cafe" do dropdown de tipo de reserva (linhas 342-353)
+- Remover a mencao "Cafe da manha: 30 vagas" do aviso de vagas limitadas (linha 260)
+- Remover a validacao "Cafe so aos domingos" do handleSubmit (linhas 165-169)
+- Remover a logica de resetar tipo de reserva quando muda de/para domingo (linhas 78-80)
+- Remover a funcao `isSunday` que so era usada para o cafe (linhas 69-71)
 
-- Renomear "Entrada do clube sem piscina" para "Entrada sem piscina (verão)"
-- Renomear "Entrada com piscina" para "Entrada com piscina (verão)"
-- Renomear "(antiga)" para "(inverno)" nos dois itens de R$10 e R$30, e reativa-los
-- Adicionar novo item "Criança 6-10 anos com piscina" por R$15 com icone Users
-- Remover "Café da manhã" do acesso rapido
-
-### Nota importante
-
-Os nomes no acesso rapido fazem match com `menu_items` pelo nome. Sera necessario tambem criar o item "Criança 6-10 anos com piscina" no cardapio (menu_items) e renomear os itens existentes para que o match funcione. Se os itens ja existirem com os nomes antigos no banco, sera preciso atualizar os nomes la tambem.
-
+### O que NAO sera alterado
+- Paginas administrativas (admin/Reservations.tsx, ReservationFormModal.tsx) continuam com cafe
+- Hook `useReservations.ts` mantem os dados do cafe para o admin

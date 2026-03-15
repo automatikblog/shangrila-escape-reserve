@@ -868,12 +868,12 @@ const Atendimento: React.FC = () => {
         <p className="text-xs font-medium text-muted-foreground mb-2">⚡ Acesso Rápido</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           {[
-            { name: 'Entrada do clube sem piscina', price: 20, icon: Ticket },
-            { name: 'Entrada com piscina', price: 50, icon: Waves },
-            { name: 'Entrada sem piscina (antiga)', price: 10, icon: Ticket },
-            { name: 'Entrada com piscina (antiga)', price: 30, icon: Waves },
+            { name: 'Entrada sem piscina (verão)', price: 20, icon: Ticket },
+            { name: 'Entrada com piscina (verão)', price: 50, icon: Waves },
+            { name: 'Entrada sem piscina (inverno)', price: 10, icon: Ticket },
+            { name: 'Entrada com piscina (inverno)', price: 30, icon: Waves },
+            { name: 'Criança 6-10 anos com piscina', price: 15, icon: Users },
             { name: 'Churrasqueira', price: 50, icon: Flame },
-            { name: 'Café da manhã', price: 45, icon: Coffee },
           ].map((quickItem) => {
             const menuItem = menuItems.find(item => 
               item.name.toLowerCase() === quickItem.name.toLowerCase()
