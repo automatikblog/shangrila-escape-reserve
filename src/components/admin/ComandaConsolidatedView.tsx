@@ -124,7 +124,10 @@ export const ComandaConsolidatedView: React.FC<ComandaConsolidatedViewProps> = (
         <Separator className="shrink-0" />
 
         {/* Items List */}
-        <ScrollArea className="flex-1 min-h-0">
+        <div
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           <div className="px-6 py-4">
             {consolidatedItems.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
@@ -148,7 +151,7 @@ export const ComandaConsolidatedView: React.FC<ComandaConsolidatedViewProps> = (
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         <Separator className="shrink-0" />
 
