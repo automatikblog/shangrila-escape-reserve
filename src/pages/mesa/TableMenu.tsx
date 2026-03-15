@@ -56,7 +56,7 @@ const TableMenuContent: React.FC = () => {
 
   // Group available menu items by category (already filtered by is_sellable and is_available from hook)
   const menuSections = useMemo(() => {
-    const availableItems = menuItems;
+    const availableItems = menuItems.filter(item => item.category !== 'servicos');
     const grouped: Record<string, typeof availableItems> = {};
     
     availableItems.forEach(item => {
