@@ -172,6 +172,7 @@ export const usePublicMenuProducts = () => {
         .from('menu_products')
         .select('*')
         .eq('is_available', true)
+        .neq('category', 'servicos')
         .order('category', { ascending: true })
         .order('name', { ascending: true });
 
