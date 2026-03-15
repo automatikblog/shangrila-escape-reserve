@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Comanda } from '@/hooks/useComandas';
 import { ShoppingBag, User, MapPin, Store, Clock, DollarSign, Users, Baby } from 'lucide-react';
 
@@ -75,7 +75,7 @@ export const ComandaConsolidatedView: React.FC<ComandaConsolidatedViewProps> = (
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[85vh] overflow-hidden p-0 flex flex-col [display:flex]">
+      <DialogContent className="max-w-md h-[85vh] overflow-hidden p-0 !flex !flex-col gap-0">
         <DialogHeader className="shrink-0 p-6 pb-4 text-center">
           <DialogTitle className="flex items-center justify-center gap-2 text-xl">
             <ShoppingBag className="h-5 w-5" />
@@ -124,7 +124,10 @@ export const ComandaConsolidatedView: React.FC<ComandaConsolidatedViewProps> = (
         <Separator className="shrink-0" />
 
         {/* Items List */}
-        <ScrollArea className="flex-1 min-h-0">
+        <div
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           <div className="px-6 py-4">
             {consolidatedItems.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
@@ -148,7 +151,7 @@ export const ComandaConsolidatedView: React.FC<ComandaConsolidatedViewProps> = (
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         <Separator className="shrink-0" />
 
