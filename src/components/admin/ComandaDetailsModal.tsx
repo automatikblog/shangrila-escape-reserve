@@ -686,6 +686,46 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
               ))
             )}
 
+            {/* Custom Item Section */}
+            <div className="space-y-2">
+              {!showCustomItemForm ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-2 border-dashed"
+                  onClick={() => setShowCustomItemForm(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Cobrar Item Avulso
+                </Button>
+              ) : (
+                <div className="p-3 rounded-lg border border-primary/30 bg-muted/30 space-y-2">
+                  <h4 className="text-sm font-medium">Novo item avulso</h4>
+                  <Input
+                    placeholder="Nome do item"
+                    value={customItemName}
+                    onChange={(e) => setCustomItemName(e.target.value)}
+                    autoFocus
+                  />
+                  <Input
+                    placeholder="Valor (R$)"
+                    value={customItemPrice}
+                    onChange={(e) => setCustomItemPrice(e.target.value)}
+                    inputMode="decimal"
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" className="flex-1" onClick={handleAddCustomItem} disabled={isAddingCustomItem}>
+                      <Check className="h-4 w-4 mr-1" />
+                      Adicionar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { setShowCustomItemForm(false); setCustomItemName(''); setCustomItemPrice(''); }}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Partial Payments Section */}
             {comanda.partial_payments.length > 0 && (
               <>
