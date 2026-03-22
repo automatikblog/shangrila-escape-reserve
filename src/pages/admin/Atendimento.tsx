@@ -97,6 +97,11 @@ const Atendimento: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Custom item (avulso) state
+  const [customItemName, setCustomItemName] = useState('');
+  const [customItemPrice, setCustomItemPrice] = useState('');
+  const [isAddingCustomItem, setIsAddingCustomItem] = useState(false);
+  
   // Comanda management
   const [selectedComanda, setSelectedComanda] = useState<Comanda | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
