@@ -49,6 +49,7 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   onUpdateDiscount,
   onUpdateItemQuantity,
   onDeleteItem,
+  refetch,
 }) => {
   const [showPartialPaymentForm, setShowPartialPaymentForm] = useState(false);
   const [partialAmount, setPartialAmount] = useState('');
