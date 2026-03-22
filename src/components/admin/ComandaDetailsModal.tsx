@@ -94,11 +94,6 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   const [editedName, setEditedName] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
 
-  // Custom item state
-  const [showCustomItemForm, setShowCustomItemForm] = useState(false);
-  const [customItemName, setCustomItemName] = useState('');
-  const [customItemPrice, setCustomItemPrice] = useState('');
-  const [isAddingCustomItem, setIsAddingCustomItem] = useState(false);
 
   // Initialize states when comanda changes
   useEffect(() => {
