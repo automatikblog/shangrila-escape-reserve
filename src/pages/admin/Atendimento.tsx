@@ -97,6 +97,11 @@ const Atendimento: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Custom item (avulso) state
+  const [customItemName, setCustomItemName] = useState('');
+  const [customItemPrice, setCustomItemPrice] = useState('');
+  const [isAddingCustomItem, setIsAddingCustomItem] = useState(false);
+  
   // Comanda management
   const [selectedComanda, setSelectedComanda] = useState<Comanda | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
@@ -860,6 +865,73 @@ const Atendimento: React.FC = () => {
                 });
             })()}
           </div>
+        </div>
+      )}
+
+      {/* Item Avulso - single line */}
+      {selectedComanda && (
+        <div className="flex items-center gap-2 p-2 bg-accent/20 rounded-lg border border-dashed border-primary/30">
+          <Plus className="h-4 w-4 text-primary shrink-0" />
+          <Input
+            placeholder="Item avulso"
+            value={customItemName}
+            onChange={(e) => setCustomItemName(e.target.value)}
+            className="h-7 text-xs flex-1 min-w-0"
+          />
+          <Input
+            placeholder="R$"
+            value={customItemPrice}
+            onChange={(e) => setCustomItemPrice(e.target.value)}
+            inputMode="decimal"
+            className="h-7 text-xs w-20 shrink-0"
+          />
+          <Button
+            size="sm"
+            className="h-7 px-3 text-xs shrink-0"
+            disabled={isAddingCustomItem || !customItemName.trim() || !customItemPrice.trim()}
+            onClick={async () => {
+              const name = customItemName.trim();
+              const price = parseFloat(customItemPrice.replace(',', '.'));
+              if (!name) { toast.error('Digite o nome do item'); return; }
+              if (isNaN(price) || price <= 0) { toast.error('Valor inválido'); return; }
+              setIsAddingCustomItem(true);
+              const { data: orderData, error: orderError } = await supabase
+                .from('orders')
+                .insert({
+                  table_id: selectedComanda.table_id,
+                  client_session_id: selectedComanda.session_id,
+                  status: 'delivered' as any,
+                  delivery_type: 'mesa',
+                })
+                .select('id')
+                .single();
+              if (orderError || !orderData) {
+                toast.error('Erro ao criar pedido avulso');
+                setIsAddingCustomItem(false);
+                return;
+              }
+              const { error: itemError } = await supabase
+                .from('order_items')
+                .insert({
+                  order_id: orderData.id,
+                  item_name: name,
+                  item_price: price,
+                  quantity: 1,
+                  category: 'avulso',
+                });
+              setIsAddingCustomItem(false);
+              if (itemError) {
+                toast.error('Erro ao adicionar item');
+                return;
+              }
+              toast.success(`"${name}" adicionado (R$ ${price.toFixed(2)})`);
+              setCustomItemName('');
+              setCustomItemPrice('');
+              refetchComandas();
+            }}
+          >
+            {isAddingCustomItem ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+          </Button>
         </div>
       )}
 

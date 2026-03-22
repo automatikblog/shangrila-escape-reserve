@@ -94,11 +94,6 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
   const [editedName, setEditedName] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
 
-  // Custom item state
-  const [showCustomItemForm, setShowCustomItemForm] = useState(false);
-  const [customItemName, setCustomItemName] = useState('');
-  const [customItemPrice, setCustomItemPrice] = useState('');
-  const [isAddingCustomItem, setIsAddingCustomItem] = useState(false);
 
   // Initialize states when comanda changes
   useEffect(() => {
@@ -151,55 +146,6 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
     refetch?.();
   };
 
-  // Handle add custom item
-  const handleAddCustomItem = async () => {
-    const name = customItemName.trim();
-    const price = parseFloat(customItemPrice.replace(',', '.'));
-    if (!name) { toast.error('Digite o nome do item'); return; }
-    if (isNaN(price) || price <= 0) { toast.error('Digite um valor válido'); return; }
-
-    setIsAddingCustomItem(true);
-    // Create order
-    const { data: orderData, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        table_id: comanda.table_id,
-        client_session_id: comanda.session_id,
-        status: 'delivered' as any,
-        delivery_type: 'mesa',
-      })
-      .select('id')
-      .single();
-
-    if (orderError || !orderData) {
-      toast.error('Erro ao criar pedido avulso');
-      setIsAddingCustomItem(false);
-      return;
-    }
-
-    // Create order item
-    const { error: itemError } = await supabase
-      .from('order_items')
-      .insert({
-        order_id: orderData.id,
-        item_name: name,
-        item_price: price,
-        quantity: 1,
-        category: 'avulso',
-      });
-
-    setIsAddingCustomItem(false);
-    if (itemError) {
-      toast.error('Erro ao adicionar item');
-      return;
-    }
-
-    toast.success(`"${name}" adicionado (R$ ${price.toFixed(2)})`);
-    setCustomItemName('');
-    setCustomItemPrice('');
-    setShowCustomItemForm(false);
-    refetch?.();
-  };
   const handleAddPartialPayment = async () => {
     const amount = parseFloat(partialAmount.replace(',', '.'));
     if (isNaN(amount) || amount <= 0) {
@@ -686,45 +632,6 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
               ))
             )}
 
-            {/* Custom Item Section */}
-            <div className="space-y-2">
-              {!showCustomItemForm ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full gap-2 border-dashed"
-                  onClick={() => setShowCustomItemForm(true)}
-                >
-                  <Plus className="h-4 w-4" />
-                  Cobrar Item Avulso
-                </Button>
-              ) : (
-                <div className="p-3 rounded-lg border border-primary/30 bg-muted/30 space-y-2">
-                  <h4 className="text-sm font-medium">Novo item avulso</h4>
-                  <Input
-                    placeholder="Nome do item"
-                    value={customItemName}
-                    onChange={(e) => setCustomItemName(e.target.value)}
-                    autoFocus
-                  />
-                  <Input
-                    placeholder="Valor (R$)"
-                    value={customItemPrice}
-                    onChange={(e) => setCustomItemPrice(e.target.value)}
-                    inputMode="decimal"
-                  />
-                  <div className="flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={handleAddCustomItem} disabled={isAddingCustomItem}>
-                      <Check className="h-4 w-4 mr-1" />
-                      Adicionar
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => { setShowCustomItemForm(false); setCustomItemName(''); setCustomItemPrice(''); }}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* Partial Payments Section */}
             {comanda.partial_payments.length > 0 && (
