@@ -199,7 +199,7 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
     setCustomItemPrice('');
     setShowCustomItemForm(false);
     refetch?.();
-
+  };
   const handleAddPartialPayment = async () => {
     const amount = parseFloat(partialAmount.replace(',', '.'));
     if (isNaN(amount) || amount <= 0) {
