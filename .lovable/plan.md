@@ -1,23 +1,38 @@
 
-## Remover Cafe da Manha da Pagina Principal
 
-### O que sera feito
+## Duas funcionalidades na Comanda
 
-Remover todas as referencias ao "Cafe da manha" na pagina principal do site (pagina publica). A area administrativa nao sera alterada.
+### 1. Alterar nome da comanda
 
-### Alteracoes
+Adicionar um botao de editar ao lado do nome no `ComandaDetailsModal`. Ao clicar, o nome vira um input editavel. Ao salvar, atualiza `client_sessions.client_name` no banco e faz refresh.
 
-**1. `src/components/Pricing.tsx`**
-- Remover o card "Cafe da Manha" (R$ 45) do array `pricingOptions`
-- O grid passara de 4 colunas para 3 colunas (`lg:grid-cols-3`)
+**Arquivo: `src/components/admin/ComandaDetailsModal.tsx`**
+- Adicionar estado `editingName` / `editedName`
+- No header (linha 336), ao lado do nome, colocar icone de lapis. Ao clicar, mostrar Input + botoes salvar/cancelar
+- Ao salvar, fazer `supabase.from('client_sessions').update({ client_name }).eq('id', sessionId)` e chamar toast + refetch
 
-**2. `src/components/Reservas.tsx`**
-- Remover a opcao "cafe" do dropdown de tipo de reserva (linhas 342-353)
-- Remover a mencao "Cafe da manha: 30 vagas" do aviso de vagas limitadas (linha 260)
-- Remover a validacao "Cafe so aos domingos" do handleSubmit (linhas 165-169)
-- Remover a logica de resetar tipo de reserva quando muda de/para domingo (linhas 78-80)
-- Remover a funcao `isSunday` que so era usada para o cafe (linhas 69-71)
+### 2. Item avulso (cobrar na hora)
 
-### O que NAO sera alterado
-- Paginas administrativas (admin/Reservations.tsx, ReservationFormModal.tsx) continuam com cafe
-- Hook `useReservations.ts` mantem os dados do cafe para o admin
+Adicionar botao "Item Avulso" no modal da comanda que permite criar um pedido com nome e valor customizado, sem vincular a menu_items ou estoque.
+
+**Arquivo: `src/components/admin/ComandaDetailsModal.tsx`**
+- Adicionar botao "Cobrar Item Avulso" (icone Plus) na area de pedidos
+- Ao clicar, mostra mini-form inline com: nome do item (text) e valor (number)
+- Ao confirmar, cria um pedido via:
+  1. `INSERT INTO orders` (table_id da comanda, client_session_id, status 'delivered', delivery_type 'mesa')
+  2. `INSERT INTO order_items` (item_name, item_price, quantity 1, category 'avulso', menu_item_id NULL)
+- Sem decrementar estoque (menu_item_id = null)
+- Apos inserir, chama refetch/debouncedFetch para o valor aparecer na comanda
+
+**Arquivo: `src/hooks/useComandas.ts`**
+- Nenhuma alteracao necessaria - ja suporta items sem menu_item_id
+
+**Banco de dados:**
+- Nenhuma migracao necessaria - `order_items.menu_item_id` ja e nullable
+
+### Resumo tecnico
+- 2 features no mesmo componente `ComandaDetailsModal`
+- Sem alteracao de schema
+- Item avulso usa category 'avulso' para diferenciar visualmente
+- O valor do item avulso soma normalmente na comanda pois ja e um order_item como qualquer outro
+
