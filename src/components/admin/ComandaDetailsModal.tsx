@@ -632,7 +632,6 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
               ))
             )}
 
-            </div>
 
             {/* Partial Payments Section */}
             {comanda.partial_payments.length > 0 && (
