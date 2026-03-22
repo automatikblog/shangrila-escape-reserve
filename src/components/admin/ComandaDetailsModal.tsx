@@ -28,6 +28,7 @@ interface ComandaDetailsModalProps {
   onUpdateDiscount?: (sessionId: string, discount: number) => Promise<boolean>;
   onUpdateItemQuantity?: (itemId: string, newQuantity: number) => Promise<boolean>;
   onDeleteItem?: (itemId: string) => Promise<boolean>;
+  refetch?: () => void;
 }
 
 const PAYMENT_METHODS = [
