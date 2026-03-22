@@ -129,6 +129,77 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
     });
   };
 
+  // Handle save client name
+  const handleSaveName = async () => {
+    const trimmed = editedName.trim();
+    if (!trimmed) {
+      toast.error('Nome não pode ser vazio');
+      return;
+    }
+    setIsSavingName(true);
+    const { error } = await supabase
+      .from('client_sessions')
+      .update({ client_name: trimmed })
+      .eq('id', comanda.session_id);
+    setIsSavingName(false);
+    if (error) {
+      toast.error('Erro ao alterar nome');
+      return;
+    }
+    toast.success('Nome alterado');
+    setEditingName(false);
+    refetch?.();
+  };
+
+  // Handle add custom item
+  const handleAddCustomItem = async () => {
+    const name = customItemName.trim();
+    const price = parseFloat(customItemPrice.replace(',', '.'));
+    if (!name) { toast.error('Digite o nome do item'); return; }
+    if (isNaN(price) || price <= 0) { toast.error('Digite um valor válido'); return; }
+
+    setIsAddingCustomItem(true);
+    // Create order
+    const { data: orderData, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        table_id: comanda.table_id,
+        client_session_id: comanda.session_id,
+        status: 'delivered' as any,
+        delivery_type: 'mesa',
+      })
+      .select('id')
+      .single();
+
+    if (orderError || !orderData) {
+      toast.error('Erro ao criar pedido avulso');
+      setIsAddingCustomItem(false);
+      return;
+    }
+
+    // Create order item
+    const { error: itemError } = await supabase
+      .from('order_items')
+      .insert({
+        order_id: orderData.id,
+        item_name: name,
+        item_price: price,
+        quantity: 1,
+        category: 'avulso',
+      });
+
+    setIsAddingCustomItem(false);
+    if (itemError) {
+      toast.error('Erro ao adicionar item');
+      return;
+    }
+
+    toast.success(`"${name}" adicionado (R$ ${price.toFixed(2)})`);
+    setCustomItemName('');
+    setCustomItemPrice('');
+    setShowCustomItemForm(false);
+    refetch?.();
+
   const handleAddPartialPayment = async () => {
     const amount = parseFloat(partialAmount.replace(',', '.'));
     if (isNaN(amount) || amount <= 0) {
