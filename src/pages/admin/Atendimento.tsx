@@ -1251,6 +1251,7 @@ const Atendimento: React.FC = () => {
         onUpdateDiscount={updateDiscount}
         onUpdateItemQuantity={updateItemQuantity}
         onDeleteItem={deleteItem}
+        refetch={refetchComandas}
       />
       
       <CustomItemModal
