@@ -417,7 +417,30 @@ export const ComandaDetailsModal: React.FC<ComandaDetailsModalProps> = ({
         <DialogHeader className="shrink-0 p-6 pb-0">
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Comanda - {comanda.client_name}
+            {editingName ? (
+              <div className="flex items-center gap-2 flex-1">
+                <Input
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  className="h-8 text-base font-semibold"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false); }}
+                />
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleSaveName} disabled={isSavingName}>
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingName(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                Comanda - {comanda.client_name}
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setEditedName(comanda.client_name); setEditingName(true); }}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
           </DialogTitle>
         </DialogHeader>
 
