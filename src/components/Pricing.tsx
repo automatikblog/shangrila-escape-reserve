@@ -2,12 +2,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Clock, MessageCircle, DollarSign, Gift, Users, Calendar } from "lucide-react";
 const pricingOptions = [{
   title: "Entrada do Clube",
-  price: "R$ 10",
+  price: "R$ 20",
   description: "Acesso às áreas de lazer",
   features: ["Playground", "Áreas de convivência"]
 }, {
-  title: "Piscina",
-  price: "R$ 20",
+  title: "Entrada + Piscina",
+  price: "R$ 35",
   description: "Acesso completo à piscina",
   features: ["Inclui entrada do clube", "Uso da piscina", "Banheiros"],
   popular: true
