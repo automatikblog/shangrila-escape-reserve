@@ -9,6 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Lock } from 'lucide-react';
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client';
+
+const RESET_ALLOWED_EMAIL = 'clubedelazershangrila@gmail.com';
 
 const authSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -19,6 +22,7 @@ const AdminLogin: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showReset, setShowReset] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   
   const { signIn, signUp, user, isAdmin, isStaff, isLoading } = useAuth();
@@ -58,6 +62,7 @@ const AdminLogin: React.FC = () => {
     setIsSubmitting(false);
 
     if (error) {
+      if (email.trim().toLowerCase() === RESET_ALLOWED_EMAIL) setShowReset(true);
       toast({
         title: 'Erro ao entrar',
         description: error.message === 'Invalid login credentials' 
@@ -66,6 +71,18 @@ const AdminLogin: React.FC = () => {
         variant: 'destructive'
       });
     }
+  };
+
+  const handleSendReset = async () => {
+    if (email.trim().toLowerCase() !== RESET_ALLOWED_EMAIL) return;
+    setIsSubmitting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(RESET_ALLOWED_EMAIL, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setIsSubmitting(false);
+    toast(error
+      ? { title: 'Erro ao enviar', description: error.message, variant: 'destructive' }
+      : { title: 'Email enviado!', description: 'Verifique a caixa de entrada para criar uma nova senha.' });
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -148,6 +165,11 @@ const AdminLogin: React.FC = () => {
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                   {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Entrar'}
                 </Button>
+                {showReset && email.trim().toLowerCase() === RESET_ALLOWED_EMAIL && (
+                  <Button type="button" variant="outline" className="w-full" disabled={isSubmitting} onClick={handleSendReset}>
+                    Enviar link para criar nova senha
+                  </Button>
+                )}
               </form>
             </TabsContent>
             
