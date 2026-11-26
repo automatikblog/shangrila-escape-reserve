@@ -184,110 +184,110 @@ async function printToElgin(data) {
   });
 }
 
-async function processPrintJob(job) {
-  console.log(`\n[JOB] Processando job ${job.id}...`);
-  console.log(`[JOB] Tipo: ${job.job_type}`);
-  
+async function processPrintJob(jobId) {
+  const { data: job, error: claimError } = await supabase
+    .from('print_jobs')
+    .update({ status: 'printing' })
+    .eq('id', jobId)
+    .eq('status', 'pending')
+    .select('id, job_type, payload')
+    .maybeSingle();
+
+  if (claimError) {
+    throw new Error(`Não foi possível assumir a comanda: ${claimError.message}`);
+  }
+  if (!job) return;
+
+  console.log(`[JOB] Processando ${job.id} (${job.job_type})...`);
+
+  let result;
   try {
-    // Mark as printing
-    await supabase
-      .from('print_jobs')
-      .update({ status: 'printing' })
-      .eq('id', job.id);
-    
-    // Build ticket
-    const ticketData = buildOrderTicket(job.payload);
-    
-    // Send to printer
-    await printToElgin(ticketData);
-    
-    // Mark as completed
-    await supabase
-      .from('print_jobs')
-      .update({ 
-        status: 'completed',
-        printed_at: new Date().toISOString()
-      })
-      .eq('id', job.id);
-    
-    console.log(`[JOB] Job ${job.id} concluido com sucesso!`);
-    
+    await printToElgin(buildOrderTicket(job.payload));
+    result = { status: 'completed', printed_at: new Date().toISOString() };
   } catch (error) {
-    console.error(`[JOB] Erro ao processar job ${job.id}:`, error.message);
-    
-    // Mark as failed
-    await supabase
-      .from('print_jobs')
-      .update({ 
-        status: 'failed',
-        error_message: error.message
-      })
-      .eq('id', job.id);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[JOB] Erro ao imprimir ${job.id}: ${message}`);
+    result = { status: 'failed', error_message: message };
+  }
+
+  const { error: finishError } = await supabase
+    .from('print_jobs')
+    .update(result)
+    .eq('id', job.id)
+    .eq('status', 'printing');
+  if (finishError) {
+    throw new Error(`Confira a impressão antes de reenviar a comanda: ${finishError.message}`);
+  }
+  if (result.status === 'completed') {
+    console.log(`[JOB] Job ${job.id} concluído!`);
   }
 }
 
 async function processPendingJobs() {
-  console.log('[STARTUP] Verificando jobs pendentes...');
-  
   const { data: pendingJobs, error } = await supabase
     .from('print_jobs')
-    .select('*')
+    .select('id')
     .eq('status', 'pending')
     .order('created_at', { ascending: true });
-  
-  if (error) {
-    console.error('[STARTUP] Erro ao buscar jobs pendentes:', error);
-    return;
-  }
-  
-  if (pendingJobs && pendingJobs.length > 0) {
-    console.log(`[STARTUP] ${pendingJobs.length} job(s) pendente(s) encontrado(s)`);
-    
-    for (const job of pendingJobs) {
-      await processPrintJob(job);
+
+  if (error) throw new Error(error.message);
+
+  for (const job of pendingJobs ?? []) {
+    try {
+      await processPrintJob(job.id);
+    } catch (error) {
+      console.error(`[JOB] Erro na comanda ${job.id}:`, error);
     }
-  } else {
-    console.log('[STARTUP] Nenhum job pendente');
   }
 }
 
-async function startRealtimeSubscription() {
-  console.log('[REALTIME] Iniciando monitoramento de novos jobs...');
-  
-  const channel = supabase
+let drainRequested = false;
+let draining = false;
+
+async function requestQueueDrain() {
+  drainRequested = true;
+  if (draining) return;
+
+  draining = true;
+  try {
+    while (drainRequested) {
+      drainRequested = false;
+      await processPendingJobs();
+    }
+  } catch (error) {
+    console.error('[QUEUE] Erro ao consultar comandas pendentes:', error);
+  } finally {
+    draining = false;
+  }
+}
+
+function startRealtimeSubscription() {
+  return supabase
     .channel('print-jobs-channel')
     .on(
       'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'print_jobs'
-      },
-      async (payload) => {
-        console.log('[REALTIME] Novo job de impressao detectado!');
-        await processPrintJob(payload.new);
-      }
+      { event: 'INSERT', schema: 'public', table: 'print_jobs' },
+      requestQueueDrain
     )
     .subscribe((status) => {
       console.log(`[REALTIME] Status da subscription: ${status}`);
+      if (status === 'SUBSCRIBED') void requestQueueDrain();
     });
-  
-  return channel;
 }
 
-async function main() {
+function main() {
   console.log('========================================');
   console.log('  SERVIDOR DE IMPRESSAO - SHANGRI-LA   ');
   console.log('========================================');
   console.log(`Impressora: ${PRINTER_IP}:${PRINTER_PORT}`);
   console.log('');
-  
-  // Process any pending jobs first
-  await processPendingJobs();
-  
-  // Start realtime monitoring
-  await startRealtimeSubscription();
-  
+
+  startRealtimeSubscription();
+  void requestQueueDrain();
+
+  // Realtime notifica sobre novos pedidos; a consulta periódica cobre eventos perdidos.
+  setInterval(requestQueueDrain, 30_000);
+
   console.log('\n[READY] Servidor pronto! Aguardando novos pedidos...\n');
 }
 
@@ -297,4 +297,4 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-main().catch(console.error);
+main();
