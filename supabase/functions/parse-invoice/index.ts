@@ -1,40 +1,83 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.86.2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+  if (req.method !== "POST") {
+    return json({ error: "Method not allowed", items: [] }, 405);
+  }
+
+  const authorization = req.headers.get("Authorization");
+  const token = authorization?.match(/^Bearer\s+(\S+)$/i)?.[1];
+  if (!authorization || !token) {
+    return json({ error: "Authentication required", items: [] }, 401);
   }
 
   try {
-    const { image } = await req.json();
-    
-    if (!image) {
-      return new Response(JSON.stringify({ error: 'Image is required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      {
+        global: { headers: { Authorization: authorization } },
+        auth: { autoRefreshToken: false, persistSession: false },
+      },
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return json({ error: "Authentication required", items: [] }, 401);
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    const { data: roles, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .in("role", ["admin", "staff"])
+      .limit(1);
+    if (roleError) {
+      console.error("Could not verify invoice-import role:", roleError.code);
+      return json({ error: "Could not verify access", items: [] }, 500);
+    }
+    if (!roles?.length) {
+      return json({ error: "Staff access required", items: [] }, 403);
     }
 
-    console.log('Parsing invoice image with AI...');
+    const payload = await req.json().catch(() => null);
+    const image = payload?.image;
+    if (typeof image !== "string" || !/^data:image\/[\w.+-]+;base64,/i.test(image)) {
+      return json({ error: "A base64 image is required", items: [] }, 400);
+    }
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
+    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    const model = Deno.env.get("GEMINI_MODEL");
+    if (!apiKey || !model) {
+      console.error("Invoice provider configuration is missing");
+      return json({ error: "Invoice provider is not configured", items: [] }, 503);
+    }
+
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model,
+        response_format: { type: "json_object" },
         messages: [
           {
             role: 'system',
@@ -92,41 +135,28 @@ Não inclua explicações, apenas o JSON.`
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI Gateway error:', response.status, errorText);
-      throw new Error(`AI Gateway error: ${response.status}`);
+      console.error("Invoice provider returned HTTP", response.status);
+      return json({ error: "Invoice provider request failed", items: [] }, 502);
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '{ "items": [] }';
-    
-    console.log('AI Response:', content);
-
-    // Parse the JSON response
-    let parsedContent;
-    try {
-      // Try to extract JSON from the response (it might have markdown code blocks)
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsedContent = JSON.parse(jsonMatch[0]);
-      } else {
-        parsedContent = { items: [] };
-      }
-    } catch (parseError) {
-      console.error('Error parsing AI response:', parseError);
-      parsedContent = { items: [] };
+    const content = data.choices?.[0]?.message?.content;
+    if (typeof content !== "string") {
+      return json({ error: "Invalid invoice provider response", items: [] }, 502);
     }
 
-    return new Response(JSON.stringify(parsedContent), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  } catch (error: unknown) {
-    console.error('Error in parse-invoice:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: errorMessage, items: [] }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    let result;
+    try {
+      result = JSON.parse(content);
+    } catch {
+      return json({ error: "Invalid invoice provider response", items: [] }, 502);
+    }
+    if (!Array.isArray(result?.items)) {
+      return json({ error: "Invalid invoice provider response", items: [] }, 502);
+    }
+    return json({ items: result.items });
+  } catch {
+    console.error("Unexpected error in invoice import");
+    return json({ error: "Invoice import failed", items: [] }, 500);
   }
 });
